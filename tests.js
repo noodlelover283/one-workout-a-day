@@ -1,0 +1,416 @@
+// Tests for One Workout a Day. Serve the folder (python -m http.server) and open /tests.html in a
+// browser: every test is listed as a pass or fail, and the page title shows the total.
+
+const results = [];
+
+function test(name, body) {
+  try {
+    body();
+    results.push({ name, error: null });
+  } catch (error) {
+    results.push({ name, error });
+  }
+}
+
+function assertEqual(actual, expected, message = "") {
+  const a = JSON.stringify(actual);
+  const e = JSON.stringify(expected);
+  if (a !== e) throw new Error(`${message} expected ${e} but got ${a}`.trim());
+}
+
+const PLURAL_SUFFIX = /\.(zero|one|two|few|many|other)$/;
+// Plural forms differ per language, so compare them as one entry ("reps") instead of one per form.
+const baseKeys = (strings) => [...new Set(Object.keys(strings).map((key) => key.replace(PLURAL_SUFFIX, "")))];
+const placeholders = (text) => (text.match(/\{\w+\}/g) || []).sort();
+
+// ---------- Exercise demonstrations ----------
+
+test("a built-in exercise links straight to its tutorial video", () => {
+  assertEqual(Logic.demoUrl("Squat"), "https://www.youtube.com/watch?v=gcNh17Ckjgg");
+});
+
+test("every built-in exercise has a video", () => {
+  for (const exercise of Object.keys(Logic.DEFAULT_EXERCISES)) {
+    if (!Logic.demoUrl(exercise).includes("/watch?v=")) throw new Error(`${exercise} has no video`);
+  }
+});
+
+test("a custom exercise links to a YouTube search for its name", () => {
+  assertEqual(Logic.demoUrl("  Cable   Fly "), "https://www.youtube.com/results?search_query=Cable%20Fly%20proper%20form");
+});
+
+test("a custom exercise named like an object property still gets a search", () => {
+  assertEqual(Logic.demoUrl("constructor").includes("/results?search_query="), true);
+});
+
+test("every built-in exercise has a form tip and a name in every language", () => {
+  for (const [code, language] of Object.entries(registeredLanguages)) {
+    for (const exercise of Object.keys(Logic.DEFAULT_EXERCISES)) {
+      for (const key of [`tip.${exercise}`, `exercise.${exercise}`]) {
+        if (!language.strings[key]) throw new Error(`${code} is missing "${key}"`);
+      }
+    }
+  }
+});
+
+// ---------- Translations ----------
+
+test("every language has exactly the same texts as English", () => {
+  const english = baseKeys(registeredLanguages.en.strings);
+  for (const [code, language] of Object.entries(registeredLanguages)) {
+    const own = baseKeys(language.strings);
+    const missing = english.filter((key) => !own.includes(key));
+    const extra = own.filter((key) => !english.includes(key));
+    if (missing.length || extra.length) throw new Error(`${code}: missing ${missing}, extra ${extra}`);
+  }
+});
+
+test("every translation keeps the same {placeholders} as English", () => {
+  const english = registeredLanguages.en.strings;
+  for (const [code, language] of Object.entries(registeredLanguages)) {
+    for (const [key, text] of Object.entries(language.strings)) {
+      const source = english[key] !== undefined ? english[key] : english[key.replace(PLURAL_SUFFIX, ".other")];
+      if (source === undefined) continue;
+      // Some languages write "one rep" in words, so a singular form may leave out {count}.
+      if (PLURAL_SUFFIX.test(key) && !key.endsWith(".other") && !text.includes("{count}")) continue;
+      assertEqual(placeholders(text), placeholders(source), `${code} "${key}":`);
+    }
+  }
+});
+
+test("every language has a name, a locale and a text direction", () => {
+  for (const [code, language] of Object.entries(registeredLanguages)) {
+    if (!language.name || !language.locale || !["ltr", "rtl"].includes(language.dir)) throw new Error(code);
+  }
+});
+
+// ---------- Weight suggestions ----------
+
+const set = (date, weight, reps, exercise = "Bench Press") => ({ exercise, date, weight, reps });
+
+test("suggests a heavier weight once every top set reaches the rep goal", () => {
+  const entries = [set("2026-10-01", 135, 8), set("2026-10-01", 135, 9)];
+  const suggestion = Logic.suggestNext(entries, "Bench Press", 8, 5);
+  assertEqual([suggestion.weight, suggestion.reps, suggestion.increased], [140, 8, true]);
+});
+
+test("repeats the weight and aims for one more rep when the goal was missed", () => {
+  const entries = [set("2026-10-01", 135, 8), set("2026-10-01", 135, 6)];
+  const suggestion = Logic.suggestNext(entries, "Bench Press", 8, 5);
+  assertEqual([suggestion.weight, suggestion.reps, suggestion.increased], [135, 7, false]);
+});
+
+test("only the heaviest weight decides the suggestion", () => {
+  const entries = [set("2026-10-01", 115, 4), set("2026-10-01", 135, 8)];
+  assertEqual(Logic.suggestNext(entries, "Bench Press", 8, 5).weight, 140);
+});
+
+test("no suggestion for an exercise that was never logged", () => {
+  assertEqual(Logic.suggestNext([set("2026-10-01", 135, 8)], "Squat", 8, 10), null);
+});
+
+// ---------- Plateau check ----------
+
+const muscleOf = (exercise) => Logic.DEFAULT_EXERCISES[exercise];
+
+test("a muscle group with no new weight record for 21 days is stalled", () => {
+  const entries = [set("2026-08-01", 100, 8), set("2026-08-10", 110, 8), set("2026-08-20", 110, 8), set("2026-09-05", 105, 8)];
+  const [status] = Logic.plateauStatus(entries, muscleOf, "2026-09-20");
+  assertEqual([status.group, status.state], ["Chest", "stalled"]);
+});
+
+test("a recent weight record means the group is progressing", () => {
+  const entries = [set("2026-08-01", 100, 8), set("2026-08-10", 105, 8), set("2026-09-15", 110, 8)];
+  assertEqual(Logic.plateauStatus(entries, muscleOf, "2026-09-20")[0].state, "progressing");
+});
+
+test("a group trained on fewer than three days is too new to judge", () => {
+  const entries = [set("2026-08-01", 100, 8), set("2026-08-10", 100, 8)];
+  assertEqual(Logic.plateauStatus(entries, muscleOf, "2026-10-20")[0].state, "new");
+});
+
+test("each muscle group can have its own stall time", () => {
+  const entries = [set("2026-08-01", 100, 8), set("2026-08-10", 110, 8), set("2026-08-20", 110, 8)];
+  const state = (days) => Logic.plateauStatus(entries, muscleOf, "2026-09-05", () => days)[0].state;
+  assertEqual([state(14), state(30)], ["stalled", "progressing"]);
+});
+
+// ---------- Input checks ----------
+
+test("rejects a blank exercise name, a negative weight and zero reps", () => {
+  assertEqual(Logic.validateEntry({ exercise: "  ", weight: 100, reps: 5 }), "error.exerciseName");
+  assertEqual(Logic.validateEntry({ exercise: "Squat", weight: -5, reps: 5 }), "error.weight");
+  assertEqual(Logic.validateEntry({ exercise: "Squat", weight: 100, reps: 0 }), "error.reps");
+  assertEqual(Logic.validateEntry({ exercise: "Squat", weight: 100, reps: 5 }), "");
+});
+
+test("accepts a bodyweight set of 0", () => {
+  assertEqual(Logic.validateEntry({ exercise: "Pull-Up", weight: 0, reps: 8 }), "");
+});
+
+test("rest time must be between 5 and 3600 whole seconds", () => {
+  const errors = [4, 5, 3600, 3601, 90.5].map(Logic.validateRestSeconds);
+  assertEqual(errors, ["error.restSeconds", "", "", "error.restSeconds", "error.restSeconds"]);
+});
+
+test("a routine needs a name and at least one exercise", () => {
+  assertEqual(Logic.validateRoutine({ name: "", exercises: ["Squat"] }) !== "", true);
+  assertEqual(Logic.validateRoutine({ name: "Legs", exercises: [] }) !== "", true);
+  assertEqual(Logic.validateRoutine({ name: "Legs", exercises: ["Squat"] }), "");
+});
+
+// ---------- Saved data and helpers ----------
+
+test("old '3 sets of 8' entries are split into separate sets", () => {
+  const migrated = Logic.migrateEntries([{ id: "a", exercise: "Squat", date: "2026-10-01", weight: 100, reps: 8, sets: 3 }]);
+  assertEqual(migrated.map((entry) => entry.id), ["a-1", "a-2", "a-3"]);
+  assertEqual(migrated.every((entry) => entry.sets === undefined), true);
+});
+
+test("exercise names match regardless of case and extra spaces", () => {
+  assertEqual(Logic.findKnownExercise("  bench   PRESS ", {}), "Bench Press");
+  assertEqual(Logic.findKnownExercise("Cable Fly", {}), null);
+});
+
+test("weights convert between pounds and kilograms", () => {
+  assertEqual(Logic.formatWeight(Logic.toLb(60, "kg"), "kg"), "60");
+  assertEqual(Logic.formatWeight(135, "lb"), "135");
+});
+
+test("the rest clock shows minutes and seconds", () => {
+  assertEqual([90, 5, 0, -3, 59.2].map(Logic.formatClock), ["1:30", "0:05", "0:00", "0:00", "1:00"]);
+});
+
+test("bad saved display settings fall back to the defaults", () => {
+  assertEqual(Logic.sanitizeAppearance({ theme: "neon", textSize: 999 }), Logic.DEFAULT_APPEARANCE);
+  assertEqual(Logic.sanitizeAppearance({ theme: "dark", textSize: 150 }), { theme: "dark", textSize: 150 });
+});
+
+// ---------- Strength levels ----------
+
+test("every lift has five rising level thresholds, and women's are lower than men's", () => {
+  for (const lift of Logic.STRENGTH_LIFTS) {
+    for (const sex of Logic.STRENGTH_SEXES) {
+      const thresholds = Logic.STRENGTH_STANDARDS[sex][lift];
+      assertEqual(thresholds.length, Logic.STRENGTH_LEVELS.length, `${sex} ${lift}:`);
+      if (!thresholds.every((value, i) => i === 0 || value > thresholds[i - 1])) throw new Error(`${sex} ${lift} does not rise`);
+    }
+    Logic.STRENGTH_STANDARDS.male[lift].forEach((value, i) => {
+      if (Logic.STRENGTH_STANDARDS.female[lift][i] >= value) throw new Error(`female ${lift} level ${i} is not lower`);
+    });
+  }
+});
+
+test("a lift is placed at the highest level whose ratio it reaches, with the next target", () => {
+  // Male bench: Intermediate needs 1.1x, Advanced 1.35x. An 80 lb bodyweight and an 88 lb max is 1.1x.
+  const result = Logic.strengthLevel("male", "Bench Press", 88, 80);
+  assertEqual([result.level, result.next.level, Math.round(result.next.weight)], ["Intermediate", "Advanced", 108]);
+});
+
+test("below the first level, at exactly a level, and at the top", () => {
+  assertEqual(Logic.strengthLevel("male", "Squat", 30, 100).level, null);
+  assertEqual(Logic.strengthLevel("male", "Squat", 30, 100).next.level, "Beginner");
+  assertEqual(Logic.strengthLevel("female", "Deadlift", 130, 100).level, "Intermediate");
+  const top = Logic.strengthLevel("male", "Deadlift", 300, 100);
+  assertEqual([top.level, top.next], ["Elite", null]);
+});
+
+test("no comparison without a sex, a known lift or a bodyweight", () => {
+  assertEqual(Logic.strengthLevel("", "Squat", 200, 80), null);
+  assertEqual(Logic.strengthLevel("male", "Bicep Curl", 50, 80), null);
+  assertEqual(Logic.strengthLevel("male", "Squat", 200, 0), null);
+});
+
+test("the latest bodyweight is the one with the newest date", () => {
+  assertEqual(Logic.latestBodyweight([{ date: "2026-10-05", weight: 170 }, { date: "2026-10-09", weight: 168 }, { date: "2026-09-01", weight: 175 }]), 168);
+  assertEqual(Logic.latestBodyweight([]), null);
+});
+
+// ---------- Body measurements ----------
+
+test("lengths convert between inches and centimetres with the weight toggle", () => {
+  assertEqual([Logic.lengthUnitFor("lb"), Logic.lengthUnitFor("kg")], ["in", "cm"]);
+  assertEqual(Logic.formatLength(Logic.lengthToCm(32, "lb"), "lb"), "32");
+  assertEqual(Logic.formatLength(81.28, "lb"), "32");
+  assertEqual([Logic.formatLength(81.28, "kg"), Logic.lengthToCm(81.28, "kg")], ["81.3", 81.28]);
+});
+
+test("a measurement must be above 0 and at most 300 cm", () => {
+  assertEqual([0, -4, NaN, 80, 300, 301].map(Logic.validateMeasurement), ["error.measurement", "error.measurement", "error.measurement", "", "", "error.measurement"]);
+});
+
+test("adding a measurement again on the same day replaces it, other names and days are kept", () => {
+  const first = Logic.setMeasurement([], { date: "2026-10-01", name: "Waist", cm: 82 });
+  const more = Logic.setMeasurement(first, { date: "2026-10-01", name: "Chest", cm: 100 });
+  const again = Logic.setMeasurement(more, { date: "2026-10-01", name: "Waist", cm: 81 });
+  assertEqual(again.map((m) => [m.name, m.cm]).sort(), [["Chest", 100], ["Waist", 81]]);
+  assertEqual(first.length, 1, "the original list must not change:");
+});
+
+test("a measurement series has one name only, oldest first", () => {
+  const list = [
+    { date: "2026-10-05", name: "Waist", cm: 80 },
+    { date: "2026-10-01", name: "Waist", cm: 82 },
+    { date: "2026-10-03", name: "Chest", cm: 100 },
+  ];
+  assertEqual(Logic.measurementSeries(list, "Waist"), [{ date: "2026-10-01", value: 82 }, { date: "2026-10-05", value: 80 }]);
+});
+
+test("bad saved measurements are dropped", () => {
+  const good = { date: "2026-10-01", name: "Waist", cm: 82 };
+  const saved = [good, { date: "2026-10-01", name: "Elbow", cm: 30 }, { date: "bad", name: "Waist", cm: 82 }, { date: "2026-10-02", name: "Waist", cm: "82" }, null];
+  assertEqual(Logic.sanitizeMeasurements(saved), [good]);
+  assertEqual(Logic.sanitizeMeasurements(undefined), []);
+});
+
+// ---------- Calendar ----------
+
+test("a month is laid out in whole weeks with the right first weekday", () => {
+  // 1 October 2026 is a Thursday.
+  const sundayFirst = Logic.monthCells(2026, 9, 0);
+  const mondayFirst = Logic.monthCells(2026, 9, 1);
+  assertEqual([sundayFirst.length, sundayFirst.indexOf("2026-10-01"), sundayFirst.filter(Boolean).length], [35, 4, 31]);
+  assertEqual([mondayFirst.length, mondayFirst.indexOf("2026-10-01")], [35, 3]);
+});
+
+test("a month that needs six rows gets six rows, and February has 28 or 29 days", () => {
+  assertEqual(Logic.monthCells(2026, 7, 0).length, 42); // August 2026 starts on a Saturday
+  assertEqual([Logic.monthCells(2026, 1, 0).filter(Boolean).length, Logic.monthCells(2028, 1, 0).filter(Boolean).length], [28, 29]);
+});
+
+test("a streak counts the days in a row back from today", () => {
+  const days = new Set(["2026-10-09", "2026-10-10", "2026-10-11", "2026-10-07"]);
+  assertEqual(Logic.currentStreak(days, "2026-10-11"), 3);
+});
+
+test("a streak is not broken just because today has no workout yet", () => {
+  assertEqual(Logic.currentStreak(new Set(["2026-10-09", "2026-10-10"]), "2026-10-11"), 2);
+});
+
+test("a streak is over after a full day without a workout, and counts across month ends", () => {
+  assertEqual(Logic.currentStreak(new Set(["2026-10-08"]), "2026-10-11"), 0);
+  assertEqual(Logic.currentStreak(new Set(["2026-09-30", "2026-10-01", "2026-10-02"]), "2026-10-02"), 3);
+  assertEqual(Logic.currentStreak(new Set(), "2026-10-11"), 0);
+});
+
+// ---------- Workout notes ----------
+
+test("a note is saved for its day, trimmed, and an empty note removes it", () => {
+  const notes = Logic.setNote({}, "2026-10-11", "  Slept badly  ");
+  assertEqual(notes, { "2026-10-11": "Slept badly" });
+  assertEqual(Logic.setNote(notes, "2026-10-12", "Felt strong"), { "2026-10-11": "Slept badly", "2026-10-12": "Felt strong" });
+  assertEqual(Logic.setNote(notes, "2026-10-11", "   "), {});
+  assertEqual(notes, { "2026-10-11": "Slept badly" }, "the original notes must not change:");
+});
+
+test("a very long note is cut to the limit", () => {
+  const note = Logic.setNote({}, "2026-10-11", "x".repeat(Logic.NOTE_MAX_LENGTH + 500))["2026-10-11"];
+  assertEqual(note.length, Logic.NOTE_MAX_LENGTH);
+});
+
+test("bad saved notes are dropped and good ones kept", () => {
+  assertEqual(Logic.sanitizeNotes({ "2026-10-11": " ok ", yesterday: "bad date", "2026-10-12": 5, "2026-10-13": "  " }), { "2026-10-11": "ok" });
+  assertEqual([Logic.sanitizeNotes(undefined), Logic.sanitizeNotes("text"), Logic.sanitizeNotes(null)], [{}, {}, {}]);
+});
+
+// ---------- Estimated one-rep max ----------
+
+test("the one-rep max estimate follows the Epley formula", () => {
+  assertEqual(Logic.estimateOneRepMax(200, 1), 200);
+  assertEqual(Logic.estimateOneRepMax(150, 6), 180);
+  assertEqual(Math.round(Logic.estimateOneRepMax(145, 8) * 10) / 10, 183.7);
+});
+
+test("the best estimate comes from whichever set gives the highest number, not the heaviest", () => {
+  const entries = [set("2026-10-01", 145, 3), set("2026-10-05", 130, 12), set("2026-10-06", 100, 5, "Squat")];
+  const best = Logic.bestOneRepMax(entries, "Bench Press");
+  assertEqual([best.weight, best.reps, best.date], [130, 12, "2026-10-05"]);
+});
+
+test("sets over 12 reps and sets with no weight give no estimate", () => {
+  const entries = [set("2026-10-01", 100, 20), set("2026-10-02", 0, 10, "Pull-Up")];
+  assertEqual([Logic.bestOneRepMax(entries, "Bench Press"), Logic.bestOneRepMax(entries, "Pull-Up")], [null, null]);
+  assertEqual(Logic.oneRepMaxSeries(entries, "Bench Press"), []);
+});
+
+test("the estimate series has the best estimate for each day, oldest first", () => {
+  const entries = [set("2026-10-02", 150, 6), set("2026-10-01", 100, 1), set("2026-10-02", 140, 2)];
+  assertEqual(Logic.oneRepMaxSeries(entries, "Bench Press"), [
+    { date: "2026-10-01", value: 100 },
+    { date: "2026-10-02", value: 180 },
+  ]);
+});
+
+// ---------- New records ----------
+
+test("the best weight is the heaviest set of that exercise only", () => {
+  const entries = [set("2026-10-01", 135, 8), set("2026-10-02", 145, 3), set("2026-10-02", 300, 5, "Squat")];
+  assertEqual([Logic.bestWeight(entries, "Bench Press"), Logic.bestWeight(entries, "Squat"), Logic.bestWeight(entries, "Deadlift")], [145, 300, null]);
+});
+
+test("a set heavier than the best is a record; matching it or the first ever set is not", () => {
+  assertEqual([Logic.isNewRecord(145, 150), Logic.isNewRecord(145, 145), Logic.isNewRecord(145, 100), Logic.isNewRecord(null, 100)], [true, false, false, false]);
+});
+
+// ---------- Editing a set ----------
+
+test("editing a set changes only that set's weight and reps", () => {
+  const entries = [{ id: "a", ...set("2026-10-01", 135, 8) }, { id: "b", ...set("2026-10-01", 135, 8) }];
+  const updated = Logic.updateSet(entries, "b", { weight: 140, reps: 6 });
+  assertEqual(updated.map((e) => [e.id, e.weight, e.reps, e.date, e.exercise]), [
+    ["a", 135, 8, "2026-10-01", "Bench Press"],
+    ["b", 140, 6, "2026-10-01", "Bench Press"],
+  ]);
+  assertEqual(entries[1].weight, 135, "the original list must not change:");
+});
+
+// ---------- Backup and restore ----------
+
+const sampleSaved = { entries: [set("2026-10-01", 135, 8)], bodyweights: [{ date: "2026-10-01", weight: 170 }], unit: "kg" };
+
+test("a backup file reads back to exactly the data that was saved", () => {
+  const text = JSON.stringify(Logic.makeBackup(sampleSaved, "2026-10-02T09:00:00.000Z"));
+  assertEqual(Logic.parseBackup(text), { data: sampleSaved, exportedAt: "2026-10-02T09:00:00.000Z" });
+});
+
+test("a backup of an empty app can be restored", () => {
+  const text = JSON.stringify(Logic.makeBackup({ entries: [], bodyweights: [] }, "2026-10-02T09:00:00.000Z"));
+  assertEqual(Logic.parseBackup(text).error, undefined);
+});
+
+test("files that are not a backup from this app are refused", () => {
+  const refused = [
+    "not json at all",
+    "null",
+    JSON.stringify({ entries: [], bodyweights: [] }), // raw data without the backup label
+    JSON.stringify({ app: "some-other-app", version: 1, data: { entries: [], bodyweights: [] } }),
+    JSON.stringify({ app: "one-workout-a-day", version: 1, data: { entries: "oops", bodyweights: [] } }),
+  ];
+  assertEqual(refused.map((text) => Logic.parseBackup(text).error), Array(refused.length).fill("error.backupFile"));
+});
+
+test("a backup with a damaged workout is refused instead of half-restored", () => {
+  const bad = { ...sampleSaved, entries: [set("2026-10-01", 135, 8), { exercise: "Squat", date: "yesterday", weight: "heavy", reps: 5 }] };
+  assertEqual(Logic.parseBackup(JSON.stringify(Logic.makeBackup(bad, "2026-10-02"))).error, "error.backupFile");
+});
+
+test("a backup from a newer version of the app is refused with its own message", () => {
+  const text = JSON.stringify({ ...Logic.makeBackup(sampleSaved, "2026-10-02"), version: 99 });
+  assertEqual(Logic.parseBackup(text).error, "error.backupNewer");
+});
+
+// ---------- Show the results ----------
+
+const failed = results.filter((result) => result.error);
+document.title = failed.length ? `FAIL ${failed.length} of ${results.length}` : `PASS ${results.length} of ${results.length}`;
+document.getElementById("summary").textContent = failed.length
+  ? `${failed.length} of ${results.length} tests failed`
+  : `All ${results.length} tests passed`;
+document.getElementById("results").replaceChildren(
+  ...results.map((result) => {
+    const item = document.createElement("li");
+    item.className = result.error ? "fail" : "pass";
+    item.textContent = result.error ? `FAIL: ${result.name}: ${result.error.message}` : `PASS: ${result.name}`;
+    return item;
+  }),
+);

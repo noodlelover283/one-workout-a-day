@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>One Workout a Day: tests</title>
+  <style>
+    body { font-family: system-ui, sans-serif; margin: 16px; line-height: 1.4; }
+    #summary { font-size: 1.25rem; font-weight: 700; }
+    .pass { color: #1a7f37; }
+    .fail { color: #cf222e; font-weight: 700; }
+    li { margin-bottom: 4px; }
+  </style>
+</head>
+<body>
+  <h1>Tests</h1>
+  <p id="summary">Running…</p>
+  <ul id="results"></ul>
+
+  <script src="i18n.js"></script>
+  <script>
+    // Keep a copy of each language's text so the tests can compare them.
+    const registeredLanguages = {};
+    const registerLanguage = I18n.register;
+    I18n.register = (code, definition) => {
+      registeredLanguages[code] = definition;
+      registerLanguage(code, definition);
+    };
+  </script>
+  <script src="lang-en.js"></script>
+  <script src="lang-es.js"></script>
+  <script src="lang-zh.js"></script>
+  <script src="lang-hi.js"></script>
+  <script src="lang-ar.js"></script>
+  <script src="lang-fr.js"></script>
+  <script src="lang-pt.js"></script>
+  <script src="lang-ru.js"></script>
+  <script src="logic.js"></script>
+  <script src="tests.js"></script>
+</body>
+</html>

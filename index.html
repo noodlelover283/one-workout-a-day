@@ -1,0 +1,241 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>One Workout a Day</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="app-header">
+    <div class="title-row">
+      <h1 data-i18n="app.title">One Workout a Day</h1>
+      <div class="unit-toggle" role="group" data-i18n-aria="unit.groupLabel" aria-label="Weight unit">
+        <button type="button" data-unit="lb" aria-pressed="true">lb</button>
+        <button type="button" data-unit="kg" aria-pressed="false">kg</button>
+      </div>
+    </div>
+    <p class="tagline" data-i18n="app.tagline">Log it. See it. Break the plateau.</p>
+    <details class="display-panel">
+      <summary data-i18n="display.summary">Display settings</summary>
+      <label for="theme-select" data-i18n="display.theme">Theme</label>
+      <select id="theme-select">
+        <option value="auto" data-i18n="theme.auto">Match my device</option>
+        <option value="light" data-i18n="theme.light">Light</option>
+        <option value="dark" data-i18n="theme.dark">Dark</option>
+        <option value="contrast" data-i18n="theme.contrast">High contrast</option>
+      </select>
+      <label for="text-size-select" data-i18n="display.textSize">Text size</label>
+      <select id="text-size-select">
+        <option value="100" data-i18n="size.normal">Normal</option>
+        <option value="125" data-i18n="size.large">Large</option>
+        <option value="150" data-i18n="size.larger">Larger</option>
+        <option value="175" data-i18n="size.largest">Largest</option>
+      </select>
+      <label for="language-select" data-i18n="display.language">Language</label>
+      <select id="language-select"></select>
+    </details>
+  </header>
+
+  <main>
+    <section id="tab-log" class="tab" aria-labelledby="nav-log">
+      <div id="rest-banner" class="rest-banner hidden" role="group" data-i18n-aria="rest.timerLabel" aria-label="Rest timer">
+        <p id="rest-label" class="rest-label">Rest</p>
+        <p id="rest-clock" class="rest-clock">1:30</p>
+        <div id="rest-adjust" class="rest-adjust">
+          <button type="button" data-delta="-15"></button>
+          <button type="button" data-delta="-5"></button>
+          <button type="button" data-delta="5"></button>
+          <button type="button" data-delta="15"></button>
+        </div>
+        <button type="button" id="rest-skip" class="rest-skip">Skip</button>
+      </div>
+
+      <h2 data-i18n="log.heading">Log a workout</h2>
+      <div id="routine-start">
+        <label for="routine-select" data-i18n="routine.start">Start a routine</label>
+        <select id="routine-select"></select>
+        <p id="routine-hint" class="hint hidden" data-i18n="routine.hint">Create routines on the Routines tab to start a workout with one tap.</p>
+        <ul id="routine-checklist" class="chip-list"></ul>
+      </div>
+      <form id="log-form" novalidate>
+        <label for="date" data-i18n="log.date">Date</label>
+        <input id="date" type="date" required>
+
+        <label for="exercise" data-i18n="log.exercise">Exercise</label>
+        <input id="exercise" list="exercise-options" data-i18n-placeholder="log.exercisePlaceholder" placeholder="e.g. Bench Press" autocomplete="off" required>
+        <datalist id="exercise-options"></datalist>
+
+        <div id="demo" class="demo hidden">
+          <details id="demo-tips">
+            <summary data-i18n="demo.heading">Form tips</summary>
+            <p id="demo-tip"></p>
+          </details>
+          <a id="demo-link" href="#" target="_blank" rel="noopener noreferrer" data-i18n="demo.watch">Watch a demo</a>
+        </div>
+
+        <div id="muscle-row" class="hidden">
+          <label for="muscle" data-i18n="log.newMuscle">New exercise: which muscle group?</label>
+          <select id="muscle"></select>
+        </div>
+
+        <div class="row">
+          <div>
+            <label for="weight" id="weight-label">Weight (lb)</label>
+            <input id="weight" type="number" inputmode="decimal" min="0" step="any" placeholder="135" required>
+          </div>
+          <div>
+            <label for="reps" data-i18n="log.reps">Reps</label>
+            <input id="reps" type="number" inputmode="numeric" min="1" max="100" placeholder="8" required>
+          </div>
+        </div>
+
+        <div id="suggestion" class="suggestion hidden">
+          <p id="suggestion-text"></p>
+          <p id="suggestion-detail" class="hint"></p>
+          <p id="suggestion-note" class="hint"></p>
+          <button type="button" id="use-suggestion" class="hidden" data-i18n="suggest.use">Use suggestion</button>
+        </div>
+
+        <p id="form-error" class="error" role="alert"></p>
+        <button type="submit" class="primary" data-i18n="log.addSet">Add set</button>
+        <p class="hint" data-i18n="log.addSetHint">Each set saves right away. The weight and reps stay filled in for your next set.</p>
+      </form>
+
+      <h3 data-i18n="log.todayHeading">Today's workout</h3>
+      <ul id="today-list" class="entry-list"></ul>
+      <label for="workout-note" data-i18n="note.label">Note for this day</label>
+      <textarea id="workout-note" rows="3" data-i18n-placeholder="note.placeholder" placeholder="e.g. Slept badly, shoulder felt tight"></textarea>
+      <p class="hint" data-i18n="note.hint">Saved automatically when you tap away.</p>
+
+      <h3 data-i18n="rest.heading">Rest timer</h3>
+      <label for="rest-seconds" data-i18n="rest.seconds">Rest time (seconds)</label>
+      <input id="rest-seconds" type="number" inputmode="numeric" min="5" max="3600" step="1">
+      <label class="check"><input id="rest-auto" type="checkbox"> <span data-i18n="rest.auto">Start automatically after each set</span></label>
+      <label class="check"><input id="rest-sound" type="checkbox"> <span data-i18n="rest.sound">Beep and vibrate when rest is over</span></label>
+      <p id="rest-error" class="error" role="alert"></p>
+
+      <h3 data-i18n="progression.heading">Weight suggestions</h3>
+      <p class="hint" data-i18n="progression.hint">Suggestions go up once every set at your heaviest weight reaches the rep goal. Each muscle group has its own jump, because some groups can add weight faster than others.</p>
+      <label for="rep-goal" data-i18n="progression.repGoal">Rep goal per set</label>
+      <input id="rep-goal" type="number" inputmode="numeric" min="1" max="30" step="1">
+      <div id="jump-settings"></div>
+      <p id="progression-error" class="error" role="alert"></p>
+    </section>
+
+    <section id="tab-routines" class="tab hidden" aria-labelledby="nav-routines">
+      <h2 data-i18n="routines.heading">Routines</h2>
+      <div id="routine-list"></div>
+
+      <h3 id="routine-form-title">New routine</h3>
+      <form id="routine-form" novalidate>
+        <label for="routine-name" data-i18n="routines.name">Name</label>
+        <input id="routine-name" data-i18n-placeholder="routines.namePlaceholder" placeholder="e.g. Push Day" autocomplete="off">
+
+        <label for="routine-exercise-select" data-i18n="routines.addExercise">Add an exercise</label>
+        <div class="row inline">
+          <select id="routine-exercise-select"></select>
+          <button type="button" id="routine-add-exercise" data-i18n="routines.add">Add</button>
+        </div>
+        <p class="hint" data-i18n="routines.notListed">Need one that isn't listed? Log it once on the Log tab and it will appear here.</p>
+        <ol id="routine-draft" class="entry-list"></ol>
+
+        <p id="routine-error" class="error" role="alert"></p>
+        <button type="submit" id="routine-save" class="primary">Save routine</button>
+        <button type="button" id="routine-cancel" class="secondary hidden" data-i18n="routines.cancel">Cancel editing</button>
+      </form>
+    </section>
+
+    <section id="tab-history" class="tab hidden" aria-labelledby="nav-history">
+      <h2 data-i18n="history.heading">History</h2>
+      <div id="calendar">
+        <div class="calendar-nav">
+          <button type="button" id="calendar-prev" class="secondary" data-i18n-aria="calendar.prev" aria-label="Previous month">&lsaquo;</button>
+          <strong id="calendar-title" aria-live="polite"></strong>
+          <button type="button" id="calendar-next" class="secondary" data-i18n-aria="calendar.next" aria-label="Next month">&rsaquo;</button>
+        </div>
+        <div id="calendar-grid" class="calendar-grid"></div>
+        <p id="calendar-stats" class="hint"></p>
+      </div>
+      <div id="history"></div>
+      <button id="load-sample" type="button" class="secondary hidden" data-i18n="history.loadSample">Load sample data to explore</button>
+
+      <h3 data-i18n="backup.heading">Back up your data</h3>
+      <p class="hint" data-i18n="backup.hint">Your workouts are saved only in this browser. Download a backup file to keep them safe, or to move them to another device.</p>
+      <button id="backup-download" type="button" class="secondary" data-i18n="backup.download">Download backup</button>
+      <label for="backup-file" data-i18n="backup.restore">Restore from a backup file</label>
+      <input id="backup-file" type="file" accept=".json,application/json">
+      <p id="backup-error" class="error" role="alert"></p>
+    </section>
+
+    <section id="tab-progress" class="tab hidden" aria-labelledby="nav-progress">
+      <h2 data-i18n="progress.plateauHeading">Plateau check</h2>
+      <p class="hint" data-i18n="progress.plateauHint">Muscle groups, by how recently you set a new weight record.</p>
+      <div id="plateau-cards"></div>
+
+      <h2 data-i18n="progress.settingsHeading">Plateau settings</h2>
+      <p class="hint" data-i18n="progress.settingsHint">Days without a new weight record before a muscle group counts as stalled. Some groups are slower to progress, so set each one.</p>
+      <div id="stall-settings"></div>
+      <p id="stall-error" class="error" role="alert"></p>
+
+      <h2 data-i18n="progress.exerciseHeading">Exercise progress</h2>
+      <label for="progress-exercise" data-i18n="log.exercise">Exercise</label>
+      <select id="progress-exercise"></select>
+      <label for="progress-metric" data-i18n="progress.show">Show</label>
+      <select id="progress-metric">
+        <option value="weight" data-i18n="progress.metricWeight">Heaviest weight</option>
+        <option value="oneRepMax" data-i18n="progress.metricOneRepMax">Estimated one-rep max</option>
+      </select>
+      <div id="exercise-chart" class="chart"></div>
+      <p id="one-rep-max-best"></p>
+      <p id="one-rep-max-hint" class="hint"></p>
+
+      <h2 data-i18n="strength.heading">Strength levels</h2>
+      <p class="hint" data-i18n="strength.hint">A rough guide to how your best lifts compare with other gym-goers of your sex and bodyweight. It uses your estimated one-rep max and typical strength-to-bodyweight ratios, so treat it as an estimate, not a ranking.</p>
+      <label for="strength-sex" data-i18n="strength.sexLabel">Compare me with</label>
+      <select id="strength-sex"></select>
+      <div id="strength-results"></div>
+
+      <h2 data-i18n="progress.bodyweightHeading">Bodyweight</h2>
+      <form id="bodyweight-form" class="row inline" novalidate>
+        <input id="bodyweight" type="number" inputmode="decimal" min="0" step="any" data-i18n-aria="progress.bodyweightLabel" aria-label="Bodyweight">
+        <button type="submit" class="primary" data-i18n="progress.add">Add</button>
+      </form>
+      <p id="bodyweight-error" class="error" role="alert"></p>
+      <div id="bodyweight-chart" class="chart"></div>
+
+      <h2 data-i18n="measure.heading">Body measurements</h2>
+      <p class="hint" data-i18n="measure.hint">Measure the same spot each time, for example your waist at the navel. Adding one again on the same day replaces it.</p>
+      <label for="measure-name" data-i18n="measure.which">Measurement</label>
+      <select id="measure-name"></select>
+      <form id="measure-form" class="row inline" novalidate>
+        <input id="measure-value" type="number" inputmode="decimal" min="0" step="any" data-i18n-aria="measure.valueLabel" aria-label="Measurement">
+        <button type="submit" class="primary" data-i18n="progress.add">Add</button>
+      </form>
+      <p id="measure-error" class="error" role="alert"></p>
+      <div id="measure-chart" class="chart"></div>
+    </section>
+  </main>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+  <nav class="tabbar" data-i18n-aria="tab.nav" aria-label="Main">
+    <button id="nav-log" data-tab="log" class="active" data-i18n="tab.log">Log</button>
+    <button id="nav-routines" data-tab="routines" data-i18n="tab.routines">Routines</button>
+    <button id="nav-history" data-tab="history" data-i18n="tab.history">History</button>
+    <button id="nav-progress" data-tab="progress" data-i18n="tab.progress">Progress</button>
+  </nav>
+
+  <script src="i18n.js"></script>
+  <script src="lang-en.js"></script>
+  <script src="lang-es.js"></script>
+  <script src="lang-zh.js"></script>
+  <script src="lang-hi.js"></script>
+  <script src="lang-ar.js"></script>
+  <script src="lang-fr.js"></script>
+  <script src="lang-pt.js"></script>
+  <script src="lang-ru.js"></script>
+  <script src="logic.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
