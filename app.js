@@ -171,6 +171,17 @@ function editSetRow(entry, number) {
   const item = el("li", "entry editing");
   const form = el("form");
   form.noValidate = true;
+  const exercise = Object.assign(el("input"), { value: exerciseLabel(entry.exercise), autocomplete: "off" });
+  exercise.setAttribute("list", "exercise-options");
+  const exerciseLabelNode = el("label", "", t("log.exercise"));
+  exerciseLabelNode.append(exercise);
+  // As on the Log form, a name we don't know yet needs a muscle group.
+  const group = el("select");
+  group.replaceChildren(...Logic.MUSCLE_GROUPS.map((g) => option(g, muscleLabel(g))));
+  group.value = muscleOf(entry.exercise) || Logic.MUSCLE_GROUPS[0];
+  const groupLabel = el("label", "hidden", t("log.newMuscle"));
+  groupLabel.append(group);
+  exercise.addEventListener("input", () => groupLabel.classList.toggle("hidden", !(Logic.normalizeName(exercise.value) && !resolveExercise(exercise.value))));
   const weight = Object.assign(el("input"), {
     type: "number",
     inputMode: "decimal",
@@ -194,10 +205,11 @@ function editSetRow(entry, number) {
   cancel.addEventListener("click", stopEditing);
   const buttons = el("div", "row");
   buttons.append(save, cancel);
-  form.append(el("strong", "", t("set.title", { n: number })), fields, error, buttons);
+  form.append(el("strong", "", t("set.title", { n: number })), exerciseLabelNode, groupLabel, fields, error, buttons);
   form.addEventListener("submit", (event) => {
     event.preventDefault();
-    saveEdit(entry, { weight: parseFloat(weight.value), reps: parseInt(reps.value, 10) }, error);
+    const typed = resolveExercise(exercise.value) || Logic.normalizeName(exercise.value);
+    saveEdit(entry, { exercise: typed, weight: parseFloat(weight.value), reps: parseInt(reps.value, 10) }, group.value, error);
   });
   form.addEventListener("keydown", (event) => {
     if (event.key === "Escape") stopEditing();
@@ -218,16 +230,19 @@ function stopEditing() {
   renderSetLists();
 }
 
-function saveEdit(entry, changes, errorNode) {
-  const error = Logic.validateEntry({ exercise: entry.exercise, ...changes });
+function saveEdit(entry, changes, group, errorNode) {
+  const error = Logic.validateEntry(changes);
   errorNode.textContent = errorText(error);
   if (error) return;
-  state.entries = Logic.updateSet(state.entries, entry.id, { weight: Logic.toLb(changes.weight, state.unit), reps: changes.reps });
+  const result = Logic.updateSetDetails(state, entry.id, { ...changes, weight: Logic.toLb(changes.weight, state.unit) }, group);
+  state.entries = result.entries;
+  state.customExercises = result.customExercises;
   editingEntryId = null;
   saveState();
-  renderSetLists();
+  if (result.moved) renderAfterExerciseChange();
+  else renderSetLists();
   renderSuggestion();
-  showToast(t("toast.setUpdated"));
+  showToast(result.moved ? t("toast.setMoved", { exercise: exerciseLabel(result.exercise) }) : t("toast.setUpdated"));
 }
 
 function renderSetLists() {
@@ -624,6 +639,120 @@ function renderRoutines() {
   $("routine-exercise-select").replaceChildren(...allExerciseNames().map((name) => option(name, exerciseLabel(name))));
   renderRoutineFormText();
   renderRoutineDraft();
+  renderMyExercises();
+}
+
+// ---------- My exercises (edit or delete the ones added on the Log tab) ----------
+
+let editingExerciseName = null;
+
+function renderMyExercises() {
+  const names = Object.keys(state.customExercises).sort(byLabel);
+  $("my-exercises").replaceChildren(
+    ...(names.length === 0
+      ? [el("p", "empty", t("myex.empty"))]
+      : names.map((name) => (name === editingExerciseName ? editExerciseCard(name) : exerciseCard(name))))
+  );
+}
+
+function exerciseCard(name) {
+  const card = el("div", "routine-card");
+  const header = el("div", "entry-header");
+  header.append(el("strong", "", name));
+  const edit = el("button", "link", t("routines.edit"));
+  edit.type = "button";
+  edit.setAttribute("aria-label", t("myex.editAria", { name }));
+  edit.addEventListener("click", () => startEditingExercise(name));
+  const remove = el("button", "link", t("routines.delete"));
+  remove.type = "button";
+  remove.setAttribute("aria-label", t("myex.deleteAria", { name }));
+  remove.addEventListener("click", () => deleteCustomExercise(name));
+  const actions = el("div", "routine-actions");
+  actions.append(edit, remove);
+  header.append(actions);
+  card.append(header, el("p", "", muscleLabel(state.customExercises[name])));
+  return card;
+}
+
+function editExerciseCard(name) {
+  const card = el("form", "routine-card");
+  card.noValidate = true;
+  const nameInput = Object.assign(el("input"), { value: name, autocomplete: "off" });
+  const nameLabel = el("label", "", t("routines.name"));
+  nameLabel.append(nameInput);
+  const group = el("select");
+  group.replaceChildren(...Logic.MUSCLE_GROUPS.map((g) => option(g, muscleLabel(g))));
+  group.value = state.customExercises[name];
+  const groupLabel = el("label", "", t("myex.muscle"));
+  groupLabel.append(group);
+  const error = el("p", "error");
+  error.setAttribute("role", "alert");
+  const save = el("button", "primary", t("set.save"));
+  save.type = "submit";
+  const cancel = el("button", "secondary", t("set.cancel"));
+  cancel.type = "button";
+  cancel.addEventListener("click", stopEditingExercise);
+  card.append(nameLabel, groupLabel, error, save, cancel);
+  card.addEventListener("submit", (event) => {
+    event.preventDefault();
+    saveExerciseEdit(name, nameInput.value, group.value, error);
+  });
+  card.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") stopEditingExercise();
+  });
+  return card;
+}
+
+function startEditingExercise(name) {
+  editingExerciseName = name;
+  renderMyExercises();
+  document.querySelector("#my-exercises input").focus();
+}
+
+function stopEditingExercise() {
+  editingExerciseName = null;
+  renderMyExercises();
+}
+
+function saveExerciseEdit(name, newName, group, errorNode) {
+  const error = Logic.normalizeName(newName) ? "" : "error.exerciseName";
+  errorNode.textContent = errorText(error);
+  if (error) return;
+  const result = Logic.renameExercise(state, name, newName, group);
+  if (result.merging && !window.confirm(t("myex.mergeConfirm", { from: name, to: result.newName, sets: Logic.exerciseUsage(state, name).sets }))) return;
+  state.entries = result.entries;
+  state.routines = result.routines;
+  state.customExercises = result.customExercises;
+  // A routine being edited right now keeps its place, with the new name and no duplicate.
+  draftExercises = draftExercises.map((exercise) => (exercise === name ? result.newName : exercise)).filter((exercise, index, all) => all.indexOf(exercise) === index);
+  editingExerciseName = null;
+  saveState();
+  renderAfterExerciseChange();
+  showToast(t("toast.exerciseSaved"));
+}
+
+function deleteCustomExercise(name) {
+  const usage = Logic.exerciseUsage(state, name);
+  if (!window.confirm(t("myex.deleteConfirm", { name, sets: usage.sets, routines: usage.routines }))) return;
+  const result = Logic.deleteExercise(state, name);
+  state.entries = result.entries;
+  state.routines = result.routines;
+  state.customExercises = result.customExercises;
+  draftExercises = draftExercises.filter((exercise) => exercise !== name);
+  saveState();
+  renderAfterExerciseChange();
+  showToast(t("toast.routineDeleted", { name }));
+}
+
+// Exercise names appear in almost every list, so refresh them all after a rename or delete.
+function renderAfterExerciseChange() {
+  renderExerciseOptions();
+  renderRoutines();
+  renderRoutinePicker();
+  renderToday();
+  renderHistory();
+  renderProgress();
+  renderSuggestion();
 }
 
 // The form's title and save button change while an existing routine is being edited.

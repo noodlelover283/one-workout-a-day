@@ -186,6 +186,69 @@ test("bad saved display settings fall back to the defaults", () => {
   assertEqual(Logic.sanitizeAppearance({ theme: "dark", textSize: 150 }), { theme: "dark", textSize: 150 });
 });
 
+// ---------- Editing and deleting custom exercises ----------
+
+const customData = () => ({
+  entries: [
+    { id: "1", ...set("2026-10-01", 30, 10, "Cabel Fly") },
+    { id: "2", ...set("2026-10-02", 135, 8, "Bench Press") },
+    { id: "3", ...set("2026-10-03", 35, 10, "Cabel Fly") },
+  ],
+  routines: [
+    { id: "r1", name: "Push", exercises: ["Bench Press", "Cabel Fly"] },
+    { id: "r2", name: "Legs", exercises: ["Squat"] },
+  ],
+  customExercises: { "Cabel Fly": "Chest" },
+});
+
+test("renaming a custom exercise updates its sets, routines and group, and leaves everything else alone", () => {
+  const result = Logic.renameExercise(customData(), "Cabel Fly", "Cable Fly", "Arms");
+  assertEqual(result.entries.map((e) => e.exercise), ["Cable Fly", "Bench Press", "Cable Fly"]);
+  assertEqual(result.routines.map((r) => r.exercises), [["Bench Press", "Cable Fly"], ["Squat"]]);
+  assertEqual(result.customExercises, { "Cable Fly": "Arms" });
+  assertEqual([result.newName, result.merging], ["Cable Fly", false]);
+});
+
+test("only changing the muscle group keeps the name and every set", () => {
+  const result = Logic.renameExercise(customData(), "Cabel Fly", "Cabel Fly", "Shoulders");
+  assertEqual(result.customExercises, { "Cabel Fly": "Shoulders" });
+  assertEqual(result.entries.length, 3);
+});
+
+test("changing only the capital letters is a rename, not a merge", () => {
+  const result = Logic.renameExercise(customData(), "Cabel Fly", "cabel fly", "Chest");
+  assertEqual([result.merging, result.newName], [false, "cabel fly"]);
+});
+
+test("renaming into an existing exercise merges them and keeps that exercise's group", () => {
+  const data = { ...customData(), customExercises: { "Cabel Fly": "Chest", "Chest Fly": "Arms" } };
+  const result = Logic.renameExercise(data, "Cabel Fly", "chest fly", "Back");
+  assertEqual([result.merging, result.newName, result.customExercises], [true, "Chest Fly", { "Chest Fly": "Arms" }]);
+  assertEqual(result.entries.map((e) => e.exercise), ["Chest Fly", "Bench Press", "Chest Fly"]);
+});
+
+test("merging a typo into a built-in exercise moves its sets there, once per routine", () => {
+  const data = customData();
+  data.entries[0].exercise = "Bench Pres";
+  data.customExercises = { "Bench Pres": "Arms" };
+  data.routines = [{ id: "r1", name: "Push", exercises: ["Bench Press", "Bench Pres"] }];
+  const result = Logic.renameExercise(data, "Bench Pres", "Bench Press", "Arms");
+  assertEqual([result.merging, result.customExercises, result.entries[0].exercise], [true, {}, "Bench Press"]);
+  assertEqual(result.routines[0].exercises, ["Bench Press"]);
+});
+
+test("deleting a custom exercise removes its sets and its place in routines only", () => {
+  const result = Logic.deleteExercise(customData(), "Cabel Fly");
+  assertEqual(result.entries.map((e) => e.exercise), ["Bench Press"]);
+  assertEqual(result.routines.map((r) => r.exercises), [["Bench Press"], ["Squat"]]);
+  assertEqual(result.customExercises, {});
+});
+
+test("usage counts the sets and routines an exercise appears in", () => {
+  assertEqual(Logic.exerciseUsage(customData(), "Cabel Fly"), { sets: 2, routines: 1 });
+  assertEqual(Logic.exerciseUsage(customData(), "Deadlift"), { sets: 0, routines: 0 });
+});
+
 // ---------- Strength levels ----------
 
 test("every lift has five rising level thresholds, and women's are lower than men's", () => {
@@ -354,14 +417,45 @@ test("a set heavier than the best is a record; matching it or the first ever set
 
 // ---------- Editing a set ----------
 
+const editData = () => ({
+  entries: [
+    { id: "a", ...set("2026-10-01", 135, 8) },
+    { id: "b", ...set("2026-10-01", 30, 10, "Cabel Fly") },
+    { id: "c", ...set("2026-10-02", 35, 10, "Cabel Fly") },
+  ],
+  routines: [],
+  customExercises: { "Cabel Fly": "Chest" },
+});
+
 test("editing a set changes only that set's weight and reps", () => {
-  const entries = [{ id: "a", ...set("2026-10-01", 135, 8) }, { id: "b", ...set("2026-10-01", 135, 8) }];
-  const updated = Logic.updateSet(entries, "b", { weight: 140, reps: 6 });
-  assertEqual(updated.map((e) => [e.id, e.weight, e.reps, e.date, e.exercise]), [
-    ["a", 135, 8, "2026-10-01", "Bench Press"],
-    ["b", 140, 6, "2026-10-01", "Bench Press"],
-  ]);
-  assertEqual(entries[1].weight, 135, "the original list must not change:");
+  const data = editData();
+  const result = Logic.updateSetDetails(data, "a", { exercise: "Bench Press", weight: 140, reps: 6 }, "Chest");
+  assertEqual(result.entries.map((e) => [e.id, e.exercise, e.weight, e.reps]), [["a", "Bench Press", 140, 6], ["b", "Cabel Fly", 30, 10], ["c", "Cabel Fly", 35, 10]]);
+  assertEqual([result.moved, result.customExercises], [false, { "Cabel Fly": "Chest" }]);
+  assertEqual(data.entries[0].weight, 135, "the original list must not change:");
+});
+
+test("changing a set's name to a known exercise moves just that set, whatever the letter case", () => {
+  const result = Logic.updateSetDetails(editData(), "b", { exercise: "  bench PRESS ", weight: 100, reps: 5 }, "Arms");
+  assertEqual(result.entries.map((e) => e.exercise), ["Bench Press", "Bench Press", "Cabel Fly"]);
+  assertEqual([result.moved, result.exercise], [true, "Bench Press"]);
+  assertEqual(result.customExercises, { "Cabel Fly": "Chest" }, "the typo still has a set, so it stays:");
+});
+
+test("moving the last set of a typo'd exercise away drops that exercise, unless a routine uses it", () => {
+  const data = editData();
+  data.entries = data.entries.filter((e) => e.id !== "c");
+  const dropped = Logic.updateSetDetails(data, "b", { exercise: "Bench Press", weight: 100, reps: 5 }, "Chest");
+  assertEqual(dropped.customExercises, {});
+  data.routines = [{ id: "r", name: "Push", exercises: ["Cabel Fly"] }];
+  const kept = Logic.updateSetDetails(data, "b", { exercise: "Bench Press", weight: 100, reps: 5 }, "Chest");
+  assertEqual(kept.customExercises, { "Cabel Fly": "Chest" });
+});
+
+test("changing a set to a name nobody knows creates a custom exercise in the chosen group", () => {
+  const result = Logic.updateSetDetails(editData(), "a", { exercise: "Cable Fly", weight: 20, reps: 12 }, "Arms");
+  assertEqual([result.entries[0].exercise, result.moved], ["Cable Fly", true]);
+  assertEqual(result.customExercises, { "Cabel Fly": "Chest", "Cable Fly": "Arms" });
 });
 
 // ---------- Backup and restore ----------

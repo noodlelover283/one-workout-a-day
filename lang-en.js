@@ -265,5 +265,17 @@ I18n.register("en", {
     "strength.detail": "Estimated one-rep max {value} {unit}, which is {ratio}× your bodyweight.",
     "strength.next": "To reach {level}: about {weight} {unit} ({more} {unit} more).",
     "strength.top": "You are at the top level for this lift.",
+
+    "myex.heading": "My exercises",
+    "myex.hint": "Exercises you added yourself. Rename one to fix a typo, and its logged sets and routines follow.",
+    "myex.empty": "You haven't added any exercises of your own yet. Log one on the Log tab and it will appear here.",
+    "myex.editAria": "Edit {name}",
+    "myex.deleteAria": "Delete {name}",
+    "myex.muscle": "Muscle group",
+    "myex.mergeConfirm": "{to} already exists. Combine them? Every set logged as {from} (sets: {sets}) will count as {to}.",
+    "myex.deleteConfirm": "Delete {name}? This also deletes its logged sets (sets: {sets}) and removes it from routines (routines: {routines}). This cannot be undone.",
+    "toast.exerciseSaved": "Exercise updated.",
+
+    "toast.setMoved": "Set moved to {exercise}.",
   },
 });

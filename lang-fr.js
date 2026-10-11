@@ -265,5 +265,17 @@ I18n.register("fr", {
     "strength.detail": "1RM estimé de {value} {unit}, soit {ratio}× votre poids de corps.",
     "strength.next": "Pour atteindre {level} : environ {weight} {unit} ({more} {unit} de plus).",
     "strength.top": "Vous êtes au niveau maximal pour ce mouvement.",
+
+    "myex.heading": "Mes exercices",
+    "myex.hint": "Les exercices que vous avez ajoutés. Renommez-en un pour corriger une faute ; ses séries enregistrées et ses routines suivent.",
+    "myex.empty": "Vous n'avez pas encore ajouté d'exercice personnel. Enregistrez-en un dans l'onglet Journal et il apparaîtra ici.",
+    "myex.editAria": "Modifier {name}",
+    "myex.deleteAria": "Supprimer {name}",
+    "myex.muscle": "Groupe musculaire",
+    "myex.mergeConfirm": "{to} existe déjà. Les fusionner ? Toutes les séries enregistrées sous {from} (séries : {sets}) compteront pour {to}.",
+    "myex.deleteConfirm": "Supprimer {name} ? Cela supprime aussi ses séries enregistrées (séries : {sets}) et le retire des routines (routines : {routines}). Action irréversible.",
+    "toast.exerciseSaved": "Exercice mis à jour.",
+
+    "toast.setMoved": "Série déplacée vers {exercise}.",
   },
 });

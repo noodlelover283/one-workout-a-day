@@ -90,6 +90,52 @@ const Logic = (() => {
     return Object.keys(all).find((known) => known.toLowerCase() === lower) || null;
   }
 
+  // Renaming a custom exercise (and optionally changing its muscle group) has to update everything
+  // that uses the name. If the new name is another exercise that already exists (a typo fixed into a
+  // real name, say), the two are merged: the sets move over and the existing exercise keeps its group.
+  // `data` is { entries, routines, customExercises }; a new copy is returned with the final name.
+  function renameExercise({ entries, routines, customExercises }, from, to, group) {
+    const clean = normalizeName(to);
+    const existing = findKnownExercise(clean, customExercises);
+    const merging = existing !== null && existing !== from;
+    const newName = merging ? existing : clean;
+    const custom = { ...customExercises };
+    delete custom[from];
+    if (!merging) custom[newName] = group;
+    return {
+      entries: entries.map((entry) => (entry.exercise === from ? { ...entry, exercise: newName } : entry)),
+      routines: routines.map((routine) => {
+        if (!routine.exercises.includes(from)) return routine;
+        const renamed = routine.exercises.map((name) => (name === from ? newName : name));
+        // After a merge a routine may now list the same exercise twice; keep the first.
+        const exercises = merging ? renamed.filter((name, index) => name !== newName || renamed.indexOf(name) === index) : renamed;
+        return { ...routine, exercises };
+      }),
+      customExercises: custom,
+      newName,
+      merging,
+    };
+  }
+
+  // Removes a custom exercise, its logged sets, and its place in any routine.
+  function deleteExercise({ entries, routines, customExercises }, name) {
+    const custom = { ...customExercises };
+    delete custom[name];
+    return {
+      entries: entries.filter((entry) => entry.exercise !== name),
+      routines: routines.map((routine) => ({ ...routine, exercises: routine.exercises.filter((exercise) => exercise !== name) })),
+      customExercises: custom,
+    };
+  }
+
+  // How much would be affected by renaming or deleting an exercise.
+  function exerciseUsage({ entries, routines }, name) {
+    return {
+      sets: entries.filter((entry) => entry.exercise === name).length,
+      routines: routines.filter((routine) => routine.exercises.includes(name)).length,
+    };
+  }
+
   // The validate functions return the key of an error message (see lang-en.js), or "" if the input is fine.
   function validateEntry({ exercise, weight, reps }) {
     if (!normalizeName(exercise)) return "error.exerciseName";
@@ -107,9 +153,20 @@ const Logic = (() => {
     });
   }
 
-  // A copy of the entries with one set's weight and/or reps changed.
-  function updateSet(entries, id, changes) {
-    return entries.map((entry) => (entry.id === id ? { ...entry, ...changes } : entry));
+  // Changes one set's exercise, weight and reps. If the exercise name is one we already know (any
+  // letter case) the set moves to it; if it is new, a custom exercise is created in `group`. A custom
+  // exercise left with no sets and no routine (a typo that has just been corrected) is dropped.
+  // `data` is { entries, routines, customExercises }; returns new entries and customExercises.
+  function updateSetDetails({ entries, routines, customExercises }, id, { exercise, weight, reps }, group) {
+    const old = entries.find((entry) => entry.id === id).exercise;
+    const known = findKnownExercise(exercise, customExercises);
+    const name = known || normalizeName(exercise);
+    const updated = entries.map((entry) => (entry.id === id ? { ...entry, exercise: name, weight, reps } : entry));
+    const custom = { ...customExercises };
+    if (!known) custom[name] = group;
+    const stillUsed = updated.some((entry) => entry.exercise === old) || routines.some((routine) => routine.exercises.includes(old));
+    if (old !== name && custom[old] !== undefined && !stillUsed) delete custom[old];
+    return { entries: updated, customExercises: custom, exercise: name, moved: name !== old };
   }
 
   // Groups sets by exercise, in the order each exercise first appears.
@@ -540,10 +597,13 @@ const Logic = (() => {
     daysBetween,
     normalizeName,
     findKnownExercise,
+    renameExercise,
+    deleteExercise,
+    exerciseUsage,
     validateEntry,
     validateStallDays,
     migrateEntries,
-    updateSet,
+    updateSetDetails,
     groupByExercise,
     lastSet,
     validateRoutine,

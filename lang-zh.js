@@ -264,5 +264,17 @@ I18n.register("zh", {
     "strength.detail": "预估一次最大重量 {value} {unit}，是你体重的 {ratio} 倍。",
     "strength.next": "达到{level}：约 {weight} {unit}（还差 {more} {unit}）。",
     "strength.top": "这个动作你已达到最高水平。",
+
+    "myex.heading": "我的动作",
+    "myex.hint": "你自己添加的动作。重命名可以纠正拼写错误，已记录的训练组和训练计划会同步更新。",
+    "myex.empty": "你还没有添加自己的动作。在“记录”标签页记录一个，它就会出现在这里。",
+    "myex.editAria": "编辑{name}",
+    "myex.deleteAria": "删除{name}",
+    "myex.muscle": "肌肉群",
+    "myex.mergeConfirm": "{to} 已存在。要合并吗？所有记录为 {from} 的训练组（组数：{sets}）都会算作 {to}。",
+    "myex.deleteConfirm": "要删除 {name} 吗？这也会删除它已记录的训练组（组数：{sets}），并把它从训练计划中移除（计划数：{routines}）。此操作无法撤销。",
+    "toast.exerciseSaved": "动作已更新。",
+
+    "toast.setMoved": "该组已移到{exercise}。",
   },
 });
