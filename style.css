@@ -63,7 +63,8 @@
 body {
   margin: 0 auto;
   max-width: 560px;
-  padding: 0 16px 96px;
+  /* Room for the fixed tab bar, whose height app.js keeps in --tabbar-height. */
+  padding: 0 16px calc(var(--tabbar-height, 60px) + 32px);
   background: var(--bg);
   color: var(--text);
   font: 1.125rem/1.4 system-ui, -apple-system, "Segoe UI", sans-serif;
@@ -228,6 +229,7 @@ button.link { min-height: 44px; border: none; background: none; color: var(--acc
   display: flex;
   max-width: 560px;
   margin: 0 auto;
+  padding-bottom: env(safe-area-inset-bottom);
   background: var(--surface);
   border-top: 1px solid var(--border);
 }

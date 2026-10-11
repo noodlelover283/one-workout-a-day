@@ -1206,7 +1206,16 @@ function setUnit(unit) {
 
 // ---------- Setup ----------
 
+// The tab bar is fixed to the bottom of the screen, so the page keeps clear space equal to its height.
+function keepClearOfTabBar() {
+  const tabbar = document.querySelector(".tabbar");
+  const update = () => document.documentElement.style.setProperty("--tabbar-height", `${tabbar.offsetHeight}px`);
+  new ResizeObserver(update).observe(tabbar);
+  update();
+}
+
 function init() {
+  keepClearOfTabBar();
   applyAppearance();
   $("theme-select").addEventListener("change", onAppearanceChange);
   $("text-size-select").addEventListener("change", onAppearanceChange);
