@@ -341,19 +341,35 @@ test("a month that needs six rows gets six rows, and February has 28 or 29 days"
   assertEqual([Logic.monthCells(2026, 1, 0).filter(Boolean).length, Logic.monthCells(2028, 1, 0).filter(Boolean).length], [28, 29]);
 });
 
-test("a streak counts the days in a row back from today", () => {
-  const days = new Set(["2026-10-09", "2026-10-10", "2026-10-11", "2026-10-07"]);
-  assertEqual(Logic.currentStreak(days, "2026-10-11"), 3);
+test("a week starts on the chosen weekday, whatever date in it is asked", () => {
+  // 13 October 2026 is a Tuesday.
+  assertEqual([Logic.weekStartOf("2026-10-13", 1), Logic.weekStartOf("2026-10-13", 0), Logic.weekStartOf("2026-10-12", 1)], ["2026-10-12", "2026-10-11", "2026-10-12"]);
+  assertEqual([Logic.weekStartOf("2026-10-11", 1), Logic.weekStartOf("2027-01-02", 1)], ["2026-10-05", "2026-12-28"]);
 });
 
-test("a streak is not broken just because today has no workout yet", () => {
-  assertEqual(Logic.currentStreak(new Set(["2026-10-09", "2026-10-10"]), "2026-10-11"), 2);
+test("a weekly streak counts the weeks in a row with a workout, back from this week", () => {
+  const days = new Set(["2026-10-12", "2026-10-06", "2026-09-30", "2026-09-14"]);
+  assertEqual(Logic.currentWeeklyStreak(days, "2026-10-13", 1), 3);
 });
 
-test("a streak is over after a full day without a workout, and counts across month ends", () => {
-  assertEqual(Logic.currentStreak(new Set(["2026-10-08"]), "2026-10-11"), 0);
-  assertEqual(Logic.currentStreak(new Set(["2026-09-30", "2026-10-01", "2026-10-02"]), "2026-10-02"), 3);
-  assertEqual(Logic.currentStreak(new Set(), "2026-10-11"), 0);
+test("a weekly streak is not broken just because this week has no workout yet", () => {
+  assertEqual(Logic.currentWeeklyStreak(new Set(["2026-10-06", "2026-09-30"]), "2026-10-13", 1), 2);
+});
+
+test("a whole week without a workout ends the streak", () => {
+  assertEqual(Logic.currentWeeklyStreak(new Set(["2026-09-30"]), "2026-10-13", 1), 0);
+  assertEqual(Logic.currentWeeklyStreak(new Set(), "2026-10-13", 1), 0);
+});
+
+test("several workouts in one week count as one week", () => {
+  assertEqual(Logic.currentWeeklyStreak(new Set(["2026-10-12", "2026-10-13", "2026-10-14"]), "2026-10-14", 1), 1);
+});
+
+test("where the week starts can change the streak, and a streak crosses the new year", () => {
+  // Saturday 10 and Sunday 11 October are one week when weeks start on Monday, two when they start on Sunday.
+  const weekend = new Set(["2026-10-10", "2026-10-11"]);
+  assertEqual([Logic.currentWeeklyStreak(weekend, "2026-10-11", 1), Logic.currentWeeklyStreak(weekend, "2026-10-11", 0)], [1, 2]);
+  assertEqual(Logic.currentWeeklyStreak(new Set(["2026-12-30", "2027-01-05"]), "2027-01-06", 1), 2);
 });
 
 // ---------- Workout notes ----------

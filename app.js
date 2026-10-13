@@ -896,7 +896,7 @@ function renderCalendar() {
   const thisMonth = [...workoutDates].filter((date) => date.startsWith(prefix)).length;
   $("calendar-stats").textContent = t("calendar.stats", {
     count: thisMonth,
-    streak: I18n.daysText(Logic.currentStreak(workoutDates, todayDate)),
+    streak: I18n.weeksText(Logic.currentWeeklyStreak(workoutDates, todayDate, weekStart)),
   });
 }
 

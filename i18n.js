@@ -80,6 +80,11 @@ const I18n = (() => {
     return new Intl.NumberFormat(locale(), { style: "unit", unit: "day", unitDisplay: "long" }).format(count);
   }
 
+  // "3 weeks" in the current language.
+  function weeksText(count) {
+    return new Intl.NumberFormat(locale(), { style: "unit", unit: "week", unitDisplay: "long" }).format(count);
+  }
+
   // "today", "yesterday", "3 days ago" in the current language.
   function daysAgoText(count) {
     return new Intl.RelativeTimeFormat(locale(), { numeric: "auto" }).format(-count, "day");
@@ -100,6 +105,7 @@ const I18n = (() => {
     formatDate,
     formatShortDate,
     daysText,
+    weeksText,
     daysAgoText,
   };
 })();

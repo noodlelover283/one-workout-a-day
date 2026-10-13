@@ -414,19 +414,27 @@ const Logic = (() => {
     return cells;
   }
 
-  function previousDay(dateString) {
+  // The date a calendar week starts on (weekStart: 0 = Sunday ... 6 = Saturday) for any date in it.
+  function weekStartOf(dateString, weekStart) {
     const [year, month, day] = dateString.split("-").map(Number);
-    return toDateString(new Date(year, month - 1, day - 1));
+    const daysIntoWeek = (new Date(year, month - 1, day).getDay() - weekStart + 7) % 7;
+    return toDateString(new Date(year, month - 1, day - daysIntoWeek));
   }
 
-  // Days in a row with a workout, counting back from today. A workout not logged yet today does not
-  // break the streak, so it only ends once a whole day has passed without one.
-  function currentStreak(workoutDates, today) {
-    let day = workoutDates.has(today) ? today : previousDay(today);
+  // Weeks in a row with at least one workout, counting back from this week. A week that has not had a
+  // workout yet does not break the streak, so it only ends once a whole week has passed without one.
+  function currentWeeklyStreak(workoutDates, today, weekStart) {
+    const weeks = new Set([...workoutDates].map((date) => weekStartOf(date, weekStart)));
+    const weekBefore = (weekStartDate) => {
+      const [year, month, day] = weekStartDate.split("-").map(Number);
+      return toDateString(new Date(year, month - 1, day - 7));
+    };
+    let week = weekStartOf(today, weekStart);
+    if (!weeks.has(week)) week = weekBefore(week);
     let streak = 0;
-    while (workoutDates.has(day)) {
+    while (weeks.has(week)) {
       streak += 1;
-      day = previousDay(day);
+      week = weekBefore(week);
     }
     return streak;
   }
@@ -579,7 +587,8 @@ const Logic = (() => {
     measurementSeries,
     sanitizeMeasurements,
     monthCells,
-    currentStreak,
+    weekStartOf,
+    currentWeeklyStreak,
     NOTE_MAX_LENGTH,
     setNote,
     sanitizeNotes,
