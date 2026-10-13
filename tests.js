@@ -1,14 +1,18 @@
-// Tests for One Workout a Day. Serve the folder (python -m http.server) and open /tests.html in a
+// Tests for One Workout a Day. Serve the folder (python serve.py) and open /tests.html in a
 // browser: every test is listed as a pass or fail, and the page title shows the total.
 
 const results = [];
+const unfinished = []; // tests that need to wait (the screen tests load the whole app)
 
+// A test body may return a promise; its line is added now so the list keeps its order.
 function test(name, body) {
+  const result = { name, error: null };
+  results.push(result);
   try {
-    body();
-    results.push({ name, error: null });
+    const outcome = body();
+    if (outcome && typeof outcome.then === "function") unfinished.push(outcome.catch((error) => (result.error = error)));
   } catch (error) {
-    results.push({ name, error });
+    result.error = error;
   }
 }
 
@@ -556,18 +560,133 @@ test("a backup from a newer version of the app is refused with its own message",
   assertEqual(Logic.parseBackup(text).error, "error.backupNewer");
 });
 
+// ---------- Screens ----------
+// These open the real app in a hidden frame and click through it. The app is given its own storage
+// name (see STORAGE_KEY in app.js), so the tests never touch real workouts.
+
+const SCREEN_STORAGE = "screen-test";
+const TAB_NAMES = ["log", "routines", "history", "progress"];
+
+// Throwaway data with something on every screen: sets, bodyweights, a routine with targets, a note,
+// two waist measurements, and a comparison group chosen.
+function screenTestData() {
+  const todayString = Logic.toDateString(new Date());
+  const sample = Logic.sampleData(todayString);
+  return {
+    entries: sample.entries,
+    bodyweights: sample.bodyweights,
+    routines: [{ id: "r1", name: "Push", exercises: ["Bench Press", "Overhead Press"], targets: { "Bench Press": { sets: 3, reps: 8 } } }],
+    notes: { [todayString]: "Felt strong" },
+    measurements: [
+      { date: "2026-09-01", name: "Waist", cm: 82 },
+      { date: "2026-10-01", name: "Waist", cm: 80 },
+    ],
+    sex: "male",
+    language: "en",
+  };
+}
+
+// Loads the app in a hidden frame on throwaway data. Resolves with the frame, its document, and a list
+// that fills with any errors the app raises afterwards.
+function openApp() {
+  localStorage.setItem(SCREEN_STORAGE, JSON.stringify(screenTestData()));
+  return new Promise((resolve) => {
+    const frame = document.createElement("iframe");
+    frame.style.cssText = "position: absolute; left: -9999px; width: 375px; height: 812px; border: 0;";
+    frame.src = `index.html?storage=${SCREEN_STORAGE}`;
+    frame.addEventListener("load", () => {
+      const errors = [];
+      frame.contentWindow.addEventListener("error", (event) => errors.push(event.message));
+      frame.contentWindow.addEventListener("unhandledrejection", (event) => errors.push(String(event.reason)));
+      resolve({ frame, doc: frame.contentDocument, win: frame.contentWindow, errors });
+    });
+    document.body.append(frame);
+  });
+}
+
+function closeApp(app) {
+  app.frame.remove();
+  localStorage.removeItem(SCREEN_STORAGE);
+}
+
+function showTab(app, name) {
+  app.doc.getElementById(`nav-${name}`).click();
+  return app.doc.getElementById(`tab-${name}`);
+}
+
+test("every tab draws its screen, with no errors", async () => {
+  const app = await openApp();
+  try {
+    const expected = {
+      log: ["#log-form", "#today-list", "#routine-select", "#workout-note"],
+      routines: ["#routine-list .routine-card", "#routine-form", "#my-exercises"],
+      history: ["#calendar-grid .day-cell", "#history .day", "#backup-download"],
+      progress: ["#plateau-cards", "#exercise-chart svg", "#strength-results .strength-card", "#bodyweight-chart svg", "#measure-chart svg"],
+    };
+    for (const name of TAB_NAMES) {
+      const tab = showTab(app, name);
+      if (tab.classList.contains("hidden")) throw new Error(`the ${name} tab did not open`);
+      if (tab.innerText.trim().length < 50) throw new Error(`the ${name} tab is almost empty`);
+      if (name === "progress") {
+        // The measurement chart shows one body part at a time; the test data has a waist.
+        const picker = app.doc.getElementById("measure-name");
+        picker.value = "Waist";
+        picker.dispatchEvent(new Event("change", { bubbles: true }));
+      }
+      for (const selector of expected[name]) {
+        if (!tab.querySelector(selector)) throw new Error(`the ${name} tab is missing ${selector}`);
+      }
+    }
+    if (app.errors.length) throw new Error(`the app raised errors: ${app.errors.join("; ")}`);
+  } finally {
+    closeApp(app);
+  }
+});
+
+test("no text key shows through on any tab in any language", async () => {
+  const app = await openApp();
+  try {
+    // Every key any language defines, so a key missing from one language is still recognised if it shows.
+    const keys = [...new Set(Object.values(registeredLanguages).flatMap((language) => Object.keys(language.strings)))];
+    const select = app.doc.getElementById("language-select");
+    // Open a routine for editing, so its target boxes and their labels are on screen too.
+    showTab(app, "routines");
+    app.doc.querySelector("#routine-list .routine-card button.link").click();
+    for (const code of Object.keys(registeredLanguages)) {
+      select.value = code;
+      select.dispatchEvent(new Event("change", { bubbles: true }));
+      for (const name of TAB_NAMES) {
+        const tab = showTab(app, name);
+        const attributes = [...tab.querySelectorAll("[aria-label], [placeholder], [title]")].map(
+          (node) => `${node.getAttribute("aria-label")} ${node.getAttribute("placeholder")} ${node.title}`,
+        );
+        const shown = `${tab.innerText} ${app.doc.querySelector("header").innerText} ${attributes.join(" ")}`;
+        const raw = keys.filter((key) => shown.includes(key));
+        if (raw.length) throw new Error(`${code}, ${name} tab: shows the key ${raw.slice(0, 3).join(", ")}`);
+      }
+    }
+    if (app.errors.length) throw new Error(`the app raised errors: ${app.errors.join("; ")}`);
+  } finally {
+    closeApp(app);
+  }
+});
+
 // ---------- Show the results ----------
 
-const failed = results.filter((result) => result.error);
-document.title = failed.length ? `FAIL ${failed.length} of ${results.length}` : `PASS ${results.length} of ${results.length}`;
-document.getElementById("summary").textContent = failed.length
-  ? `${failed.length} of ${results.length} tests failed`
-  : `All ${results.length} tests passed`;
-document.getElementById("results").replaceChildren(
-  ...results.map((result) => {
-    const item = document.createElement("li");
-    item.className = result.error ? "fail" : "pass";
-    item.textContent = result.error ? `FAIL: ${result.name}: ${result.error.message}` : `PASS: ${result.name}`;
-    return item;
-  }),
-);
+function showResults() {
+  const failed = results.filter((result) => result.error);
+  document.title = failed.length ? `FAIL ${failed.length} of ${results.length}` : `PASS ${results.length} of ${results.length}`;
+  document.getElementById("summary").textContent = failed.length
+    ? `${failed.length} of ${results.length} tests failed`
+    : `All ${results.length} tests passed`;
+  document.getElementById("results").replaceChildren(
+    ...results.map((result) => {
+      const item = document.createElement("li");
+      item.className = result.error ? "fail" : "pass";
+      item.textContent = result.error ? `FAIL: ${result.name}: ${result.error.message}` : `PASS: ${result.name}`;
+      return item;
+    }),
+  );
+}
+
+Promise.all(unfinished).then(showResults);

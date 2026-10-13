@@ -1,5 +1,10 @@
 // UI for One Workout a Day. Data lives in this browser's localStorage.
-const STORAGE_KEY = "one-workout-a-day";
+// An address ending in ?storage=name keeps its data under that name, so the screen tests can run the
+// app on throwaway data without touching real workouts.
+const STORAGE_KEY = (() => {
+  const name = new URLSearchParams(location.search).get("storage");
+  return name && /^[\w-]{1,40}$/.test(name) ? name : "one-workout-a-day";
+})();
 const SVG_NS = "http://www.w3.org/2000/svg";
 const DEFAULT_REST = { seconds: 90, autoStart: true, sound: true };
 
