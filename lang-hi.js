@@ -277,5 +277,12 @@ I18n.register("hi", {
     "toast.exerciseSaved": "व्यायाम अपडेट हो गया।",
 
     "toast.setMoved": "सेट {exercise} में ले जाया गया।",
+
+    "routines.targetSets": "सेट",
+    "routines.setsAria": "{exercise} के लिए लक्ष्य सेट",
+    "routines.repsAria": "{exercise} के लिए लक्ष्य रेप",
+    "error.target": "सेट की संख्या (1 से 20) और रेप की संख्या (1 से 100) दोनों दर्ज करें, या दोनों खाली छोड़ें।",
+    "routine.progressAria": "{name}: {sets} में से {count} सेट दर्ज",
+    "routines.targetHint": "वैकल्पिक: किसी व्यायाम के लिए लक्ष्य रखें, जैसे 8 रेप के 3 सेट। रूटीन शुरू करने पर आपकी प्रगति दिखेगी।",
   },
 });

@@ -277,5 +277,12 @@ I18n.register("en", {
     "toast.exerciseSaved": "Exercise updated.",
 
     "toast.setMoved": "Set moved to {exercise}.",
+
+    "routines.targetSets": "Sets",
+    "routines.setsAria": "Target sets for {exercise}",
+    "routines.repsAria": "Target reps for {exercise}",
+    "error.target": "Enter both a number of sets (1 to 20) and a number of reps (1 to 100), or leave both empty.",
+    "routine.progressAria": "{name}: {count} of {sets} sets logged",
+    "routines.targetHint": "Optional: give an exercise a target such as 3 sets of 8 reps. Starting the routine then shows your progress.",
   },
 });

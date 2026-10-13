@@ -37,6 +37,9 @@ function normalizeState(saved) {
   loaded.notes = Logic.sanitizeNotes(saved.notes);
   loaded.sex = Logic.STRENGTH_SEXES.includes(saved.sex) ? saved.sex : "";
   loaded.measurements = Logic.sanitizeMeasurements(saved.measurements);
+  loaded.routines = loaded.routines.map((routine) =>
+    routine && Array.isArray(routine.exercises) ? { ...routine, targets: Logic.sanitizeTargets(routine.targets, routine.exercises) } : routine
+  );
   loaded.entries = Logic.migrateEntries(loaded.entries);
   loaded.rest = { ...DEFAULT_REST, ...saved.rest };
   loaded.progression = {
@@ -452,6 +455,12 @@ function renderDemo(exercise) {
 
 // ---------- Weight suggestions ----------
 
+// The target a routine gives an exercise, for the routine currently chosen on the Log tab.
+function activeRoutineTarget(exercise) {
+  const routine = state.routines.find((r) => r.id === $("routine-select").value);
+  return routine && routine.targets ? routine.targets[exercise] : undefined;
+}
+
 function renderSuggestion() {
   const box = $("suggestion");
   const exercise = resolveExercise($("exercise").value);
@@ -465,7 +474,8 @@ function renderSuggestion() {
   const history = state.entries.filter((e) => e.date < date);
   const group = muscleOf(exercise);
   const unit = state.unit;
-  const suggestion = Logic.suggestNext(history, exercise, state.progression.repGoal, Logic.toLb(jumpOf(group), unit));
+  const repGoal = (activeRoutineTarget(exercise) || {}).reps || state.progression.repGoal;
+  const suggestion = Logic.suggestNext(history, exercise, repGoal, Logic.toLb(jumpOf(group), unit));
   box.classList.remove("hidden");
   const useButton = $("use-suggestion");
   if (!suggestion) {
@@ -476,7 +486,7 @@ function renderSuggestion() {
     return;
   }
   const weight = Logic.formatWeight(suggestion.weight, unit);
-  const goal = repsText(state.progression.repGoal);
+  const goal = repsText(repGoal);
   const sets = suggestion.session.map((e) => `${Logic.formatWeight(e.weight, unit)}×${e.reps}`).join(", ");
   $("suggestion-text").textContent = t("suggest.text", { weight, unit, reps: repsText(suggestion.reps) });
   const reason = suggestion.increased
@@ -567,21 +577,25 @@ function renderRoutineChecklist(todaysEntries) {
     list.replaceChildren();
     return;
   }
-  const loggedToday = new Set(todaysEntries.map((e) => e.exercise));
   const current = resolveExercise($("exercise").value);
   const timesInRoutine = (exercise) => routine.exercises.filter((e) => e === exercise).length;
   list.replaceChildren(
     ...routine.exercises.map((exercise, index) => {
-      const done = loggedToday.has(exercise);
+      const progress = Logic.routineProgress(todaysEntries, exercise, routine.targets && routine.targets[exercise]);
+      const done = progress.done;
       const total = timesInRoutine(exercise);
       const position = routine.exercises.slice(0, index + 1).filter((e) => e === exercise).length;
       const name =
         total > 1 ? t("routine.repeat", { name: exerciseLabel(exercise), position, total }) : exerciseLabel(exercise);
-      const chip = el("button", "chip", done ? `✓ ${name}` : name);
+      const label = progress.goal ? `${name} ${progress.logged}/${progress.goal}` : name;
+      const chip = el("button", "chip", done ? `✓ ${label}` : label);
       chip.type = "button";
       chip.classList.toggle("done", done);
       chip.classList.toggle("selected", exercise === current);
-      chip.setAttribute("aria-label", done ? t("routine.loggedAria", { name }) : name);
+      chip.setAttribute(
+        "aria-label",
+        progress.goal ? t("routine.progressAria", { name, count: progress.logged, sets: progress.goal }) : done ? t("routine.loggedAria", { name }) : name
+      );
       chip.addEventListener("click", () => pickRoutineExercise(exercise));
       const item = el("li");
       item.append(chip);
@@ -595,7 +609,8 @@ function pickRoutineExercise(exercise) {
   $("exercise").value = exerciseLabel(exercise);
   const last = Logic.lastSet(state.entries, exercise);
   $("weight").value = last ? Logic.formatWeight(last.weight, state.unit) : "";
-  $("reps").value = last ? last.reps : "";
+  const target = activeRoutineTarget(exercise);
+  $("reps").value = last ? last.reps : target ? target.reps : "";
   updateMuscleRow();
   renderRoutineChecklist(state.entries.filter((e) => e.date === ($("date").value || today())));
   $("weight").focus();
@@ -604,6 +619,7 @@ function pickRoutineExercise(exercise) {
 // ---------- Routines tab ----------
 
 let draftExercises = [];
+let draftTargets = {}; // what is typed in each exercise's target boxes: { name: { sets, reps } }
 let editingRoutineId = null;
 
 function allExerciseNames() {
@@ -631,7 +647,8 @@ function renderRoutines() {
         remove.addEventListener("click", () => deleteRoutine(routine));
         actions.append(edit, remove);
         header.append(actions);
-        card.append(header, el("p", "", routine.exercises.map(exerciseLabel).join(" · ")));
+        const targetOf = (exercise) => (routine.targets && routine.targets[exercise] ? ` ${routine.targets[exercise].sets}×${routine.targets[exercise].reps}` : "");
+        card.append(header, el("p", "", routine.exercises.map((exercise) => `${exerciseLabel(exercise)}${targetOf(exercise)}`).join(" · ")));
         return card;
       })
     );
@@ -725,6 +742,10 @@ function saveExerciseEdit(name, newName, group, errorNode) {
   state.customExercises = result.customExercises;
   // A routine being edited right now keeps its place, with the new name and no duplicate.
   draftExercises = draftExercises.map((exercise) => (exercise === name ? result.newName : exercise)).filter((exercise, index, all) => all.indexOf(exercise) === index);
+  if (draftTargets[name]) {
+    draftTargets[result.newName] = draftTargets[result.newName] || draftTargets[name];
+    delete draftTargets[name];
+  }
   editingExerciseName = null;
   saveState();
   renderAfterExerciseChange();
@@ -739,6 +760,7 @@ function deleteCustomExercise(name) {
   state.routines = result.routines;
   state.customExercises = result.customExercises;
   draftExercises = draftExercises.filter((exercise) => exercise !== name);
+  delete draftTargets[name];
   saveState();
   renderAfterExerciseChange();
   showToast(t("toast.routineDeleted", { name }));
@@ -770,19 +792,43 @@ function renderRoutineDraft() {
   }
   draft.replaceChildren(
     ...draftExercises.map((exercise, index) => {
-      const item = el("li", "entry");
+      const item = el("li", "entry draft-item");
       item.append(el("span", "", `${index + 1}. ${exerciseLabel(exercise)}`));
       const remove = el("button", "link", t("routines.remove"));
       remove.type = "button";
       remove.setAttribute("aria-label", t("routines.removeAria", { exercise: exerciseLabel(exercise) }));
       remove.addEventListener("click", () => {
         draftExercises.splice(index, 1);
+        if (!draftExercises.includes(exercise)) delete draftTargets[exercise];
         renderRoutineDraft();
       });
-      item.append(remove);
+      item.append(remove, targetFields(exercise));
       return item;
     })
   );
+}
+
+// The optional "sets" and "reps" target boxes under an exercise in the routine being edited.
+function targetFields(exercise) {
+  const row = el("div", "target-row");
+  const field = (key, labelText, ariaKey) => {
+    const input = Object.assign(el("input"), {
+      type: "number",
+      inputMode: "numeric",
+      min: 1,
+      step: 1,
+      value: (draftTargets[exercise] || {})[key] || "",
+    });
+    input.setAttribute("aria-label", t(ariaKey, { exercise: exerciseLabel(exercise) }));
+    input.addEventListener("input", () => {
+      draftTargets[exercise] = { sets: "", reps: "", ...draftTargets[exercise], [key]: input.value };
+    });
+    const label = el("label", "", labelText);
+    label.append(input);
+    return label;
+  };
+  row.append(field("sets", t("routines.targetSets"), "routines.setsAria"), field("reps", t("log.reps"), "routines.repsAria"));
+  return row;
 }
 
 function addDraftExercise() {
@@ -796,6 +842,7 @@ function addDraftExercise() {
 function resetRoutineForm() {
   editingRoutineId = null;
   draftExercises = [];
+  draftTargets = {};
   $("routine-name").value = "";
   $("routine-error").textContent = "";
   $("routine-cancel").classList.add("hidden");
@@ -806,6 +853,9 @@ function resetRoutineForm() {
 function startEditingRoutine(routine) {
   editingRoutineId = routine.id;
   draftExercises = [...routine.exercises];
+  draftTargets = Object.fromEntries(
+    Object.entries(routine.targets || {}).map(([name, target]) => [name, { sets: String(target.sets), reps: String(target.reps) }])
+  );
   $("routine-name").value = routine.name;
   $("routine-error").textContent = "";
   $("routine-cancel").classList.remove("hidden");
@@ -825,7 +875,9 @@ function deleteRoutine(routine) {
 function onRoutineSubmit(event) {
   event.preventDefault();
   const routine = { name: Logic.normalizeName($("routine-name").value), exercises: [...draftExercises] };
-  const error = Logic.validateRoutine(routine);
+  const parsed = Logic.parseTargets(routine.exercises, draftTargets);
+  const error = Logic.validateRoutine(routine) || parsed.error || "";
+  routine.targets = parsed.targets;
   $("routine-error").textContent = errorText(error);
   if (error) return;
   if (editingRoutineId) {
@@ -1366,7 +1418,10 @@ function init() {
   $("routine-form").addEventListener("submit", onRoutineSubmit);
   $("routine-add-exercise").addEventListener("click", addDraftExercise);
   $("routine-cancel").addEventListener("click", resetRoutineForm);
-  $("routine-select").addEventListener("change", renderToday);
+  $("routine-select").addEventListener("change", () => {
+    renderToday();
+    renderSuggestion();
+  });
   $("rest-seconds").addEventListener("change", onRestSecondsChange);
   $("rest-auto").addEventListener("change", onRestToggleChange);
   $("rest-sound").addEventListener("change", onRestToggleChange);

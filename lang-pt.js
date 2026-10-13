@@ -277,5 +277,12 @@ I18n.register("pt", {
     "toast.exerciseSaved": "Exercício atualizado.",
 
     "toast.setMoved": "Série movida para {exercise}.",
+
+    "routines.targetSets": "Séries",
+    "routines.setsAria": "Séries alvo de {exercise}",
+    "routines.repsAria": "Repetições alvo de {exercise}",
+    "error.target": "Digite o número de séries (1 a 20) e o de repetições (1 a 100), ou deixe os dois vazios.",
+    "routine.progressAria": "{name}: {count} de {sets} séries registradas",
+    "routines.targetHint": "Opcional: dê a um exercício uma meta, como 3 séries de 8 repetições. Ao iniciar a rotina, você verá seu progresso.",
   },
 });

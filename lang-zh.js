@@ -276,5 +276,12 @@ I18n.register("zh", {
     "toast.exerciseSaved": "动作已更新。",
 
     "toast.setMoved": "该组已移到{exercise}。",
+
+    "routines.targetSets": "组数",
+    "routines.setsAria": "{exercise}的目标组数",
+    "routines.repsAria": "{exercise}的目标次数",
+    "error.target": "请同时输入组数（1 到 20）和次数（1 到 100），或两者都留空。",
+    "routine.progressAria": "{name}：已记录 {count}/{sets} 组",
+    "routines.targetHint": "可选：为动作设定目标，例如 3 组 8 次。开始训练计划后会显示你的进度。",
   },
 });

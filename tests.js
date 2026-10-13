@@ -249,6 +249,53 @@ test("usage counts the sets and routines an exercise appears in", () => {
   assertEqual(Logic.exerciseUsage(customData(), "Deadlift"), { sets: 0, routines: 0 });
 });
 
+// ---------- Routine targets ----------
+
+test("typed targets become numbers, and boxes left empty mean no target", () => {
+  const typed = { "Bench Press": { sets: "3", reps: " 8 " }, "Squat": { sets: "", reps: "" }, "Row": undefined };
+  assertEqual(Logic.parseTargets(["Bench Press", "Squat", "Row"], typed), { targets: { "Bench Press": { sets: 3, reps: 8 } } });
+});
+
+test("a target needs both whole numbers in range, or neither", () => {
+  const bad = [{ sets: "3", reps: "" }, { sets: "", reps: "8" }, { sets: "0", reps: "8" }, { sets: "21", reps: "8" }, { sets: "3", reps: "101" }, { sets: "2.5", reps: "8" }, { sets: "-3", reps: "8" }, { sets: "three", reps: "8" }];
+  for (const typed of bad) assertEqual(Logic.parseTargets(["Squat"], { Squat: typed }), { error: "error.target" }, JSON.stringify(typed));
+  assertEqual(Logic.parseTargets(["Squat"], { Squat: { sets: "20", reps: "100" } }).error, undefined);
+});
+
+test("an exercise listed twice in a routine gets one target", () => {
+  assertEqual(Logic.parseTargets(["Squat", "Squat"], { Squat: { sets: "3", reps: "5" } }), { targets: { Squat: { sets: 3, reps: 5 } } });
+});
+
+test("saved targets that are damaged or for exercises no longer in the routine are dropped", () => {
+  const saved = { "Bench Press": { sets: 3, reps: 8 }, "Squat": { sets: 0, reps: 5 }, "Row": { sets: 3, reps: 8 }, "Curl": "x" };
+  assertEqual(Logic.sanitizeTargets(saved, ["Bench Press", "Squat", "Curl"]), { "Bench Press": { sets: 3, reps: 8 } });
+  assertEqual([Logic.sanitizeTargets(undefined, ["Squat"]), Logic.sanitizeTargets("text", ["Squat"]), Logic.sanitizeTargets(saved, undefined)], [{}, {}, {}]);
+});
+
+test("progress counts today's sets of an exercise against its target", () => {
+  const today = [set("2026-10-13", 135, 8), set("2026-10-13", 135, 8), set("2026-10-13", 100, 5, "Squat")];
+  assertEqual(Logic.routineProgress(today, "Bench Press", { sets: 3, reps: 8 }), { logged: 2, goal: 3, done: false });
+  assertEqual(Logic.routineProgress([...today, set("2026-10-13", 135, 7)], "Bench Press", { sets: 3, reps: 8 }).done, true);
+});
+
+test("without a target, one logged set is enough to count an exercise as done", () => {
+  assertEqual(Logic.routineProgress([set("2026-10-13", 100, 5, "Squat")], "Squat", undefined), { logged: 1, goal: null, done: true });
+  assertEqual(Logic.routineProgress([], "Squat", undefined), { logged: 0, goal: null, done: false });
+});
+
+test("renaming or deleting an exercise carries its routine target along", () => {
+  const data = {
+    entries: [],
+    routines: [{ id: "r", name: "Push", exercises: ["Cabel Fly", "Bench Press"], targets: { "Cabel Fly": { sets: 3, reps: 12 }, "Bench Press": { sets: 4, reps: 6 } } }],
+    customExercises: { "Cabel Fly": "Chest" },
+  };
+  const renamed = Logic.renameExercise(data, "Cabel Fly", "Cable Fly", "Chest");
+  assertEqual(renamed.routines[0].targets, { "Bench Press": { sets: 4, reps: 6 }, "Cable Fly": { sets: 3, reps: 12 } });
+  const merged = Logic.renameExercise(data, "Cabel Fly", "Bench Press", "Chest");
+  assertEqual(merged.routines[0].targets, { "Bench Press": { sets: 4, reps: 6 } }, "the existing exercise keeps its own target:");
+  assertEqual(Logic.deleteExercise(data, "Cabel Fly").routines[0].targets, { "Bench Press": { sets: 4, reps: 6 } });
+});
+
 // ---------- Strength levels ----------
 
 test("every lift has five rising level thresholds, and women's are lower than men's", () => {

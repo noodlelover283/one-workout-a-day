@@ -277,5 +277,12 @@ I18n.register("fr", {
     "toast.exerciseSaved": "Exercice mis à jour.",
 
     "toast.setMoved": "Série déplacée vers {exercise}.",
+
+    "routines.targetSets": "Séries",
+    "routines.setsAria": "Nombre de séries visé pour {exercise}",
+    "routines.repsAria": "Nombre de répétitions visé pour {exercise}",
+    "error.target": "Entrez à la fois un nombre de séries (1 à 20) et un nombre de répétitions (1 à 100), ou laissez les deux vides.",
+    "routine.progressAria": "{name} : {count} séries sur {sets} enregistrées",
+    "routines.targetHint": "Facultatif : donnez à un exercice un objectif, comme 3 séries de 8 répétitions. En démarrant la routine, vous verrez votre progression.",
   },
 });

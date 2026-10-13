@@ -279,5 +279,12 @@ I18n.register("ru", {
     "toast.exerciseSaved": "Упражнение обновлено.",
 
     "toast.setMoved": "Подход перенесён в «{exercise}».",
+
+    "routines.targetSets": "Подходы",
+    "routines.setsAria": "Целевое число подходов: {exercise}",
+    "routines.repsAria": "Целевое число повторений: {exercise}",
+    "error.target": "Введите и число подходов (от 1 до 20), и число повторений (от 1 до 100) или оставьте оба поля пустыми.",
+    "routine.progressAria": "{name}: записано подходов {count} из {sets}",
+    "routines.targetHint": "Необязательно: задайте упражнению цель, например 3 подхода по 8 повторений. При запуске программы вы увидите свой прогресс.",
   },
 });

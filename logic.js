@@ -90,6 +90,56 @@ const Logic = (() => {
     return Object.keys(all).find((known) => known.toLowerCase() === lower) || null;
   }
 
+  // A routine can give an exercise a target such as 3 sets of 8 reps: routine.targets is
+  // { "Bench Press": { sets: 3, reps: 8 } }. A target always has both numbers or does not exist.
+  const MAX_TARGET_SETS = 20;
+  const MAX_TARGET_REPS = 100;
+
+  const validTarget = (target) =>
+    !!target &&
+    Number.isInteger(target.sets) && target.sets >= 1 && target.sets <= MAX_TARGET_SETS &&
+    Number.isInteger(target.reps) && target.reps >= 1 && target.reps <= MAX_TARGET_REPS;
+
+  // Reads what was typed into the target boxes: { "Bench Press": { sets: "3", reps: "8" } }. Boxes
+  // left empty mean no target. Returns { targets } or { error } with a message key.
+  function parseTargets(exercises, typed) {
+    const targets = {};
+    for (const exercise of new Set(exercises)) {
+      const sets = ((typed[exercise] && typed[exercise].sets) || "").trim();
+      const reps = ((typed[exercise] && typed[exercise].reps) || "").trim();
+      if (!sets && !reps) continue;
+      const target = { sets: /^\d+$/.test(sets) ? Number(sets) : NaN, reps: /^\d+$/.test(reps) ? Number(reps) : NaN };
+      if (!validTarget(target)) return { error: "error.target" };
+      targets[exercise] = target;
+    }
+    return { targets };
+  }
+
+  // Keeps only valid saved targets for exercises that are still in the routine.
+  function sanitizeTargets(saved, exercises) {
+    const targets = {};
+    if (!saved || typeof saved !== "object") return targets;
+    for (const exercise of new Set(exercises || [])) {
+      if (validTarget(saved[exercise])) targets[exercise] = { sets: saved[exercise].sets, reps: saved[exercise].reps };
+    }
+    return targets;
+  }
+
+  // The targets after an exercise is renamed. If the new name already had a target, it is kept.
+  function renameTarget(targets, from, to) {
+    if (!targets || !targets[from]) return targets || {};
+    const renamed = { ...targets };
+    delete renamed[from];
+    if (!renamed[to]) renamed[to] = targets[from];
+    return renamed;
+  }
+
+  // How far along an exercise is today: sets logged so far against the routine's target, if any.
+  function routineProgress(todaysEntries, exercise, target) {
+    const logged = todaysEntries.filter((entry) => entry.exercise === exercise).length;
+    return { logged, goal: target ? target.sets : null, done: target ? logged >= target.sets : logged > 0 };
+  }
+
   // Renaming a custom exercise (and optionally changing its muscle group) has to update everything
   // that uses the name. If the new name is another exercise that already exists (a typo fixed into a
   // real name, say), the two are merged: the sets move over and the existing exercise keeps its group.
@@ -107,9 +157,10 @@ const Logic = (() => {
       routines: routines.map((routine) => {
         if (!routine.exercises.includes(from)) return routine;
         const renamed = routine.exercises.map((name) => (name === from ? newName : name));
+        const targets = renameTarget(routine.targets, from, newName);
         // After a merge a routine may now list the same exercise twice; keep the first.
         const exercises = merging ? renamed.filter((name, index) => name !== newName || renamed.indexOf(name) === index) : renamed;
-        return { ...routine, exercises };
+        return { ...routine, exercises, targets };
       }),
       customExercises: custom,
       newName,
@@ -123,7 +174,11 @@ const Logic = (() => {
     delete custom[name];
     return {
       entries: entries.filter((entry) => entry.exercise !== name),
-      routines: routines.map((routine) => ({ ...routine, exercises: routine.exercises.filter((exercise) => exercise !== name) })),
+      routines: routines.map((routine) => {
+        const targets = { ...routine.targets };
+        delete targets[name];
+        return { ...routine, exercises: routine.exercises.filter((exercise) => exercise !== name), targets };
+      }),
       customExercises: custom,
     };
   }
@@ -606,6 +661,9 @@ const Logic = (() => {
     daysBetween,
     normalizeName,
     findKnownExercise,
+    parseTargets,
+    sanitizeTargets,
+    routineProgress,
     renameExercise,
     deleteExercise,
     exerciseUsage,

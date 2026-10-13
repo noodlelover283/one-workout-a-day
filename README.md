@@ -10,7 +10,7 @@ Open `index.html` in a browser, or serve the folder so it also works on your pho
 
 ```powershell
 # From this folder, in PowerShell, if Python is installed:
-python -m http.server 8123
+python serve.py
 ```
 
 Then visit `http://localhost:8123`. Workouts are saved in your browser's local storage on that device.
@@ -38,6 +38,7 @@ It copies only the app files, so the private course files are never published. T
 - `logic.js`: data rules (validation, plateau check, suggestions, sample data), no page access
 - `tests.html` and `tests.js`: the tests (open `tests.html` through the server)
 
+- `serve.py`: the local test server (it stops your browser keeping old copies of the files)
 - `publish.py`: copies the app files to the public hosting copy (see Hosting)
 - `app.js`: connects the page to the data
 - `i18n.js`: the translation helper (text lookup, plurals, dates)

@@ -282,5 +282,12 @@ I18n.register("ar", {
     "toast.exerciseSaved": "تم تحديث التمرين.",
 
     "toast.setMoved": "تم نقل المجموعة إلى {exercise}.",
+
+    "routines.targetSets": "المجموعات",
+    "routines.setsAria": "المجموعات المستهدفة لتمرين {exercise}",
+    "routines.repsAria": "التكرارات المستهدفة لتمرين {exercise}",
+    "error.target": "أدخل عدد المجموعات (من 1 إلى 20) وعدد التكرارات (من 1 إلى 100) معًا، أو اترك الحقلين فارغين.",
+    "routine.progressAria": "{name}: سُجلت {count} من {sets} مجموعات",
+    "routines.targetHint": "اختياري: حدد هدفًا للتمرين مثل 3 مجموعات من 8 تكرارات. عند بدء الروتين سيظهر تقدمك.",
   },
 });
