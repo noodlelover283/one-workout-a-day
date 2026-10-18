@@ -345,6 +345,51 @@ test("deleting an exercise deletes its note, and so does moving the last set out
   assertEqual(Logic.updateSetDetails(stillUsed, "1", { exercise: "Bench Press", weight: 100, reps: 5 }, "Chest").exerciseNotes, { "Cabel Fly": "Handles at 4", "Bench Press": "Seat at 3" });
 });
 
+// ---------- Barbell exercises ----------
+
+test("the built-in barbell exercises are real exercises, and the others have no plates", () => {
+  for (const name of Logic.BARBELL_EXERCISES) {
+    if (!(name in Logic.DEFAULT_EXERCISES)) throw new Error(`${name} is not a built-in exercise`);
+  }
+  const without = ["Incline Dumbbell Press", "Lateral Raise", "Lat Pulldown", "Pull-Up", "Leg Press", "Tricep Pushdown", "Plank (weighted)", "Bicep Curl"];
+  assertEqual(without.map((name) => Logic.usesBarbell(name, {})), without.map(() => false));
+  assertEqual(["Bench Press", "Deadlift", "Barbell Row", "Squat", "Romanian Deadlift", "Overhead Press"].map((name) => Logic.usesBarbell(name, {})), Array(6).fill(true));
+});
+
+test("an exercise someone adds has plates only when it is marked as using a barbell", () => {
+  assertEqual([Logic.usesBarbell("Landmine Press", {}), Logic.usesBarbell("Landmine Press", { "Landmine Press": true }), Logic.usesBarbell("Cable Fly", { "Landmine Press": true })], [false, true, false]);
+  assertEqual(Logic.sanitizeBarbellExercises({ "Landmine Press": true, "Cable Fly": false, "Row": "yes", "": true, ["x".repeat(101)]: true }), { "Landmine Press": true });
+  assertEqual([Logic.sanitizeBarbellExercises(undefined), Logic.sanitizeBarbellExercises("text"), Logic.sanitizeBarbellExercises(null)], [{}, {}, {}]);
+});
+
+test("the barbell mark follows a rename as the checkbox says, a merge leaves the target alone, and a delete removes it", () => {
+  const data = () => ({
+    entries: [],
+    routines: [],
+    customExercises: { "Landmine Prss": "Shoulders", "Landmine Press": "Shoulders", "Cable Fly": "Chest" },
+    exerciseNotes: {},
+    barbellExercises: { "Landmine Prss": true, "Landmine Press": true },
+  });
+  assertEqual(Logic.renameExercise(data(), "Landmine Prss", "Landmine Raise", "Shoulders", true).barbellExercises, { "Landmine Press": true, "Landmine Raise": true });
+  assertEqual(Logic.renameExercise(data(), "Landmine Prss", "Landmine Raise", "Shoulders", false).barbellExercises, { "Landmine Press": true });
+  assertEqual(Logic.renameExercise(data(), "Landmine Prss", "Cable Fly", "Chest", true).barbellExercises, { "Landmine Press": true }, "merging leaves Cable Fly as it was:");
+  assertEqual(Logic.deleteExercise(data(), "Landmine Prss").barbellExercises, { "Landmine Press": true });
+});
+
+test("a new exercise made from a set's Edit can be marked as barbell, and a dropped typo loses its mark", () => {
+  const base = {
+    entries: [{ id: "1", exercise: "Landmine Prss", date: "2026-10-01", weight: 30, reps: 10 }],
+    routines: [],
+    customExercises: { "Landmine Prss": "Shoulders" },
+    exerciseNotes: {},
+    barbellExercises: { "Landmine Prss": true },
+  };
+  const created = Logic.updateSetDetails(base, "1", { exercise: "Landmine Press", weight: 30, reps: 10 }, "Shoulders", true);
+  assertEqual(created.barbellExercises, { "Landmine Press": true });
+  const notBarbell = Logic.updateSetDetails(base, "1", { exercise: "Cable Fly", weight: 30, reps: 10 }, "Chest", false);
+  assertEqual(notBarbell.barbellExercises, {});
+});
+
 // ---------- Plate calculator ----------
 
 test("the plates for each side are the biggest ones first, for lb and kg", () => {
@@ -1096,6 +1141,9 @@ test("typing a weight shows which plates to load on each side, in lb and kg, and
       weight.dispatchEvent(new Event("input", { bubbles: true }));
     };
     const summary = () => app.doc.getElementById("plates-summary").textContent;
+    const exerciseBox = app.doc.getElementById("exercise");
+    exerciseBox.value = "Bench Press";
+    exerciseBox.dispatchEvent(new Event("input", { bubbles: true }));
     assertEqual(summary(), "Plate calculator");
     type("185");
     assertEqual(summary(), "Plates: 45 + 25 each side");
@@ -1151,6 +1199,61 @@ test("an exercise note is added under the chosen exercise, shown at a glance, an
     text.value = "";
     text.dispatchEvent(new Event("change", { bubbles: true }));
     assertEqual([summary(), JSON.parse(localStorage.getItem(app.storage)).exerciseNotes], ["Add a note", {}]);
+    if (app.errors.length) throw new Error(`the app raised errors: ${app.errors.join("; ")}`);
+  } finally {
+    closeApp(app);
+  }
+});
+
+test("the plate calculator shows only for barbell exercises, and a new exercise opts in with a checkbox", async () => {
+  const app = await openApp();
+  try {
+    const choose = (name) => {
+      const box = app.doc.getElementById("exercise");
+      box.value = name;
+      box.dispatchEvent(new Event("input", { bubbles: true }));
+    };
+    const shown = () => !app.doc.getElementById("plates").classList.contains("hidden");
+    assertEqual(shown(), false);
+    const results = {};
+    for (const name of ["Bench Press", "Incline Dumbbell Press", "Squat", "Lat Pulldown", "Bicep Curl", "Leg Press", "Deadlift"]) {
+      choose(name);
+      results[name] = shown();
+    }
+    assertEqual(results, { "Bench Press": true, "Incline Dumbbell Press": false, "Squat": true, "Lat Pulldown": false, "Bicep Curl": false, "Leg Press": false, "Deadlift": true });
+    // A new exercise: no plates until the box is ticked.
+    choose("Landmine Press");
+    assertEqual(app.doc.getElementById("muscle-row").classList.contains("hidden"), false);
+    const box = app.doc.getElementById("barbell-check");
+    assertEqual(shown(), false);
+    box.checked = true;
+    box.dispatchEvent(new Event("change", { bubbles: true }));
+    assertEqual(shown(), true);
+    box.checked = false;
+    box.dispatchEvent(new Event("change", { bubbles: true }));
+    assertEqual(shown(), false);
+    box.checked = true;
+    box.dispatchEvent(new Event("change", { bubbles: true }));
+    logSetInApp(app, "Landmine Press", 60, 8);
+    assertEqual([JSON.parse(localStorage.getItem(app.storage)).barbellExercises, box.checked, shown()], [{ "Landmine Press": true }, false, true]);
+    choose("Bicep Curl");
+    assertEqual(shown(), false);
+    choose("Landmine Press");
+    assertEqual(shown(), true);
+    // Editing it in My exercises: the card says Barbell, and unticking the box takes the plates away.
+    const routines = showTab(app, "routines");
+    const card = [...routines.querySelectorAll("#my-exercises .routine-card")].find((node) => node.textContent.includes("Landmine Press"));
+    if (!card.textContent.includes("Barbell")) throw new Error(`the card should say Barbell, but reads "${card.textContent}"`);
+    card.querySelector("button.link").click();
+    const form = routines.querySelector("#my-exercises form");
+    const checkbox = form.querySelector('input[type="checkbox"]');
+    assertEqual(checkbox.checked, true);
+    checkbox.checked = false;
+    form.requestSubmit();
+    assertEqual(JSON.parse(localStorage.getItem(app.storage)).barbellExercises, {});
+    showTab(app, "log");
+    choose("Landmine Press");
+    assertEqual(shown(), false);
     if (app.errors.length) throw new Error(`the app raised errors: ${app.errors.join("; ")}`);
   } finally {
     closeApp(app);

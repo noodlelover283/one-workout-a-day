@@ -311,5 +311,8 @@ I18n.register("pt", {
     "exnote.summary": "Nota: {note}",
     "exnote.label": "Nota deste exercício",
     "exnote.placeholder": "ex.: Banco na posição 3, pegada aberta",
+
+    "barbell.label": "Usa barra",
+    "barbell.badge": "Barra",
   },
 });

@@ -316,5 +316,8 @@ I18n.register("ar", {
     "exnote.summary": "ملاحظة: {note}",
     "exnote.label": "ملاحظة لهذا التمرين",
     "exnote.placeholder": "مثال: المقعد على 3، قبضة واسعة",
+
+    "barbell.label": "يستخدم الباربل",
+    "barbell.badge": "باربل",
   },
 });

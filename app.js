@@ -29,6 +29,7 @@ function loadState() {
     sex: "",
     barWeight: { ...Logic.DEFAULT_BARS },
     exerciseNotes: {},
+    barbellExercises: {},
     measurements: [],
     rest: { ...DEFAULT_REST },
     progression: { repGoal: Logic.DEFAULT_REP_GOAL, jumps: { lb: {}, kg: {} } },
@@ -45,6 +46,7 @@ function normalizeState(saved) {
   loaded.sex = Logic.STRENGTH_SEXES.includes(saved.sex) ? saved.sex : "";
   loaded.barWeight = Logic.sanitizeBarWeights(saved.barWeight);
   loaded.exerciseNotes = Logic.sanitizeExerciseNotes(saved.exerciseNotes);
+  loaded.barbellExercises = Logic.sanitizeBarbellExercises(saved.barbellExercises);
   loaded.measurements = Logic.sanitizeMeasurements(saved.measurements);
   loaded.routines = loaded.routines.map((routine) =>
     routine && Array.isArray(routine.exercises) ? { ...routine, targets: Logic.sanitizeTargets(routine.targets, routine.exercises) } : routine
@@ -196,7 +198,14 @@ function editSetRow(entry, number) {
   group.value = muscleOf(entry.exercise) || Logic.MUSCLE_GROUPS[0];
   const groupLabel = el("label", "hidden", t("log.newMuscle"));
   groupLabel.append(group);
-  exercise.addEventListener("input", () => groupLabel.classList.toggle("hidden", !(Logic.normalizeName(exercise.value) && !resolveExercise(exercise.value))));
+  const barbell = Object.assign(el("input"), { type: "checkbox" });
+  const barbellLabel = el("label", "check hidden");
+  barbellLabel.append(barbell, " ", el("span", "", t("barbell.label")));
+  exercise.addEventListener("input", () => {
+    const isNew = Boolean(Logic.normalizeName(exercise.value) && !resolveExercise(exercise.value));
+    groupLabel.classList.toggle("hidden", !isNew);
+    barbellLabel.classList.toggle("hidden", !isNew);
+  });
   const weight = Object.assign(el("input"), {
     type: "number",
     inputMode: "decimal",
@@ -220,11 +229,11 @@ function editSetRow(entry, number) {
   cancel.addEventListener("click", stopEditing);
   const buttons = el("div", "row");
   buttons.append(save, cancel);
-  form.append(el("strong", "", t("set.title", { n: number })), exerciseLabelNode, groupLabel, fields, error, buttons);
+  form.append(el("strong", "", t("set.title", { n: number })), exerciseLabelNode, groupLabel, barbellLabel, fields, error, buttons);
   form.addEventListener("submit", (event) => {
     event.preventDefault();
     const typed = resolveExercise(exercise.value) || Logic.normalizeName(exercise.value);
-    saveEdit(entry, { exercise: typed, weight: parseFloat(weight.value), reps: parseInt(reps.value, 10) }, group.value, error);
+    saveEdit(entry, { exercise: typed, weight: parseFloat(weight.value), reps: parseInt(reps.value, 10) }, group.value, barbell.checked, error);
   });
   form.addEventListener("keydown", (event) => {
     if (event.key === "Escape") stopEditing();
@@ -245,14 +254,15 @@ function stopEditing() {
   renderSetLists();
 }
 
-function saveEdit(entry, changes, group, errorNode) {
+function saveEdit(entry, changes, group, barbell, errorNode) {
   const error = Logic.validateEntry(changes);
   errorNode.textContent = errorText(error);
   if (error) return;
-  const result = Logic.updateSetDetails(state, entry.id, { ...changes, weight: Logic.toLb(changes.weight, state.unit) }, group);
+  const result = Logic.updateSetDetails(state, entry.id, { ...changes, weight: Logic.toLb(changes.weight, state.unit) }, group, barbell);
   state.entries = result.entries;
   state.customExercises = result.customExercises;
   state.exerciseNotes = result.exerciseNotes;
+  state.barbellExercises = result.barbellExercises;
   editingEntryId = null;
   saveState();
   if (result.moved) renderAfterExerciseChange();
@@ -322,7 +332,9 @@ function onLogSubmit(event) {
     input.exercise = known;
   } else {
     state.customExercises[input.exercise] = $("muscle").value;
+    if ($("barbell-check").checked) state.barbellExercises[input.exercise] = true;
   }
+  $("barbell-check").checked = false;
   renderExerciseOptions();
   updateMuscleRow();
   addSet(date, input.exercise, input.weight, input.reps);
@@ -525,6 +537,11 @@ const shownNumber = (value) => String(Math.round(value * 100) / 100);
 
 // Shows which plates to load on each side for the weight typed above, in the row under Weight and Reps.
 function renderPlates() {
+  // Only barbell exercises get it: a known one by its list, a new one by the checkbox.
+  const known = resolveExercise($("exercise").value);
+  const isNew = !known && Logic.normalizeName($("exercise").value) !== "";
+  const show = known ? Logic.usesBarbell(known, state.barbellExercises) : isNew && $("barbell-check").checked;
+  $("plates").classList.toggle("hidden", !show);
   const unit = state.unit;
   const bar = state.barWeight[unit];
   const select = $("bar-select");
@@ -583,6 +600,7 @@ function renderSuggestion() {
   const exercise = resolveExercise($("exercise").value);
   renderDemo(exercise);
   renderExerciseNote(exercise);
+  renderPlates();
   if (!exercise) {
     box.classList.add("hidden");
     return;
@@ -808,7 +826,8 @@ function exerciseCard(name) {
   const actions = el("div", "routine-actions");
   actions.append(edit, remove);
   header.append(actions);
-  card.append(header, el("p", "", muscleLabel(state.customExercises[name])));
+  const details = [muscleLabel(state.customExercises[name]), Logic.usesBarbell(name, state.barbellExercises) ? t("barbell.badge") : null];
+  card.append(header, el("p", "", details.filter(Boolean).join(" · ")));
   return card;
 }
 
@@ -823,6 +842,9 @@ function editExerciseCard(name) {
   group.value = state.customExercises[name];
   const groupLabel = el("label", "", t("myex.muscle"));
   groupLabel.append(group);
+  const barbell = Object.assign(el("input"), { type: "checkbox", checked: Logic.usesBarbell(name, state.barbellExercises) });
+  const barbellLabel = el("label", "check");
+  barbellLabel.append(barbell, " ", el("span", "", t("barbell.label")));
   const error = el("p", "error");
   error.setAttribute("role", "alert");
   const save = el("button", "primary", t("set.save"));
@@ -830,10 +852,10 @@ function editExerciseCard(name) {
   const cancel = el("button", "secondary", t("set.cancel"));
   cancel.type = "button";
   cancel.addEventListener("click", stopEditingExercise);
-  card.append(nameLabel, groupLabel, error, save, cancel);
+  card.append(nameLabel, groupLabel, barbellLabel, error, save, cancel);
   card.addEventListener("submit", (event) => {
     event.preventDefault();
-    saveExerciseEdit(name, nameInput.value, group.value, error);
+    saveExerciseEdit(name, nameInput.value, group.value, barbell.checked, error);
   });
   card.addEventListener("keydown", (event) => {
     if (event.key === "Escape") stopEditingExercise();
@@ -852,16 +874,17 @@ function stopEditingExercise() {
   renderMyExercises();
 }
 
-function saveExerciseEdit(name, newName, group, errorNode) {
+function saveExerciseEdit(name, newName, group, barbell, errorNode) {
   const error = Logic.normalizeName(newName) ? "" : "error.exerciseName";
   errorNode.textContent = errorText(error);
   if (error) return;
-  const result = Logic.renameExercise(state, name, newName, group);
+  const result = Logic.renameExercise(state, name, newName, group, barbell);
   if (result.merging && !window.confirm(t("myex.mergeConfirm", { from: name, to: result.newName, sets: Logic.exerciseUsage(state, name).sets }))) return;
   state.entries = result.entries;
   state.routines = result.routines;
   state.customExercises = result.customExercises;
   state.exerciseNotes = result.exerciseNotes;
+  state.barbellExercises = result.barbellExercises;
   // A routine being edited right now keeps its place, with the new name and no duplicate.
   draftExercises = draftExercises.map((exercise) => (exercise === name ? result.newName : exercise)).filter((exercise, index, all) => all.indexOf(exercise) === index);
   if (draftTargets[name]) {
@@ -882,6 +905,7 @@ function deleteCustomExercise(name) {
   state.routines = result.routines;
   state.customExercises = result.customExercises;
   state.exerciseNotes = result.exerciseNotes;
+  state.barbellExercises = result.barbellExercises;
   draftExercises = draftExercises.filter((exercise) => exercise !== name);
   delete draftTargets[name];
   saveState();
@@ -1580,6 +1604,7 @@ function init() {
   $("weight").addEventListener("input", renderPlates);
   $("exercise-note-text").addEventListener("change", onExerciseNoteChange);
   $("bar-select").addEventListener("change", onBarChange);
+  $("barbell-check").addEventListener("change", renderPlates);
   $("workout-note").maxLength = Logic.NOTE_MAX_LENGTH;
   $("workout-note").addEventListener("change", onNoteChange);
   $("exercise").addEventListener("input", updateMuscleRow);

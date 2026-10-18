@@ -177,7 +177,7 @@ const Logic = (() => {
   // that uses the name. If the new name is another exercise that already exists (a typo fixed into a
   // real name, say), the two are merged: the sets move over and the existing exercise keeps its group.
   // `data` is { entries, routines, customExercises }; a new copy is returned with the final name.
-  function renameExercise({ entries, routines, customExercises, exerciseNotes }, from, to, group) {
+  function renameExercise({ entries, routines, customExercises, exerciseNotes, barbellExercises }, from, to, group, barbell = false) {
     const clean = normalizeName(to);
     const existing = findKnownExercise(clean, customExercises);
     const merging = existing !== null && existing !== from;
@@ -197,17 +197,20 @@ const Logic = (() => {
       }),
       customExercises: custom,
       exerciseNotes: renameExerciseNote(exerciseNotes, from, newName),
+      barbellExercises: renameBarbellMark(barbellExercises, from, newName, merging, barbell),
       newName,
       merging,
     };
   }
 
   // Removes a custom exercise, its logged sets, and its place in any routine.
-  function deleteExercise({ entries, routines, customExercises, exerciseNotes }, name) {
+  function deleteExercise({ entries, routines, customExercises, exerciseNotes, barbellExercises }, name) {
     const custom = { ...customExercises };
     delete custom[name];
     const notes = { ...exerciseNotes };
     delete notes[name];
+    const marked = { ...barbellExercises };
+    delete marked[name];
     return {
       entries: entries.filter((entry) => entry.exercise !== name),
       routines: routines.map((routine) => {
@@ -217,6 +220,7 @@ const Logic = (() => {
       }),
       customExercises: custom,
       exerciseNotes: notes,
+      barbellExercises: marked,
     };
   }
 
@@ -249,20 +253,25 @@ const Logic = (() => {
   // letter case) the set moves to it; if it is new, a custom exercise is created in `group`. A custom
   // exercise left with no sets and no routine (a typo that has just been corrected) is dropped.
   // `data` is { entries, routines, customExercises }; returns new entries and customExercises.
-  function updateSetDetails({ entries, routines, customExercises, exerciseNotes }, id, { exercise, weight, reps }, group) {
+  function updateSetDetails({ entries, routines, customExercises, exerciseNotes, barbellExercises }, id, { exercise, weight, reps }, group, barbell = false) {
     const old = entries.find((entry) => entry.id === id).exercise;
     const known = findKnownExercise(exercise, customExercises);
     const name = known || normalizeName(exercise);
     const updated = entries.map((entry) => (entry.id === id ? { ...entry, exercise: name, weight, reps } : entry));
     const custom = { ...customExercises };
-    if (!known) custom[name] = group;
+    const marked = { ...barbellExercises };
+    if (!known) {
+      custom[name] = group;
+      if (barbell) marked[name] = true;
+    }
     const stillUsed = updated.some((entry) => entry.exercise === old) || routines.some((routine) => routine.exercises.includes(old));
     const notes = { ...exerciseNotes };
     if (old !== name && custom[old] !== undefined && !stillUsed) {
       delete custom[old];
       delete notes[old];
+      delete marked[old];
     }
-    return { entries: updated, customExercises: custom, exerciseNotes: notes, exercise: name, moved: name !== old };
+    return { entries: updated, customExercises: custom, exerciseNotes: notes, barbellExercises: marked, exercise: name, moved: name !== old };
   }
 
   // Groups sets by exercise, in the order each exercise first appears.
@@ -535,6 +544,34 @@ const Logic = (() => {
     return streak;
   }
 
+  // Only exercises done with a barbell get the plate calculator. These built-in ones do; an exercise
+  // someone adds is marked with a checkbox, kept as { "Landmine Press": true }.
+  const BARBELL_EXERCISES = ["Bench Press", "Deadlift", "Barbell Row", "Squat", "Romanian Deadlift", "Overhead Press"];
+
+  const usesBarbell = (exercise, barbellExercises) => BARBELL_EXERCISES.includes(exercise) || Boolean(barbellExercises && barbellExercises[exercise]);
+
+  // Keeps only valid saved barbell marks: a name, marked true.
+  function sanitizeBarbellExercises(saved) {
+    const marked = {};
+    if (!saved || typeof saved !== "object") return marked;
+    for (const [exercise, value] of Object.entries(saved)) {
+      if (exercise.length > 0 && exercise.length <= 100 && value === true) marked[exercise] = true;
+    }
+    return marked;
+  }
+
+  // The marks after an exercise is renamed. Renaming keeps the mark as the checkbox says; merging into
+  // another exercise leaves that exercise as it was.
+  function renameBarbellMark(marked, from, to, merging, barbell) {
+    const updated = { ...marked };
+    delete updated[from];
+    if (!merging) {
+      if (barbell) updated[to] = true;
+      else delete updated[to];
+    }
+    return updated;
+  }
+
   // The plate calculator: which plates to load on each side of a bar for a target weight. The plates
   // are the common ones; the bar choices are the common bars. All weights are in the chosen unit.
   const PLATES = { lb: [45, 25, 10, 5, 2.5], kg: [25, 20, 15, 10, 5, 2.5, 1.25] };
@@ -701,6 +738,9 @@ const Logic = (() => {
   }
 
   return {
+    BARBELL_EXERCISES,
+    usesBarbell,
+    sanitizeBarbellExercises,
     EXERCISE_NOTE_MAX_LENGTH,
     setExerciseNote,
     sanitizeExerciseNotes,

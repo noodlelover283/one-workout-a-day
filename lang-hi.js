@@ -311,5 +311,8 @@ I18n.register("hi", {
     "exnote.summary": "नोट: {note}",
     "exnote.label": "इस व्यायाम का नोट",
     "exnote.placeholder": "जैसे: सीट 3 पर, चौड़ी पकड़",
+
+    "barbell.label": "बारबेल का इस्तेमाल होता है",
+    "barbell.badge": "बारबेल",
   },
 });

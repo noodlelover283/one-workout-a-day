@@ -311,5 +311,8 @@ I18n.register("fr", {
     "exnote.summary": "Note : {note}",
     "exnote.label": "Note pour cet exercice",
     "exnote.placeholder": "p. ex. Siège sur 3, prise large",
+
+    "barbell.label": "Utilise une barre",
+    "barbell.badge": "Barre",
   },
 });

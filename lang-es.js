@@ -311,5 +311,8 @@ I18n.register("es", {
     "exnote.summary": "Nota: {note}",
     "exnote.label": "Nota de este ejercicio",
     "exnote.placeholder": "p. ej. Asiento en 3, agarre ancho",
+
+    "barbell.label": "Usa barra",
+    "barbell.badge": "Barra",
   },
 });

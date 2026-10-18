@@ -310,5 +310,8 @@ I18n.register("zh", {
     "exnote.summary": "备注：{note}",
     "exnote.label": "这个动作的备注",
     "exnote.placeholder": "例如：座椅调到 3，宽握",
+
+    "barbell.label": "使用杠铃",
+    "barbell.badge": "杠铃",
   },
 });

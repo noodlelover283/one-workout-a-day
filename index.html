@@ -12,7 +12,7 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="theme-color" content="#f5f6f8" media="(prefers-color-scheme: light)">
   <meta name="theme-color" content="#12161c" media="(prefers-color-scheme: dark)">
-  <link rel="stylesheet" href="style.css?v=2777c33003">
+  <link rel="stylesheet" href="style.css?v=6bc62dadb4">
 </head>
 <body>
   <p id="offline-banner" class="offline-banner hidden" role="status" data-i18n="offline.notice">You're offline. Everything still works, and your data is saved on this device.</p>
@@ -93,6 +93,7 @@
         <div id="muscle-row" class="hidden">
           <label for="muscle" data-i18n="log.newMuscle">New exercise: which muscle group?</label>
           <select id="muscle"></select>
+          <label class="check"><input id="barbell-check" type="checkbox"> <span data-i18n="barbell.label">Uses a barbell</span></label>
         </div>
 
         <div class="row">
@@ -106,7 +107,7 @@
           </div>
         </div>
 
-        <details id="plates" class="slim-fold">
+        <details id="plates" class="slim-fold hidden">
           <summary id="plates-summary" data-i18n="plates.title">Plate calculator</summary>
           <p id="plates-detail" class="hint"></p>
           <label for="bar-select" data-i18n="plates.bar">Bar</label>
@@ -275,16 +276,16 @@
     <button id="nav-progress" data-tab="progress" data-i18n="tab.progress">Progress</button>
   </nav>
 
-  <script src="i18n.js?v=2777c33003"></script>
-  <script src="lang-en.js?v=2777c33003"></script>
-  <script src="lang-es.js?v=2777c33003"></script>
-  <script src="lang-zh.js?v=2777c33003"></script>
-  <script src="lang-hi.js?v=2777c33003"></script>
-  <script src="lang-ar.js?v=2777c33003"></script>
-  <script src="lang-fr.js?v=2777c33003"></script>
-  <script src="lang-pt.js?v=2777c33003"></script>
-  <script src="lang-ru.js?v=2777c33003"></script>
-  <script src="logic.js?v=2777c33003"></script>
-  <script src="app.js?v=2777c33003"></script>
+  <script src="i18n.js?v=6bc62dadb4"></script>
+  <script src="lang-en.js?v=6bc62dadb4"></script>
+  <script src="lang-es.js?v=6bc62dadb4"></script>
+  <script src="lang-zh.js?v=6bc62dadb4"></script>
+  <script src="lang-hi.js?v=6bc62dadb4"></script>
+  <script src="lang-ar.js?v=6bc62dadb4"></script>
+  <script src="lang-fr.js?v=6bc62dadb4"></script>
+  <script src="lang-pt.js?v=6bc62dadb4"></script>
+  <script src="lang-ru.js?v=6bc62dadb4"></script>
+  <script src="logic.js?v=6bc62dadb4"></script>
+  <script src="app.js?v=6bc62dadb4"></script>
 </body>
 </html>

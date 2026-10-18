@@ -313,5 +313,8 @@ I18n.register("ru", {
     "exnote.summary": "Заметка: {note}",
     "exnote.label": "Заметка к упражнению",
     "exnote.placeholder": "например: сиденье на 3, широкий хват",
+
+    "barbell.label": "Со штангой",
+    "barbell.badge": "Штанга",
   },
 });

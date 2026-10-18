@@ -311,5 +311,8 @@ I18n.register("en", {
     "exnote.summary": "Note: {note}",
     "exnote.label": "Note for this exercise",
     "exnote.placeholder": "e.g. Seat at 3, wide grip",
+
+    "barbell.label": "Uses a barbell",
+    "barbell.badge": "Barbell",
   },
 });
