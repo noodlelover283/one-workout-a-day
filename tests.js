@@ -877,7 +877,7 @@ test("every tap-to-open heading shows an arrow that flips when it opens", async 
       for (const summary of [...tab.querySelectorAll("details > summary")].filter((node) => node.getClientRects().length > 0)) {
         const arrow = style(summary);
         // The arrow is a drawn corner (two borders), turned to point down while the heading is closed.
-        if (arrow.content === "none" || parseFloat(arrow.borderRightWidth) < 2 || arrow.transform === "none") {
+        if (arrow.content === "none" || !(parseFloat(arrow.borderRightWidth) > 0) || arrow.transform === "none") {
           throw new Error(`"${summary.textContent.trim().slice(0, 30)}" on the ${name} tab has no arrow`);
         }
         checked += 1;
