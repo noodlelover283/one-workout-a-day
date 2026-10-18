@@ -306,5 +306,10 @@ I18n.register("es", {
     "plates.detail": "Barra {bar} {unit} + {plates} a cada lado = {total} {unit}.",
     "plates.under": "Es lo más cercano que se logra con estos discos a {target} {unit} ({short} {unit} menos).",
     "plates.bar": "Barra",
+
+    "exnote.add": "Añadir una nota",
+    "exnote.summary": "Nota: {note}",
+    "exnote.label": "Nota de este ejercicio",
+    "exnote.placeholder": "p. ej. Asiento en 3, agarre ancho",
   },
 });

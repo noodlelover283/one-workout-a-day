@@ -306,5 +306,10 @@ I18n.register("hi", {
     "plates.detail": "बार {bar} {unit} + हर तरफ़ {plates} = {total} {unit}।",
     "plates.under": "इन प्लेटों से {target} {unit} के सबसे पास यही बनता है ({short} {unit} कम)।",
     "plates.bar": "बार",
+
+    "exnote.add": "नोट जोड़ें",
+    "exnote.summary": "नोट: {note}",
+    "exnote.label": "इस व्यायाम का नोट",
+    "exnote.placeholder": "जैसे: सीट 3 पर, चौड़ी पकड़",
   },
 });

@@ -90,6 +90,39 @@ const Logic = (() => {
     return Object.keys(all).find((known) => known.toLowerCase() === lower) || null;
   }
 
+  // A short note for an exercise, kept with its name: { "Bench Press": "Seat at 3, wide grip" }.
+  const EXERCISE_NOTE_MAX_LENGTH = 500;
+
+  // The notes with this one set (or removed, if the text is empty).
+  function setExerciseNote(notes, exercise, text) {
+    const clean = text.trim().slice(0, EXERCISE_NOTE_MAX_LENGTH);
+    const updated = { ...notes };
+    if (clean) updated[exercise] = clean;
+    else delete updated[exercise];
+    return updated;
+  }
+
+  // Keeps only valid saved exercise notes: a name, with some text.
+  function sanitizeExerciseNotes(saved) {
+    const notes = {};
+    if (!saved || typeof saved !== "object") return notes;
+    for (const [exercise, text] of Object.entries(saved)) {
+      if (exercise.length > 0 && exercise.length <= 100 && typeof text === "string" && text.trim()) {
+        notes[exercise] = text.trim().slice(0, EXERCISE_NOTE_MAX_LENGTH);
+      }
+    }
+    return notes;
+  }
+
+  // The notes after an exercise is renamed. If the new name already had a note, it is kept.
+  function renameExerciseNote(notes, from, to) {
+    if (!notes || !notes[from]) return notes || {};
+    const renamed = { ...notes };
+    delete renamed[from];
+    if (!renamed[to]) renamed[to] = notes[from];
+    return renamed;
+  }
+
   // A routine can give an exercise a target such as 3 sets of 8 reps: routine.targets is
   // { "Bench Press": { sets: 3, reps: 8 } }. A target always has both numbers or does not exist.
   const MAX_TARGET_SETS = 20;
@@ -144,7 +177,7 @@ const Logic = (() => {
   // that uses the name. If the new name is another exercise that already exists (a typo fixed into a
   // real name, say), the two are merged: the sets move over and the existing exercise keeps its group.
   // `data` is { entries, routines, customExercises }; a new copy is returned with the final name.
-  function renameExercise({ entries, routines, customExercises }, from, to, group) {
+  function renameExercise({ entries, routines, customExercises, exerciseNotes }, from, to, group) {
     const clean = normalizeName(to);
     const existing = findKnownExercise(clean, customExercises);
     const merging = existing !== null && existing !== from;
@@ -163,15 +196,18 @@ const Logic = (() => {
         return { ...routine, exercises, targets };
       }),
       customExercises: custom,
+      exerciseNotes: renameExerciseNote(exerciseNotes, from, newName),
       newName,
       merging,
     };
   }
 
   // Removes a custom exercise, its logged sets, and its place in any routine.
-  function deleteExercise({ entries, routines, customExercises }, name) {
+  function deleteExercise({ entries, routines, customExercises, exerciseNotes }, name) {
     const custom = { ...customExercises };
     delete custom[name];
+    const notes = { ...exerciseNotes };
+    delete notes[name];
     return {
       entries: entries.filter((entry) => entry.exercise !== name),
       routines: routines.map((routine) => {
@@ -180,6 +216,7 @@ const Logic = (() => {
         return { ...routine, exercises: routine.exercises.filter((exercise) => exercise !== name), targets };
       }),
       customExercises: custom,
+      exerciseNotes: notes,
     };
   }
 
@@ -212,7 +249,7 @@ const Logic = (() => {
   // letter case) the set moves to it; if it is new, a custom exercise is created in `group`. A custom
   // exercise left with no sets and no routine (a typo that has just been corrected) is dropped.
   // `data` is { entries, routines, customExercises }; returns new entries and customExercises.
-  function updateSetDetails({ entries, routines, customExercises }, id, { exercise, weight, reps }, group) {
+  function updateSetDetails({ entries, routines, customExercises, exerciseNotes }, id, { exercise, weight, reps }, group) {
     const old = entries.find((entry) => entry.id === id).exercise;
     const known = findKnownExercise(exercise, customExercises);
     const name = known || normalizeName(exercise);
@@ -220,8 +257,12 @@ const Logic = (() => {
     const custom = { ...customExercises };
     if (!known) custom[name] = group;
     const stillUsed = updated.some((entry) => entry.exercise === old) || routines.some((routine) => routine.exercises.includes(old));
-    if (old !== name && custom[old] !== undefined && !stillUsed) delete custom[old];
-    return { entries: updated, customExercises: custom, exercise: name, moved: name !== old };
+    const notes = { ...exerciseNotes };
+    if (old !== name && custom[old] !== undefined && !stillUsed) {
+      delete custom[old];
+      delete notes[old];
+    }
+    return { entries: updated, customExercises: custom, exerciseNotes: notes, exercise: name, moved: name !== old };
   }
 
   // Groups sets by exercise, in the order each exercise first appears.
@@ -660,6 +701,9 @@ const Logic = (() => {
   }
 
   return {
+    EXERCISE_NOTE_MAX_LENGTH,
+    setExerciseNote,
+    sanitizeExerciseNotes,
     PLATES,
     BARS,
     DEFAULT_BARS,

@@ -306,5 +306,10 @@ I18n.register("pt", {
     "plates.detail": "Barra {bar} {unit} + {plates} de cada lado = {total} {unit}.",
     "plates.under": "É o mais próximo que essas anilhas permitem de {target} {unit} ({short} {unit} a menos).",
     "plates.bar": "Barra",
+
+    "exnote.add": "Adicionar uma nota",
+    "exnote.summary": "Nota: {note}",
+    "exnote.label": "Nota deste exercício",
+    "exnote.placeholder": "ex.: Banco na posição 3, pegada aberta",
   },
 });

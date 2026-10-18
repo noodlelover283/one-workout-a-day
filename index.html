@@ -12,7 +12,7 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="theme-color" content="#f5f6f8" media="(prefers-color-scheme: light)">
   <meta name="theme-color" content="#12161c" media="(prefers-color-scheme: dark)">
-  <link rel="stylesheet" href="style.css?v=c5f71d6d28">
+  <link rel="stylesheet" href="style.css?v=2777c33003">
 </head>
 <body>
   <p id="offline-banner" class="offline-banner hidden" role="status" data-i18n="offline.notice">You're offline. Everything still works, and your data is saved on this device.</p>
@@ -83,6 +83,13 @@
           <a id="demo-link" class="pill" href="#" target="_blank" rel="noopener noreferrer" data-i18n="demo.watch">Watch a demo</a>
         </div>
 
+        <details id="exercise-note" class="slim-fold hidden">
+          <summary><span id="exercise-note-summary" data-i18n="exnote.add">Add a note</span></summary>
+          <label for="exercise-note-text" class="sr-only" data-i18n="exnote.label">Note for this exercise</label>
+          <textarea id="exercise-note-text" rows="3" data-i18n-placeholder="exnote.placeholder" placeholder="e.g. Seat at 3, wide grip"></textarea>
+          <p class="hint" data-i18n="note.hint">Saved automatically when you tap away.</p>
+        </details>
+
         <div id="muscle-row" class="hidden">
           <label for="muscle" data-i18n="log.newMuscle">New exercise: which muscle group?</label>
           <select id="muscle"></select>
@@ -99,7 +106,7 @@
           </div>
         </div>
 
-        <details id="plates" class="plates-fold">
+        <details id="plates" class="slim-fold">
           <summary id="plates-summary" data-i18n="plates.title">Plate calculator</summary>
           <p id="plates-detail" class="hint"></p>
           <label for="bar-select" data-i18n="plates.bar">Bar</label>
@@ -268,16 +275,16 @@
     <button id="nav-progress" data-tab="progress" data-i18n="tab.progress">Progress</button>
   </nav>
 
-  <script src="i18n.js?v=c5f71d6d28"></script>
-  <script src="lang-en.js?v=c5f71d6d28"></script>
-  <script src="lang-es.js?v=c5f71d6d28"></script>
-  <script src="lang-zh.js?v=c5f71d6d28"></script>
-  <script src="lang-hi.js?v=c5f71d6d28"></script>
-  <script src="lang-ar.js?v=c5f71d6d28"></script>
-  <script src="lang-fr.js?v=c5f71d6d28"></script>
-  <script src="lang-pt.js?v=c5f71d6d28"></script>
-  <script src="lang-ru.js?v=c5f71d6d28"></script>
-  <script src="logic.js?v=c5f71d6d28"></script>
-  <script src="app.js?v=c5f71d6d28"></script>
+  <script src="i18n.js?v=2777c33003"></script>
+  <script src="lang-en.js?v=2777c33003"></script>
+  <script src="lang-es.js?v=2777c33003"></script>
+  <script src="lang-zh.js?v=2777c33003"></script>
+  <script src="lang-hi.js?v=2777c33003"></script>
+  <script src="lang-ar.js?v=2777c33003"></script>
+  <script src="lang-fr.js?v=2777c33003"></script>
+  <script src="lang-pt.js?v=2777c33003"></script>
+  <script src="lang-ru.js?v=2777c33003"></script>
+  <script src="logic.js?v=2777c33003"></script>
+  <script src="app.js?v=2777c33003"></script>
 </body>
 </html>

@@ -306,5 +306,10 @@ I18n.register("fr", {
     "plates.detail": "Barre {bar} {unit} + {plates} de chaque côté = {total} {unit}.",
     "plates.under": "C'est le plus proche que ces disques permettent de {target} {unit} ({short} {unit} de moins).",
     "plates.bar": "Barre",
+
+    "exnote.add": "Ajouter une note",
+    "exnote.summary": "Note : {note}",
+    "exnote.label": "Note pour cet exercice",
+    "exnote.placeholder": "p. ex. Siège sur 3, prise large",
   },
 });

@@ -28,6 +28,7 @@ function loadState() {
     notes: {},
     sex: "",
     barWeight: { ...Logic.DEFAULT_BARS },
+    exerciseNotes: {},
     measurements: [],
     rest: { ...DEFAULT_REST },
     progression: { repGoal: Logic.DEFAULT_REP_GOAL, jumps: { lb: {}, kg: {} } },
@@ -43,6 +44,7 @@ function normalizeState(saved) {
   loaded.notes = Logic.sanitizeNotes(saved.notes);
   loaded.sex = Logic.STRENGTH_SEXES.includes(saved.sex) ? saved.sex : "";
   loaded.barWeight = Logic.sanitizeBarWeights(saved.barWeight);
+  loaded.exerciseNotes = Logic.sanitizeExerciseNotes(saved.exerciseNotes);
   loaded.measurements = Logic.sanitizeMeasurements(saved.measurements);
   loaded.routines = loaded.routines.map((routine) =>
     routine && Array.isArray(routine.exercises) ? { ...routine, targets: Logic.sanitizeTargets(routine.targets, routine.exercises) } : routine
@@ -250,6 +252,7 @@ function saveEdit(entry, changes, group, errorNode) {
   const result = Logic.updateSetDetails(state, entry.id, { ...changes, weight: Logic.toLb(changes.weight, state.unit) }, group);
   state.entries = result.entries;
   state.customExercises = result.customExercises;
+  state.exerciseNotes = result.exerciseNotes;
   editingEntryId = null;
   saveState();
   if (result.moved) renderAfterExerciseChange();
@@ -494,6 +497,28 @@ function renderDemo(exercise) {
   link.setAttribute("aria-label", t("demo.watchLabel", { exercise: exerciseLabel(exercise) }));
 }
 
+// ---------- Exercise notes ----------
+
+// The note row under the chosen exercise: "Add a note", or the start of the note that is there.
+function renderExerciseNote(exercise) {
+  $("exercise-note").classList.toggle("hidden", !exercise);
+  if (!exercise) return;
+  const note = state.exerciseNotes[exercise] || "";
+  const box = $("exercise-note-text");
+  if (document.activeElement !== box) box.value = note;
+  $("exercise-note-summary").textContent = note ? t("exnote.summary", { note: note.replace(/\s+/g, " ") }) : t("exnote.add");
+}
+
+function onExerciseNoteChange() {
+  const exercise = resolveExercise($("exercise").value);
+  if (!exercise) return;
+  state.exerciseNotes = Logic.setExerciseNote(state.exerciseNotes, exercise, $("exercise-note-text").value);
+  saveState();
+  $("exercise-note-text").value = state.exerciseNotes[exercise] || "";
+  renderExerciseNote(exercise);
+  showToast(t(state.exerciseNotes[exercise] ? "toast.noteSaved" : "toast.noteRemoved"));
+}
+
 // ---------- Plate calculator ----------
 
 const shownNumber = (value) => String(Math.round(value * 100) / 100);
@@ -557,6 +582,7 @@ function renderSuggestion() {
   const box = $("suggestion");
   const exercise = resolveExercise($("exercise").value);
   renderDemo(exercise);
+  renderExerciseNote(exercise);
   if (!exercise) {
     box.classList.add("hidden");
     return;
@@ -835,6 +861,7 @@ function saveExerciseEdit(name, newName, group, errorNode) {
   state.entries = result.entries;
   state.routines = result.routines;
   state.customExercises = result.customExercises;
+  state.exerciseNotes = result.exerciseNotes;
   // A routine being edited right now keeps its place, with the new name and no duplicate.
   draftExercises = draftExercises.map((exercise) => (exercise === name ? result.newName : exercise)).filter((exercise, index, all) => all.indexOf(exercise) === index);
   if (draftTargets[name]) {
@@ -854,6 +881,7 @@ function deleteCustomExercise(name) {
   state.entries = result.entries;
   state.routines = result.routines;
   state.customExercises = result.customExercises;
+  state.exerciseNotes = result.exerciseNotes;
   draftExercises = draftExercises.filter((exercise) => exercise !== name);
   delete draftTargets[name];
   saveState();
@@ -1550,6 +1578,7 @@ function init() {
 
   $("log-form").addEventListener("submit", onLogSubmit);
   $("weight").addEventListener("input", renderPlates);
+  $("exercise-note-text").addEventListener("change", onExerciseNoteChange);
   $("bar-select").addEventListener("change", onBarChange);
   $("workout-note").maxLength = Logic.NOTE_MAX_LENGTH;
   $("workout-note").addEventListener("change", onNoteChange);

@@ -308,5 +308,10 @@ I18n.register("ru", {
     "plates.detail": "Гриф {bar} {unit} + {plates} с каждой стороны = {total} {unit}.",
     "plates.under": "Это ближайший к {target} {unit} вес из этих блинов (на {short} {unit} меньше).",
     "plates.bar": "Гриф",
+
+    "exnote.add": "Добавить заметку",
+    "exnote.summary": "Заметка: {note}",
+    "exnote.label": "Заметка к упражнению",
+    "exnote.placeholder": "например: сиденье на 3, широкий хват",
   },
 });

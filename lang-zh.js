@@ -305,5 +305,10 @@ I18n.register("zh", {
     "plates.detail": "杠铃杆 {bar} {unit} + 每侧 {plates} = {total} {unit}。",
     "plates.under": "这是这些杠铃片最接近 {target} {unit} 的组合（少 {short} {unit}）。",
     "plates.bar": "杠铃杆",
+
+    "exnote.add": "添加备注",
+    "exnote.summary": "备注：{note}",
+    "exnote.label": "这个动作的备注",
+    "exnote.placeholder": "例如：座椅调到 3，宽握",
   },
 });

@@ -306,5 +306,10 @@ I18n.register("en", {
     "plates.detail": "Bar {bar} {unit} + {plates} on each side = {total} {unit}.",
     "plates.under": "That is the closest these plates can make to {target} {unit} ({short} {unit} under).",
     "plates.bar": "Bar",
+
+    "exnote.add": "Add a note",
+    "exnote.summary": "Note: {note}",
+    "exnote.label": "Note for this exercise",
+    "exnote.placeholder": "e.g. Seat at 3, wide grip",
   },
 });

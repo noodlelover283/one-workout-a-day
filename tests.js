@@ -300,6 +300,51 @@ test("renaming or deleting an exercise carries its routine target along", () => 
   assertEqual(Logic.deleteExercise(data, "Cabel Fly").routines[0].targets, { "Bench Press": { sets: 4, reps: 6 } });
 });
 
+// ---------- Exercise notes ----------
+
+test("an exercise note is saved trimmed, an empty note removes it, and a long note is cut", () => {
+  const notes = Logic.setExerciseNote({}, "Bench Press", "  Seat at 3  ");
+  assertEqual(notes, { "Bench Press": "Seat at 3" });
+  assertEqual(Logic.setExerciseNote(notes, "Squat", "Belt on"), { "Bench Press": "Seat at 3", "Squat": "Belt on" });
+  assertEqual(Logic.setExerciseNote(notes, "Bench Press", "   "), {});
+  assertEqual(notes, { "Bench Press": "Seat at 3" }, "the original notes must not change:");
+  assertEqual(Logic.setExerciseNote({}, "Squat", "x".repeat(Logic.EXERCISE_NOTE_MAX_LENGTH + 99))["Squat"].length, Logic.EXERCISE_NOTE_MAX_LENGTH);
+});
+
+test("bad saved exercise notes are dropped and good ones kept", () => {
+  const saved = { "Bench Press": " ok ", "": "no name", "Squat": 5, "Row": "   ", ["x".repeat(101)]: "name too long" };
+  assertEqual(Logic.sanitizeExerciseNotes(saved), { "Bench Press": "ok" });
+  assertEqual([Logic.sanitizeExerciseNotes(undefined), Logic.sanitizeExerciseNotes("text"), Logic.sanitizeExerciseNotes(null)], [{}, {}, {}]);
+});
+
+test("a note follows its exercise through a rename, and a merge keeps the exercise it merges into", () => {
+  const data = () => ({
+    entries: [],
+    routines: [],
+    customExercises: { "Cabel Fly": "Chest", "Cable Fly": "Chest" },
+    exerciseNotes: { "Cabel Fly": "Handles at 4", "Cable Fly": "Handles at 6", "Bench Press": "Seat at 3" },
+  });
+  assertEqual(Logic.renameExercise(data(), "Cabel Fly", "Pec Fly", "Chest").exerciseNotes, { "Cable Fly": "Handles at 6", "Bench Press": "Seat at 3", "Pec Fly": "Handles at 4" });
+  assertEqual(Logic.renameExercise(data(), "Cabel Fly", "Cable Fly", "Chest").exerciseNotes, { "Cable Fly": "Handles at 6", "Bench Press": "Seat at 3" }, "merging keeps the target's own note:");
+  const noTargetNote = data();
+  delete noTargetNote.exerciseNotes["Cable Fly"];
+  assertEqual(Logic.renameExercise(noTargetNote, "Cabel Fly", "Cable Fly", "Chest").exerciseNotes, { "Bench Press": "Seat at 3", "Cable Fly": "Handles at 4" }, "merging takes the typo's note if the target has none:");
+});
+
+test("deleting an exercise deletes its note, and so does moving the last set out of a typo exercise", () => {
+  const base = {
+    entries: [{ id: "1", exercise: "Cabel Fly", date: "2026-10-01", weight: 30, reps: 10 }],
+    routines: [],
+    customExercises: { "Cabel Fly": "Chest" },
+    exerciseNotes: { "Cabel Fly": "Handles at 4", "Bench Press": "Seat at 3" },
+  };
+  assertEqual(Logic.deleteExercise(base, "Cabel Fly").exerciseNotes, { "Bench Press": "Seat at 3" });
+  const dropped = Logic.updateSetDetails(base, "1", { exercise: "Bench Press", weight: 100, reps: 5 }, "Chest");
+  assertEqual([dropped.customExercises, dropped.exerciseNotes], [{}, { "Bench Press": "Seat at 3" }]);
+  const stillUsed = { ...base, routines: [{ id: "r", name: "Push", exercises: ["Cabel Fly"] }] };
+  assertEqual(Logic.updateSetDetails(stillUsed, "1", { exercise: "Bench Press", weight: 100, reps: 5 }, "Chest").exerciseNotes, { "Cabel Fly": "Handles at 4", "Bench Press": "Seat at 3" });
+});
+
 // ---------- Plate calculator ----------
 
 test("the plates for each side are the biggest ones first, for lb and kg", () => {
@@ -1075,6 +1120,37 @@ test("typing a weight shows which plates to load on each side, in lb and kg, and
     bar.dispatchEvent(new Event("change", { bubbles: true }));
     assertEqual(summary(), "Plates: 25 + 15 + 2.5 each side");
     assertEqual(JSON.parse(localStorage.getItem(app.storage)).barWeight, { lb: 45, kg: 15 });
+    if (app.errors.length) throw new Error(`the app raised errors: ${app.errors.join("; ")}`);
+  } finally {
+    closeApp(app);
+  }
+});
+
+test("an exercise note is added under the chosen exercise, shown at a glance, and kept for that exercise only", async () => {
+  const app = await openApp();
+  try {
+    const choose = (name) => {
+      const box = app.doc.getElementById("exercise");
+      box.value = name;
+      box.dispatchEvent(new Event("input", { bubbles: true }));
+    };
+    const row = app.doc.getElementById("exercise-note");
+    const summary = () => app.doc.getElementById("exercise-note-summary").textContent;
+    if (!row.classList.contains("hidden")) throw new Error("with no exercise chosen there is nothing to attach a note to");
+    choose("Bench Press");
+    assertEqual([row.classList.contains("hidden"), summary()], [false, "Add a note"]);
+    const text = app.doc.getElementById("exercise-note-text");
+    text.value = "  Wide grip,\nseat at 3  ";
+    text.dispatchEvent(new Event("change", { bubbles: true }));
+    assertEqual(summary(), "Note: Wide grip, seat at 3");
+    assertEqual(JSON.parse(localStorage.getItem(app.storage)).exerciseNotes, { "Bench Press": "Wide grip,\nseat at 3" });
+    choose("Squat");
+    assertEqual(summary(), "Add a note");
+    choose("Bench Press");
+    assertEqual([summary(), text.value], ["Note: Wide grip, seat at 3", "Wide grip,\nseat at 3"]);
+    text.value = "";
+    text.dispatchEvent(new Event("change", { bubbles: true }));
+    assertEqual([summary(), JSON.parse(localStorage.getItem(app.storage)).exerciseNotes], ["Add a note", {}]);
     if (app.errors.length) throw new Error(`the app raised errors: ${app.errors.join("; ")}`);
   } finally {
     closeApp(app);

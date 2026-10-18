@@ -311,5 +311,10 @@ I18n.register("ar", {
     "plates.detail": "الباربل {bar} {unit} + {plates} على كل جانب = {total} {unit}.",
     "plates.under": "هذا أقرب ما تصنعه هذه الأقراص إلى {target} {unit} (أقل بمقدار {short} {unit}).",
     "plates.bar": "الباربل",
+
+    "exnote.add": "أضف ملاحظة",
+    "exnote.summary": "ملاحظة: {note}",
+    "exnote.label": "ملاحظة لهذا التمرين",
+    "exnote.placeholder": "مثال: المقعد على 3، قبضة واسعة",
   },
 });
