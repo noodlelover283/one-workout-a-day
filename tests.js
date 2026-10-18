@@ -774,6 +774,41 @@ test("every tab draws its screen, with no errors", async () => {
   }
 });
 
+test("the Log tab shows the date, exercise, weight, reps and Add set on the first screen", async () => {
+  const app = await openApp();
+  try {
+    // Choosing an exercise with history brings up the tips row and the suggestion, the tallest case.
+    const exercise = app.doc.getElementById("exercise");
+    exercise.value = "Bench Press";
+    exercise.dispatchEvent(new Event("input", { bubbles: true }));
+    const tabBarTop = app.doc.querySelector(".tabbar").getBoundingClientRect().top;
+    for (const selector of ["#date", "#exercise", "#weight", "#reps", "#log-form button.primary"]) {
+      const box = app.doc.querySelector(selector).getBoundingClientRect();
+      if (box.top < 0 || box.bottom > tabBarTop) {
+        throw new Error(`${selector} ends at ${Math.round(box.bottom)}px but the first screen ends at ${Math.round(tabBarTop)}px`);
+      }
+    }
+    if (app.errors.length) throw new Error(`the app raised errors: ${app.errors.join("; ")}`);
+  } finally {
+    closeApp(app);
+  }
+});
+
+test("the gear in the header opens and closes the display settings", async () => {
+  const app = await openApp();
+  try {
+    const gear = app.doc.getElementById("display-toggle");
+    const panel = app.doc.getElementById("display-panel");
+    assertEqual([panel.classList.contains("hidden"), gear.getAttribute("aria-expanded")], [true, "false"]);
+    gear.click();
+    assertEqual([panel.classList.contains("hidden"), gear.getAttribute("aria-expanded")], [false, "true"]);
+    gear.click();
+    assertEqual([panel.classList.contains("hidden"), gear.getAttribute("aria-expanded")], [true, "false"]);
+  } finally {
+    closeApp(app);
+  }
+});
+
 test("no text key shows through on any tab in any language", async () => {
   const app = await openApp();
   try {

@@ -12,7 +12,7 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="theme-color" content="#f5f6f8" media="(prefers-color-scheme: light)">
   <meta name="theme-color" content="#12161c" media="(prefers-color-scheme: dark)">
-  <link rel="stylesheet" href="style.css?v=bc8e564019">
+  <link rel="stylesheet" href="style.css?v=464077e528">
 </head>
 <body>
   <p id="offline-banner" class="offline-banner hidden" role="status" data-i18n="offline.notice">You're offline. Everything still works, and your data is saved on this device.</p>
@@ -23,10 +23,9 @@
         <button type="button" data-unit="lb" aria-pressed="true">lb</button>
         <button type="button" data-unit="kg" aria-pressed="false">kg</button>
       </div>
+      <button type="button" id="display-toggle" class="gear" aria-expanded="false" aria-controls="display-panel" data-i18n-aria="display.summary" aria-label="Display settings">&#9881;</button>
     </div>
-    <p class="tagline" data-i18n="app.tagline">Log it. See it. Break the plateau.</p>
-    <details class="display-panel">
-      <summary data-i18n="display.summary">Display settings</summary>
+    <div id="display-panel" class="display-panel hidden">
       <label for="theme-select" data-i18n="display.theme">Theme</label>
       <select id="theme-select">
         <option value="auto" data-i18n="theme.auto">Match my device</option>
@@ -43,7 +42,7 @@
       </select>
       <label for="language-select" data-i18n="display.language">Language</label>
       <select id="language-select"></select>
-    </details>
+    </div>
   </header>
 
   <main>
@@ -60,7 +59,11 @@
         <button type="button" id="rest-skip" class="rest-skip">Skip</button>
       </div>
 
-      <h2 data-i18n="log.heading">Log a workout</h2>
+      <div class="heading-row">
+        <h2 data-i18n="log.heading">Log a workout</h2>
+        <label for="date" class="sr-only" data-i18n="log.date">Date</label>
+        <input id="date" form="log-form" type="date" required>
+      </div>
       <div id="routine-start">
         <label for="routine-select" data-i18n="routine.start">Start a routine</label>
         <select id="routine-select"></select>
@@ -68,9 +71,6 @@
         <ul id="routine-checklist" class="chip-list"></ul>
       </div>
       <form id="log-form" novalidate>
-        <label for="date" data-i18n="log.date">Date</label>
-        <input id="date" type="date" required>
-
         <label for="exercise" data-i18n="log.exercise">Exercise</label>
         <input id="exercise" list="exercise-options" data-i18n-placeholder="log.exercisePlaceholder" placeholder="e.g. Bench Press" autocomplete="off" required>
         <datalist id="exercise-options"></datalist>
@@ -80,7 +80,7 @@
             <summary data-i18n="demo.heading">Form tips</summary>
             <p id="demo-tip"></p>
           </details>
-          <a id="demo-link" href="#" target="_blank" rel="noopener noreferrer" data-i18n="demo.watch">Watch a demo</a>
+          <a id="demo-link" class="pill" href="#" target="_blank" rel="noopener noreferrer" data-i18n="demo.watch">Watch a demo</a>
         </div>
 
         <div id="muscle-row" class="hidden">
@@ -100,10 +100,15 @@
         </div>
 
         <div id="suggestion" class="suggestion hidden">
-          <p id="suggestion-text"></p>
-          <p id="suggestion-detail" class="hint"></p>
+          <div class="suggestion-main">
+            <p id="suggestion-text"></p>
+            <button type="button" id="use-suggestion" class="hidden" data-i18n="suggest.useShort" data-i18n-aria="suggest.use" aria-label="Use suggestion">Use</button>
+          </div>
           <p id="suggestion-note" class="hint"></p>
-          <button type="button" id="use-suggestion" class="hidden" data-i18n="suggest.use">Use suggestion</button>
+          <details class="suggestion-why">
+            <summary data-i18n="suggest.why">Why?</summary>
+            <p id="suggestion-detail" class="hint"></p>
+          </details>
         </div>
 
         <p id="form-error" class="error" role="alert"></p>
@@ -117,19 +122,22 @@
       <textarea id="workout-note" rows="3" data-i18n-placeholder="note.placeholder" placeholder="e.g. Slept badly, shoulder felt tight"></textarea>
       <p class="hint" data-i18n="note.hint">Saved automatically when you tap away.</p>
 
-      <h3 data-i18n="rest.heading">Rest timer</h3>
-      <label for="rest-seconds" data-i18n="rest.seconds">Rest time (seconds)</label>
-      <input id="rest-seconds" type="number" inputmode="numeric" min="5" max="3600" step="1">
-      <label class="check"><input id="rest-auto" type="checkbox"> <span data-i18n="rest.auto">Start automatically after each set</span></label>
-      <label class="check"><input id="rest-sound" type="checkbox"> <span data-i18n="rest.sound">Beep and vibrate when rest is over</span></label>
-      <p id="rest-error" class="error" role="alert"></p>
+      <details class="settings-fold">
+        <summary data-i18n="settings.workout">Workout settings</summary>
+        <h3 data-i18n="rest.heading">Rest timer</h3>
+        <label for="rest-seconds" data-i18n="rest.seconds">Rest time (seconds)</label>
+        <input id="rest-seconds" type="number" inputmode="numeric" min="5" max="3600" step="1">
+        <label class="check"><input id="rest-auto" type="checkbox"> <span data-i18n="rest.auto">Start automatically after each set</span></label>
+        <label class="check"><input id="rest-sound" type="checkbox"> <span data-i18n="rest.sound">Beep and vibrate when rest is over</span></label>
+        <p id="rest-error" class="error" role="alert"></p>
 
-      <h3 data-i18n="progression.heading">Weight suggestions</h3>
-      <p class="hint" data-i18n="progression.hint">Suggestions go up once every set at your heaviest weight reaches the rep goal. Each muscle group has its own jump, because some groups can add weight faster than others.</p>
-      <label for="rep-goal" data-i18n="progression.repGoal">Rep goal per set</label>
-      <input id="rep-goal" type="number" inputmode="numeric" min="1" max="30" step="1">
-      <div id="jump-settings"></div>
-      <p id="progression-error" class="error" role="alert"></p>
+        <h3 data-i18n="progression.heading">Weight suggestions</h3>
+        <p class="hint" data-i18n="progression.hint">Suggestions go up once every set at your heaviest weight reaches the rep goal. Each muscle group has its own jump, because some groups can add weight faster than others.</p>
+        <label for="rep-goal" data-i18n="progression.repGoal">Rep goal per set</label>
+        <input id="rep-goal" type="number" inputmode="numeric" min="1" max="30" step="1">
+        <div id="jump-settings"></div>
+        <p id="progression-error" class="error" role="alert"></p>
+      </details>
     </section>
 
     <section id="tab-routines" class="tab hidden" aria-labelledby="nav-routines">
@@ -240,16 +248,16 @@
     <button id="nav-progress" data-tab="progress" data-i18n="tab.progress">Progress</button>
   </nav>
 
-  <script src="i18n.js?v=bc8e564019"></script>
-  <script src="lang-en.js?v=bc8e564019"></script>
-  <script src="lang-es.js?v=bc8e564019"></script>
-  <script src="lang-zh.js?v=bc8e564019"></script>
-  <script src="lang-hi.js?v=bc8e564019"></script>
-  <script src="lang-ar.js?v=bc8e564019"></script>
-  <script src="lang-fr.js?v=bc8e564019"></script>
-  <script src="lang-pt.js?v=bc8e564019"></script>
-  <script src="lang-ru.js?v=bc8e564019"></script>
-  <script src="logic.js?v=bc8e564019"></script>
-  <script src="app.js?v=bc8e564019"></script>
+  <script src="i18n.js?v=464077e528"></script>
+  <script src="lang-en.js?v=464077e528"></script>
+  <script src="lang-es.js?v=464077e528"></script>
+  <script src="lang-zh.js?v=464077e528"></script>
+  <script src="lang-hi.js?v=464077e528"></script>
+  <script src="lang-ar.js?v=464077e528"></script>
+  <script src="lang-fr.js?v=464077e528"></script>
+  <script src="lang-pt.js?v=464077e528"></script>
+  <script src="lang-ru.js?v=464077e528"></script>
+  <script src="logic.js?v=464077e528"></script>
+  <script src="app.js?v=464077e528"></script>
 </body>
 </html>

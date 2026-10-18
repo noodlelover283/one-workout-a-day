@@ -5,7 +5,6 @@ I18n.register("zh", {
   locale: "zh-u-nu-latn",
   strings: {
     "app.title": "每天一练",
-    "app.tagline": "记录它，看见进步，突破瓶颈。",
 
     "unit.groupLabel": "重量单位",
     "unit.days": "天",
@@ -285,5 +284,9 @@ I18n.register("zh", {
     "routines.targetHint": "可选：为动作设定目标，例如 3 组 8 次。开始训练计划后会显示你的进度。",
 
     "offline.notice": "当前离线。所有功能仍可使用，你的数据保存在此设备上。",
+
+    "suggest.why": "为什么？",
+    "suggest.useShort": "使用",
+    "settings.workout": "训练设置",
   },
 });

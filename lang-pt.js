@@ -5,7 +5,6 @@ I18n.register("pt", {
   locale: "pt",
   strings: {
     "app.title": "Um treino por dia",
-    "app.tagline": "Registre. Veja. Quebre o platô.",
 
     "unit.groupLabel": "Unidade de peso",
     "unit.days": "dias",
@@ -286,5 +285,9 @@ I18n.register("pt", {
     "routines.targetHint": "Opcional: dê a um exercício uma meta, como 3 séries de 8 repetições. Ao iniciar a rotina, você verá seu progresso.",
 
     "offline.notice": "Você está sem conexão. Tudo continua funcionando e seus dados ficam salvos neste dispositivo.",
+
+    "suggest.why": "Por quê?",
+    "suggest.useShort": "Usar",
+    "settings.workout": "Ajustes do treino",
   },
 });

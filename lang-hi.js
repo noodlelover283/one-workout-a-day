@@ -5,7 +5,6 @@ I18n.register("hi", {
   locale: "hi-u-nu-latn",
   strings: {
     "app.title": "रोज़ एक वर्कआउट",
-    "app.tagline": "दर्ज करें। देखें। ठहराव तोड़ें।",
 
     "unit.groupLabel": "वज़न की इकाई",
     "unit.days": "दिन",
@@ -286,5 +285,9 @@ I18n.register("hi", {
     "routines.targetHint": "वैकल्पिक: किसी व्यायाम के लिए लक्ष्य रखें, जैसे 8 रेप के 3 सेट। रूटीन शुरू करने पर आपकी प्रगति दिखेगी।",
 
     "offline.notice": "आप ऑफ़लाइन हैं। सब कुछ अब भी काम करता है, और आपका डेटा इसी डिवाइस पर सेव है।",
+
+    "suggest.why": "क्यों?",
+    "suggest.useShort": "भरें",
+    "settings.workout": "वर्कआउट सेटिंग",
   },
 });

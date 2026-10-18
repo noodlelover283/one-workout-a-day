@@ -5,7 +5,6 @@ I18n.register("en", {
   locale: "en",
   strings: {
     "app.title": "One Workout a Day",
-    "app.tagline": "Log it. See it. Break the plateau.",
 
     "unit.groupLabel": "Weight unit",
     "unit.days": "days",
@@ -286,5 +285,9 @@ I18n.register("en", {
     "routines.targetHint": "Optional: give an exercise a target such as 3 sets of 8 reps. Starting the routine then shows your progress.",
 
     "offline.notice": "You're offline. Everything still works, and your data is saved on this device.",
+
+    "suggest.why": "Why?",
+    "suggest.useShort": "Use",
+    "settings.workout": "Workout settings",
   },
 });

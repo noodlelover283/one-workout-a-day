@@ -5,7 +5,6 @@ I18n.register("es", {
   locale: "es",
   strings: {
     "app.title": "Un entrenamiento al día",
-    "app.tagline": "Regístralo. Míralo. Rompe el estancamiento.",
 
     "unit.groupLabel": "Unidad de peso",
     "unit.days": "días",
@@ -286,5 +285,9 @@ I18n.register("es", {
     "routines.targetHint": "Opcional: da a un ejercicio un objetivo, como 3 series de 8 repeticiones. Al iniciar la rutina verás tu progreso.",
 
     "offline.notice": "Sin conexión. Todo sigue funcionando y tus datos se guardan en este dispositivo.",
+
+    "suggest.why": "¿Por qué?",
+    "suggest.useShort": "Usar",
+    "settings.workout": "Ajustes del entrenamiento",
   },
 });

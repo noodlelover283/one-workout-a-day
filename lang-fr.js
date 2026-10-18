@@ -5,7 +5,6 @@ I18n.register("fr", {
   locale: "fr",
   strings: {
     "app.title": "Un entraînement par jour",
-    "app.tagline": "Notez-le. Suivez-le. Brisez le plateau.",
 
     "unit.groupLabel": "Unité de poids",
     "unit.days": "jours",
@@ -286,5 +285,9 @@ I18n.register("fr", {
     "routines.targetHint": "Facultatif : donnez à un exercice un objectif, comme 3 séries de 8 répétitions. En démarrant la routine, vous verrez votre progression.",
 
     "offline.notice": "Vous êtes hors connexion. Tout fonctionne toujours et vos données sont enregistrées sur cet appareil.",
+
+    "suggest.why": "Pourquoi ?",
+    "suggest.useShort": "Utiliser",
+    "settings.workout": "Réglages de l'entraînement",
   },
 });

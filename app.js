@@ -1405,6 +1405,12 @@ function registerOfflineSupport() {
   navigator.serviceWorker.register("sw.js").catch((error) => console.warn("Offline support is not available.", error));
 }
 
+// The gear in the header opens and closes the theme, text size and language settings.
+function toggleDisplayPanel() {
+  const open = $("display-panel").classList.toggle("hidden") === false;
+  $("display-toggle").setAttribute("aria-expanded", String(open));
+}
+
 // The tab bar is fixed to the bottom of the screen, so the page keeps clear space equal to its height.
 function keepClearOfTabBar() {
   const tabbar = document.querySelector(".tabbar");
@@ -1416,6 +1422,7 @@ function keepClearOfTabBar() {
 function init() {
   keepClearOfTabBar();
   applyAppearance();
+  $("display-toggle").addEventListener("click", toggleDisplayPanel);
   $("theme-select").addEventListener("change", onAppearanceChange);
   $("text-size-select").addEventListener("change", onAppearanceChange);
   deviceDarkQuery.addEventListener("change", applyAppearance);

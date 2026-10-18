@@ -6,7 +6,6 @@ I18n.register("ar", {
   locale: "ar-u-nu-latn",
   strings: {
     "app.title": "تمرين واحد في اليوم",
-    "app.tagline": "سجّله. تابعه. اكسر الجمود.",
 
     "unit.groupLabel": "وحدة الوزن",
     "unit.days": "أيام",
@@ -291,5 +290,9 @@ I18n.register("ar", {
     "routines.targetHint": "اختياري: حدد هدفًا للتمرين مثل 3 مجموعات من 8 تكرارات. عند بدء الروتين سيظهر تقدمك.",
 
     "offline.notice": "أنت غير متصل. كل شيء يعمل كالمعتاد، وبياناتك محفوظة على هذا الجهاز.",
+
+    "suggest.why": "لماذا؟",
+    "suggest.useShort": "استخدم",
+    "settings.workout": "إعدادات التمرين",
   },
 });
