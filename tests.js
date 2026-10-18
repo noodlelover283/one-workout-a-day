@@ -560,6 +560,38 @@ test("a backup from a newer version of the app is refused with its own message",
   assertEqual(Logic.parseBackup(text).error, "error.backupNewer");
 });
 
+// ---------- Home screen ----------
+
+// Reads a PNG file's header: is it really a PNG, and how many pixels wide and tall?
+async function pngInfo(url) {
+  const bytes = new DataView(await (await fetch(url, { cache: "no-store" })).arrayBuffer());
+  const signature = [137, 80, 78, 71, 13, 10, 26, 10];
+  return { isPng: signature.every((value, index) => bytes.getUint8(index) === value), width: bytes.getUint32(16), height: bytes.getUint32(20) };
+}
+
+test("the app description names the app and its icons are real pictures of the size it promises", async () => {
+  const manifest = await (await fetch("manifest.webmanifest", { cache: "no-store" })).json();
+  assertEqual([manifest.name, manifest.short_name, manifest.display, manifest.start_url], ["One Workout a Day", "One Workout", "standalone", "./"]);
+  for (const icon of manifest.icons) {
+    const [width, height] = icon.sizes.split("x").map(Number);
+    const info = await pngInfo(icon.src);
+    assertEqual([info.isPng, info.width, info.height], [true, width, height], icon.src);
+  }
+  const sizes = manifest.icons.map((icon) => `${icon.sizes} ${icon.purpose}`);
+  for (const wanted of ["192x192 any", "512x512 any", "512x512 maskable"]) {
+    if (!sizes.includes(wanted)) throw new Error(`no ${wanted} icon`);
+  }
+});
+
+test("the page links its app description and a 180 pixel iPhone icon, and opens full screen when added", async () => {
+  const page = await (await fetch("index.html", { cache: "no-store" })).text();
+  for (const needed of ['rel="manifest" href="manifest.webmanifest"', 'rel="apple-touch-icon" href="apple-touch-icon.png"', 'name="apple-mobile-web-app-capable" content="yes"', 'name="apple-mobile-web-app-title"', 'name="theme-color"']) {
+    if (!page.includes(needed)) throw new Error(`index.html is missing ${needed}`);
+  }
+  const icon = await pngInfo("apple-touch-icon.png");
+  assertEqual([icon.isPng, icon.width, icon.height], [true, 180, 180]);
+});
+
 // ---------- Offline use ----------
 
 test("sw.js saves every file the page loads, so the app can start with no connection", async () => {
