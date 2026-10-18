@@ -294,5 +294,7 @@ I18n.register("ar", {
     "suggest.why": "لماذا؟",
     "suggest.useShort": "استخدم",
     "settings.workout": "إعدادات التمرين",
+
+    "history.older": "عرض الأيام الأقدم ({count})",
   },
 });

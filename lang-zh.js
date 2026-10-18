@@ -288,5 +288,7 @@ I18n.register("zh", {
     "suggest.why": "为什么？",
     "suggest.useShort": "使用",
     "settings.workout": "训练设置",
+
+    "history.older": "显示更早的日期（{count}）",
   },
 });

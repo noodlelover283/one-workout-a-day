@@ -289,5 +289,7 @@ I18n.register("es", {
     "suggest.why": "¿Por qué?",
     "suggest.useShort": "Usar",
     "settings.workout": "Ajustes del entrenamiento",
+
+    "history.older": "Mostrar días anteriores ({count})",
   },
 });

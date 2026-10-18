@@ -460,6 +460,11 @@ function renderDemo(exercise) {
 
 // ---------- Weight suggestions ----------
 
+// A list of sets as short text in the chosen unit, like "145×8, 145×8, 140×8".
+function setsText(sets) {
+  return sets.map((e) => `${Logic.formatWeight(e.weight, state.unit)}×${e.reps}`).join(", ");
+}
+
 // The target a routine gives an exercise, for the routine currently chosen on the Log tab.
 function activeRoutineTarget(exercise) {
   const routine = state.routines.find((r) => r.id === $("routine-select").value);
@@ -492,7 +497,7 @@ function renderSuggestion() {
   }
   const weight = Logic.formatWeight(suggestion.weight, unit);
   const goal = repsText(repGoal);
-  const sets = suggestion.session.map((e) => `${Logic.formatWeight(e.weight, unit)}×${e.reps}`).join(", ");
+  const sets = setsText(suggestion.session);
   $("suggestion-text").textContent = t("suggest.text", { weight, unit, reps: repsText(suggestion.reps) });
   const reason = suggestion.increased
     ? t("suggest.reasonUp", { goal, jump: jumpOf(group), unit })
@@ -961,6 +966,8 @@ function renderCalendar() {
 function showHistoryDay(date) {
   const day = document.getElementById(`day-${date}`);
   if (!day) return;
+  const fold = day.closest("details.older-days");
+  if (fold) fold.open = true;
   day.scrollIntoView({ block: "start" });
   day.classList.remove("flash");
   void day.offsetWidth; // restarts the highlight if the same day is tapped twice
@@ -977,6 +984,32 @@ function onNoteChange() {
   showToast(t(state.notes[date] ? "toast.noteSaved" : "toast.noteRemoved"));
 }
 
+const RECENT_DAYS = 7; // days shown before "Show older days"
+const openHistoryLines = new Set(); // "date|exercise" lines the user has opened, kept across redraws
+let olderDaysOpen = false;
+
+// One day: its date, its note, and a line for each exercise that opens to show its sets.
+function historyDay(date) {
+  const day = el("section", "day");
+  day.id = `day-${date}`;
+  day.append(el("h3", "", I18n.formatDate(date)));
+  if (state.notes[date]) day.append(el("p", "day-note", state.notes[date]));
+  for (const group of Logic.groupByExercise(state.entries.filter((e) => e.date === date))) {
+    const key = `${date}|${group.exercise}`;
+    const line = el("details", "exercise-line");
+    // A set being edited keeps its exercise open, so the edit form is never hidden.
+    line.open = openHistoryLines.has(key) || group.sets.some((entry) => entry.id === editingEntryId);
+    line.addEventListener("toggle", () => (line.open ? openHistoryLines.add(key) : openHistoryLines.delete(key)));
+    const summary = el("summary");
+    summary.append(el("span", "exercise-name", exerciseLabel(group.exercise)), el("span", "exercise-sets", setsText(group.sets)));
+    const sets = el("ul", "entry-list");
+    sets.append(...group.sets.map((entry, index) => setRow(entry, index + 1)));
+    line.append(summary, sets);
+    day.append(line);
+  }
+  return day;
+}
+
 function renderHistory() {
   renderCalendar();
   const container = $("history");
@@ -988,18 +1021,16 @@ function renderHistory() {
   }
   sample.classList.add("hidden");
   const dates = [...new Set([...state.entries.map((e) => e.date), ...Object.keys(state.notes)])].sort().reverse();
-  container.replaceChildren(
-    ...dates.map((date) => {
-      const group = el("section", "day");
-      group.id = `day-${date}`;
-      group.append(el("h3", "", I18n.formatDate(date)));
-      if (state.notes[date]) group.append(el("p", "day-note", state.notes[date]));
-      const list = el("ul", "entry-list");
-      list.append(...exerciseGroups(state.entries.filter((e) => e.date === date)));
-      group.append(list);
-      return group;
-    })
-  );
+  const recent = dates.slice(0, RECENT_DAYS).map(historyDay);
+  const older = dates.slice(RECENT_DAYS);
+  if (older.length > 0) {
+    const fold = el("details", "older-days");
+    fold.open = olderDaysOpen;
+    fold.addEventListener("toggle", () => (olderDaysOpen = fold.open));
+    fold.append(el("summary", "", t("history.older", { count: older.length })), ...older.map(historyDay));
+    recent.push(fold);
+  }
+  container.replaceChildren(...recent);
 }
 
 function onLoadSample() {

@@ -289,5 +289,7 @@ I18n.register("hi", {
     "suggest.why": "क्यों?",
     "suggest.useShort": "भरें",
     "settings.workout": "वर्कआउट सेटिंग",
+
+    "history.older": "पुराने दिन दिखाएँ ({count})",
   },
 });

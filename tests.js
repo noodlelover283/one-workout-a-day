@@ -794,6 +794,54 @@ test("the Log tab shows the date, exercise, weight, reps and Add set on the firs
   }
 });
 
+test("History is short: the recent days as one line per exercise, the older days folded away", async () => {
+  const app = await openApp();
+  try {
+    const tab = showTab(app, "history");
+    const days = tab.querySelectorAll("#history > .day");
+    const fold = tab.querySelector("#history > details.older-days");
+    if (days.length !== 7) throw new Error(`expected 7 recent days, found ${days.length}`);
+    if (!fold || fold.open || fold.querySelectorAll(".day").length === 0) throw new Error("the older days should be folded away, with days inside");
+    const line = tab.querySelector("#history .exercise-line");
+    if (line.open) throw new Error("an exercise line should start closed");
+    if (!/\d+×\d+/.test(line.querySelector(".exercise-sets").textContent)) throw new Error("the line should summarise its sets, like 145×8");
+    const screens = app.doc.documentElement.scrollHeight / 812;
+    if (screens > 4) throw new Error(`History is ${screens.toFixed(1)} screens tall; it used to be about 8`);
+    if (app.errors.length) throw new Error(`the app raised errors: ${app.errors.join("; ")}`);
+  } finally {
+    closeApp(app);
+  }
+});
+
+test("tapping an exercise line opens its sets, and editing a set keeps that line open", async () => {
+  const app = await openApp();
+  try {
+    const tab = showTab(app, "history");
+    const line = tab.querySelector("#history .exercise-line");
+    line.querySelector("summary").click();
+    await new Promise((resolve) => setTimeout(resolve, 0)); // the page notes the line is open
+    if (!line.open || line.querySelectorAll(".entry").length === 0) throw new Error("tapping the line should open its sets");
+    line.querySelector(".entry button.link").click(); // Edit on the first set
+    const reopened = tab.querySelector("#history .exercise-line");
+    if (!reopened.open || !reopened.querySelector(".entry.editing form")) throw new Error("the set being edited should stay on screen");
+  } finally {
+    closeApp(app);
+  }
+});
+
+test("the calendar's jump opens the folded older days to reach a day", async () => {
+  const app = await openApp();
+  try {
+    const tab = showTab(app, "history");
+    const fold = tab.querySelector("details.older-days");
+    const oldest = [...fold.querySelectorAll(".day")].pop();
+    app.win.showHistoryDay(oldest.id.replace("day-", ""));
+    if (!fold.open) throw new Error("the older days should have opened");
+  } finally {
+    closeApp(app);
+  }
+});
+
 test("the gear in the header opens and closes the display settings", async () => {
   const app = await openApp();
   try {

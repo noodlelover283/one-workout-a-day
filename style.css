@@ -210,6 +210,16 @@ button.link { min-height: 44px; border: none; background: none; color: var(--acc
 .entry-header { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 0 8px; }
 .entry-header strong { min-width: 0; overflow-wrap: anywhere; }
 
+.exercise-line { margin-bottom: 8px; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; }
+.exercise-line > summary { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 8px; min-height: 48px; padding: 10px 12px; cursor: pointer; list-style: none; }
+.exercise-line > summary::-webkit-details-marker { display: none; }
+.exercise-line > summary::after { content: "\25BE"; order: 2; margin-inline-start: auto; color: var(--muted); }
+.exercise-line[open] > summary::after { content: "\25B4"; }
+.exercise-name { order: 1; font-weight: 700; min-width: 0; overflow-wrap: anywhere; }
+.exercise-sets { order: 3; flex-basis: 100%; color: var(--muted); font-size: 0.9rem; overflow-wrap: anywhere; }
+.exercise-line > .entry-list { padding: 0 10px 4px; }
+.older-days > summary { display: flex; align-items: center; justify-content: center; min-height: 48px; margin-top: 8px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface); font-weight: 600; cursor: pointer; list-style: none; }
+.older-days > summary::-webkit-details-marker { display: none; }
 .exercise-group { margin-bottom: 12px; }
 .exercise-group h4 { margin: 0 0 6px; font-size: 1.05rem; }
 .entry .detail { display: block; color: var(--muted); font-size: 0.9rem; }

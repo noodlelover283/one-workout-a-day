@@ -291,5 +291,7 @@ I18n.register("ru", {
     "suggest.why": "Почему?",
     "suggest.useShort": "Применить",
     "settings.workout": "Настройки тренировки",
+
+    "history.older": "Показать более ранние дни ({count})",
   },
 });

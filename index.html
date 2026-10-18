@@ -12,7 +12,7 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="theme-color" content="#f5f6f8" media="(prefers-color-scheme: light)">
   <meta name="theme-color" content="#12161c" media="(prefers-color-scheme: dark)">
-  <link rel="stylesheet" href="style.css?v=464077e528">
+  <link rel="stylesheet" href="style.css?v=e9fa138758">
 </head>
 <body>
   <p id="offline-banner" class="offline-banner hidden" role="status" data-i18n="offline.notice">You're offline. Everything still works, and your data is saved on this device.</p>
@@ -182,12 +182,14 @@
       <div id="history"></div>
       <button id="load-sample" type="button" class="secondary hidden" data-i18n="history.loadSample">Load sample data to explore</button>
 
-      <h3 data-i18n="backup.heading">Back up your data</h3>
-      <p class="hint" data-i18n="backup.hint">Your workouts are saved only in this browser. Download a backup file to keep them safe, or to move them to another device.</p>
-      <button id="backup-download" type="button" class="secondary" data-i18n="backup.download">Download backup</button>
-      <label for="backup-file" data-i18n="backup.restore">Restore from a backup file</label>
-      <input id="backup-file" type="file" accept=".json,application/json">
-      <p id="backup-error" class="error" role="alert"></p>
+      <details class="settings-fold">
+        <summary data-i18n="backup.heading">Back up your data</summary>
+        <p class="hint" data-i18n="backup.hint">Your workouts are saved only in this browser. Download a backup file to keep them safe, or to move them to another device.</p>
+        <button id="backup-download" type="button" class="secondary" data-i18n="backup.download">Download backup</button>
+        <label for="backup-file" data-i18n="backup.restore">Restore from a backup file</label>
+        <input id="backup-file" type="file" accept=".json,application/json">
+        <p id="backup-error" class="error" role="alert"></p>
+      </details>
     </section>
 
     <section id="tab-progress" class="tab hidden" aria-labelledby="nav-progress">
@@ -248,16 +250,16 @@
     <button id="nav-progress" data-tab="progress" data-i18n="tab.progress">Progress</button>
   </nav>
 
-  <script src="i18n.js?v=464077e528"></script>
-  <script src="lang-en.js?v=464077e528"></script>
-  <script src="lang-es.js?v=464077e528"></script>
-  <script src="lang-zh.js?v=464077e528"></script>
-  <script src="lang-hi.js?v=464077e528"></script>
-  <script src="lang-ar.js?v=464077e528"></script>
-  <script src="lang-fr.js?v=464077e528"></script>
-  <script src="lang-pt.js?v=464077e528"></script>
-  <script src="lang-ru.js?v=464077e528"></script>
-  <script src="logic.js?v=464077e528"></script>
-  <script src="app.js?v=464077e528"></script>
+  <script src="i18n.js?v=e9fa138758"></script>
+  <script src="lang-en.js?v=e9fa138758"></script>
+  <script src="lang-es.js?v=e9fa138758"></script>
+  <script src="lang-zh.js?v=e9fa138758"></script>
+  <script src="lang-hi.js?v=e9fa138758"></script>
+  <script src="lang-ar.js?v=e9fa138758"></script>
+  <script src="lang-fr.js?v=e9fa138758"></script>
+  <script src="lang-pt.js?v=e9fa138758"></script>
+  <script src="lang-ru.js?v=e9fa138758"></script>
+  <script src="logic.js?v=e9fa138758"></script>
+  <script src="app.js?v=e9fa138758"></script>
 </body>
 </html>
