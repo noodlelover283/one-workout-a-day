@@ -300,6 +300,46 @@ test("renaming or deleting an exercise carries its routine target along", () => 
   assertEqual(Logic.deleteExercise(data, "Cabel Fly").routines[0].targets, { "Bench Press": { sets: 4, reps: 6 } });
 });
 
+// ---------- Plate calculator ----------
+
+test("the plates for each side are the biggest ones first, for lb and kg", () => {
+  const lb = (target, bar = 45) => Logic.platesPerSide(target, bar, Logic.PLATES.lb).perSide;
+  const kg = (target, bar = 20) => Logic.platesPerSide(target, bar, Logic.PLATES.kg).perSide;
+  assertEqual([lb(185), lb(135), lb(225), lb(45), lb(55), lb(140)], [[45, 25], [45], [45, 45], [], [5], [45, 2.5]]);
+  assertEqual([kg(100), kg(60), kg(22.5), kg(142.5)], [[25, 15], [20], [1.25], [25, 25, 10, 1.25]]);
+});
+
+test("a weight the plates cannot make shows the closest load below it", () => {
+  const result = Logic.platesPerSide(186, 45, Logic.PLATES.lb);
+  assertEqual([result.perSide, result.loaded, result.short], [[45, 25], 185, 1]);
+  const exact = Logic.platesPerSide(185, 45, Logic.PLATES.lb);
+  assertEqual([exact.loaded, exact.short], [185, 0]);
+});
+
+test("a weight under the bar, or no weight, is handled instead of giving nonsense", () => {
+  assertEqual(Logic.platesPerSide(30, 45, Logic.PLATES.lb).tooLight, true);
+  assertEqual([Logic.platesPerSide(NaN, 45, Logic.PLATES.lb), Logic.platesPerSide(0, 45, Logic.PLATES.lb), Logic.platesPerSide(-5, 45, Logic.PLATES.lb)], [null, null, null]);
+});
+
+test("for every weight, the load is the bar plus both sides, never over, and at most one small step under", () => {
+  for (const [unit, bar] of [["lb", 45], ["kg", 20]]) {
+    const smallestStep = Math.min(...Logic.PLATES[unit]) * 2; // the smallest plate goes on both sides
+    for (let target = bar; target <= bar + 400; target += 1.25) {
+      const result = Logic.platesPerSide(target, bar, Logic.PLATES[unit]);
+      const sum = bar + 2 * result.perSide.reduce((total, plate) => total + plate, 0);
+      if (Math.round(sum * 1000) / 1000 !== result.loaded) throw new Error(`${target} ${unit}: the plates add up to ${sum}, not ${result.loaded}`);
+      if (result.loaded > target) throw new Error(`${target} ${unit}: loaded ${result.loaded}, which is over`);
+      if (result.short < 0 || result.short >= smallestStep) throw new Error(`${target} ${unit}: ${result.short} short is more than one small step`);
+    }
+  }
+});
+
+test("saved bar choices that are not real bars fall back to the usual bar", () => {
+  assertEqual(Logic.sanitizeBarWeights({ lb: 35, kg: 15 }), { lb: 35, kg: 15 });
+  assertEqual(Logic.sanitizeBarWeights({ lb: 99, kg: "heavy" }), { lb: 45, kg: 20 });
+  assertEqual([Logic.sanitizeBarWeights(undefined), Logic.sanitizeBarWeights(null)], [{ lb: 45, kg: 20 }, { lb: 45, kg: 20 }]);
+});
+
 // ---------- Strength levels ----------
 
 test("every lift has five rising level thresholds, and women's are lower than men's", () => {
@@ -997,6 +1037,45 @@ test("Repeat adds the set to the day shown, and copies the most recent set of th
     app.doc.querySelector("#today-list .repeat-set").click();
     const onThatDay = JSON.parse(localStorage.getItem(app.storage)).entries.filter((entry) => entry.date === "2026-09-05" && entry.exercise === "Squat");
     assertEqual(onThatDay.map((entry) => `${entry.weight}x${entry.reps}`), ["200x5", "210x4", "210x4"]);
+  } finally {
+    closeApp(app);
+  }
+});
+
+test("typing a weight shows which plates to load on each side, in lb and kg, and remembers the bar", async () => {
+  const app = await openApp();
+  try {
+    const weight = app.doc.getElementById("weight");
+    const type = (value) => {
+      weight.value = value;
+      weight.dispatchEvent(new Event("input", { bubbles: true }));
+    };
+    const summary = () => app.doc.getElementById("plates-summary").textContent;
+    assertEqual(summary(), "Plate calculator");
+    type("185");
+    assertEqual(summary(), "Plates: 45 + 25 each side");
+    app.doc.getElementById("plates").open = true;
+    const detail = app.doc.getElementById("plates-detail").textContent;
+    if (!detail.includes("Bar 45 lb") || !detail.includes("= 185 lb")) throw new Error(`the detail should show the bar and the total, but reads "${detail}"`);
+    type("186");
+    assertEqual(summary(), "Closest 185 lb: 45 + 25 each side");
+    type("30");
+    if (!summary().includes("Lighter than the bar (45 lb)")) throw new Error(`reads "${summary()}"`);
+    type("45");
+    assertEqual(summary(), "Just the bar");
+    type("");
+    assertEqual(summary(), "Plate calculator");
+    // In kilograms the bar and the plates change with the unit.
+    app.doc.querySelector('.unit-toggle button[data-unit="kg"]').click();
+    type("100");
+    assertEqual(summary(), "Plates: 25 + 15 each side");
+    // A lighter bar changes the answer, and the choice is saved for next time.
+    const bar = app.doc.getElementById("bar-select");
+    bar.value = "15";
+    bar.dispatchEvent(new Event("change", { bubbles: true }));
+    assertEqual(summary(), "Plates: 25 + 15 + 2.5 each side");
+    assertEqual(JSON.parse(localStorage.getItem(app.storage)).barWeight, { lb: 45, kg: 15 });
+    if (app.errors.length) throw new Error(`the app raised errors: ${app.errors.join("; ")}`);
   } finally {
     closeApp(app);
   }

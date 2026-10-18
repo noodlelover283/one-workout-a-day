@@ -296,5 +296,15 @@ I18n.register("hi", {
 
     "set.repeat": "दोहराएँ {weight} {unit} × {reps}",
     "set.repeatAria": "{exercise} का एक और सेट जोड़ें: {weight} {unit} × {reps}",
+
+    "plates.title": "प्लेट कैलकुलेटर",
+    "plates.empty": "ऊपर वज़न लिखें, फिर देखें कि हर तरफ़ कौन-सी प्लेटें लगानी हैं।",
+    "plates.summary": "प्लेटें: हर तरफ़ {plates}",
+    "plates.summaryClosest": "सबसे नज़दीकी {total} {unit}: हर तरफ़ {plates}",
+    "plates.barOnly": "सिर्फ़ बार",
+    "plates.tooLight": "बार से हल्का ({bar} {unit})",
+    "plates.detail": "बार {bar} {unit} + हर तरफ़ {plates} = {total} {unit}।",
+    "plates.under": "इन प्लेटों से {target} {unit} के सबसे पास यही बनता है ({short} {unit} कम)।",
+    "plates.bar": "बार",
   },
 });

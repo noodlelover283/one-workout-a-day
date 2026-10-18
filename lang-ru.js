@@ -298,5 +298,15 @@ I18n.register("ru", {
 
     "set.repeat": "Повторить {weight} {unit} × {reps}",
     "set.repeatAria": "Добавить ещё подход: {exercise}, {weight} {unit} × {reps}",
+
+    "plates.title": "Калькулятор блинов",
+    "plates.empty": "Введите вес выше, чтобы увидеть, какие блины ставить с каждой стороны.",
+    "plates.summary": "Блины: {plates} с каждой стороны",
+    "plates.summaryClosest": "Ближайший вес {total} {unit}: {plates} с каждой стороны",
+    "plates.barOnly": "Только гриф",
+    "plates.tooLight": "Легче грифа ({bar} {unit})",
+    "plates.detail": "Гриф {bar} {unit} + {plates} с каждой стороны = {total} {unit}.",
+    "plates.under": "Это ближайший к {target} {unit} вес из этих блинов (на {short} {unit} меньше).",
+    "plates.bar": "Гриф",
   },
 });

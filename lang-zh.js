@@ -295,5 +295,15 @@ I18n.register("zh", {
 
     "set.repeat": "重复 {weight} {unit} × {reps}",
     "set.repeatAria": "再加一组{exercise}：{weight} {unit} × {reps}",
+
+    "plates.title": "杠铃片计算器",
+    "plates.empty": "在上方输入重量，查看每一侧该装哪些杠铃片。",
+    "plates.summary": "杠铃片：每侧 {plates}",
+    "plates.summaryClosest": "最接近 {total} {unit}：每侧 {plates}",
+    "plates.barOnly": "只有杠铃杆",
+    "plates.tooLight": "比杠铃杆还轻（{bar} {unit}）",
+    "plates.detail": "杠铃杆 {bar} {unit} + 每侧 {plates} = {total} {unit}。",
+    "plates.under": "这是这些杠铃片最接近 {target} {unit} 的组合（少 {short} {unit}）。",
+    "plates.bar": "杠铃杆",
   },
 });

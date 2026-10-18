@@ -494,6 +494,39 @@ const Logic = (() => {
     return streak;
   }
 
+  // The plate calculator: which plates to load on each side of a bar for a target weight. The plates
+  // are the common ones; the bar choices are the common bars. All weights are in the chosen unit.
+  const PLATES = { lb: [45, 25, 10, 5, 2.5], kg: [25, 20, 15, 10, 5, 2.5, 1.25] };
+  const BARS = { lb: [45, 35, 15], kg: [20, 15, 10] };
+  const DEFAULT_BARS = { lb: 45, kg: 20 };
+
+  // The plates for one side, biggest first, and the weight they actually make. If the target cannot be
+  // made exactly, `short` is how far under it the closest load is. Returns null if there is no target.
+  function platesPerSide(target, bar, plates) {
+    if (!(target > 0)) return null;
+    if (target < bar) return { tooLight: true, perSide: [], loaded: bar, short: 0 };
+    const round = (value) => Math.round(value * 1000) / 1000;
+    let remaining = round((target - bar) / 2);
+    const perSide = [];
+    for (const plate of plates) {
+      while (remaining >= plate) {
+        perSide.push(plate);
+        remaining = round(remaining - plate);
+      }
+    }
+    const loaded = round(bar + 2 * perSide.reduce((sum, plate) => sum + plate, 0));
+    return { tooLight: false, perSide, loaded, short: round(target - loaded) };
+  }
+
+  // Keeps only valid saved bar choices, falling back to the usual bar for each unit.
+  function sanitizeBarWeights(saved) {
+    const bars = { ...DEFAULT_BARS };
+    for (const unit of Object.keys(BARS)) {
+      if (saved && BARS[unit].includes(saved[unit])) bars[unit] = saved[unit];
+    }
+    return bars;
+  }
+
   // Rough strength levels from the best estimated one-rep max divided by bodyweight. The ratios are
   // our own rounded approximations (not a copy of any published table), set to sit near the typical
   // ratios in public gym-goer data for a 75 kg man and a 65 kg woman. Heavier and lighter lifters
@@ -627,6 +660,11 @@ const Logic = (() => {
   }
 
   return {
+    PLATES,
+    BARS,
+    DEFAULT_BARS,
+    platesPerSide,
+    sanitizeBarWeights,
     STRENGTH_LEVELS,
     STRENGTH_LIFTS,
     STRENGTH_SEXES,

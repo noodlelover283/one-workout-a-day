@@ -259,6 +259,10 @@ button.link { min-height: 44px; border: none; background: none; color: var(--acc
 .heading-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 20px; }
 .heading-row h2 { margin: 0; }
 .heading-row input { width: auto; min-width: 0; flex-shrink: 1; }
+.plates-fold { margin-top: 12px; padding: 0 12px; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; }
+.plates-fold > summary { display: flex; align-items: center; min-height: 48px; font-weight: 600; font-size: 0.95rem; }
+.plates-fold[open] { padding-bottom: 12px; }
+.plates-fold > .hint { margin-top: 0; }
 .settings-fold { margin-top: 24px; border-top: 1px solid var(--border); }
 .settings-fold summary { display: flex; align-items: center; min-height: 48px; font-weight: 600; }
 

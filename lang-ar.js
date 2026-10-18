@@ -301,5 +301,15 @@ I18n.register("ar", {
 
     "set.repeat": "كرر {weight} {unit} × {reps}",
     "set.repeatAria": "أضف مجموعة أخرى من {exercise}: {weight} {unit} × {reps}",
+
+    "plates.title": "حاسبة الأقراص",
+    "plates.empty": "اكتب وزنًا في الأعلى لترى الأقراص التي تُحمَّل على كل جانب.",
+    "plates.summary": "الأقراص: {plates} على كل جانب",
+    "plates.summaryClosest": "الأقرب {total} {unit}: {plates} على كل جانب",
+    "plates.barOnly": "الباربل فقط",
+    "plates.tooLight": "أخف من الباربل ({bar} {unit})",
+    "plates.detail": "الباربل {bar} {unit} + {plates} على كل جانب = {total} {unit}.",
+    "plates.under": "هذا أقرب ما تصنعه هذه الأقراص إلى {target} {unit} (أقل بمقدار {short} {unit}).",
+    "plates.bar": "الباربل",
   },
 });

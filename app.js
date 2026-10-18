@@ -27,6 +27,7 @@ function loadState() {
     routines: [],
     notes: {},
     sex: "",
+    barWeight: { ...Logic.DEFAULT_BARS },
     measurements: [],
     rest: { ...DEFAULT_REST },
     progression: { repGoal: Logic.DEFAULT_REP_GOAL, jumps: { lb: {}, kg: {} } },
@@ -41,6 +42,7 @@ function normalizeState(saved) {
   const loaded = { customExercises: {}, stallDays: {}, unit: "lb", routines: [], ...saved };
   loaded.notes = Logic.sanitizeNotes(saved.notes);
   loaded.sex = Logic.STRENGTH_SEXES.includes(saved.sex) ? saved.sex : "";
+  loaded.barWeight = Logic.sanitizeBarWeights(saved.barWeight);
   loaded.measurements = Logic.sanitizeMeasurements(saved.measurements);
   loaded.routines = loaded.routines.map((routine) =>
     routine && Array.isArray(routine.exercises) ? { ...routine, targets: Logic.sanitizeTargets(routine.targets, routine.exercises) } : routine
@@ -492,6 +494,52 @@ function renderDemo(exercise) {
   link.setAttribute("aria-label", t("demo.watchLabel", { exercise: exerciseLabel(exercise) }));
 }
 
+// ---------- Plate calculator ----------
+
+const shownNumber = (value) => String(Math.round(value * 100) / 100);
+
+// Shows which plates to load on each side for the weight typed above, in the row under Weight and Reps.
+function renderPlates() {
+  const unit = state.unit;
+  const bar = state.barWeight[unit];
+  const select = $("bar-select");
+  select.replaceChildren(...Logic.BARS[unit].map((weight) => option(String(weight), `${weight} ${unit}`)));
+  select.value = String(bar);
+
+  const result = Logic.platesPerSide(parseFloat($("weight").value), bar, Logic.PLATES[unit]);
+  const summary = $("plates-summary");
+  const detail = $("plates-detail");
+  if (!result) {
+    summary.textContent = t("plates.title");
+    detail.textContent = t("plates.empty");
+    return;
+  }
+  if (result.tooLight) {
+    summary.textContent = t("plates.tooLight", { bar, unit });
+    detail.textContent = summary.textContent;
+    return;
+  }
+  const plates = result.perSide.join(" + ");
+  const total = shownNumber(result.loaded);
+  if (result.perSide.length === 0) {
+    summary.textContent = t("plates.barOnly");
+    detail.textContent = `${t("plates.barOnly")} (${bar} ${unit}).`;
+  } else {
+    summary.textContent = result.short > 0 ? t("plates.summaryClosest", { total, unit, plates }) : t("plates.summary", { plates });
+    detail.textContent = t("plates.detail", { bar, unit, plates, total });
+  }
+  if (result.short > 0) {
+    const target = shownNumber(parseFloat($("weight").value));
+    detail.textContent += ` ${t("plates.under", { target, unit, short: shownNumber(result.short) })}`;
+  }
+}
+
+function onBarChange() {
+  state.barWeight[state.unit] = Number($("bar-select").value);
+  saveState();
+  renderPlates();
+}
+
 // ---------- Weight suggestions ----------
 
 // A list of sets as short text in the chosen unit, like "145×8, 145×8, 140×8".
@@ -549,6 +597,7 @@ function renderSuggestion() {
 function onUseSuggestion() {
   const button = $("use-suggestion");
   $("weight").value = button.dataset.weight;
+  renderPlates();
   $("reps").value = button.dataset.reps;
   $("weight").focus();
 }
@@ -654,6 +703,7 @@ function pickRoutineExercise(exercise) {
   $("exercise").value = exerciseLabel(exercise);
   const last = Logic.lastSet(state.entries, exercise);
   $("weight").value = last ? Logic.formatWeight(last.weight, state.unit) : "";
+  renderPlates();
   const target = activeRoutineTarget(exercise);
   $("reps").value = last ? last.reps : target ? target.reps : "";
   updateMuscleRow();
@@ -1438,6 +1488,7 @@ function onLanguageChange() {
 function applyUnit() {
   $("weight-label").textContent = t("log.weight", { unit: state.unit });
   $("weight").placeholder = state.unit === "kg" ? "60" : "135";
+  renderPlates();
   $("bodyweight").placeholder = t("progress.bodyweightPlaceholder", { unit: state.unit });
   for (const button of document.querySelectorAll(".unit-toggle button")) {
     button.setAttribute("aria-pressed", String(button.dataset.unit === state.unit));
@@ -1498,6 +1549,8 @@ function init() {
   $("date").value = today();
 
   $("log-form").addEventListener("submit", onLogSubmit);
+  $("weight").addEventListener("input", renderPlates);
+  $("bar-select").addEventListener("change", onBarChange);
   $("workout-note").maxLength = Logic.NOTE_MAX_LENGTH;
   $("workout-note").addEventListener("change", onNoteChange);
   $("exercise").addEventListener("input", updateMuscleRow);

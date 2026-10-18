@@ -296,5 +296,15 @@ I18n.register("en", {
 
     "set.repeat": "Repeat {weight} {unit} × {reps}",
     "set.repeatAria": "Add another set of {exercise}: {weight} {unit} × {reps}",
+
+    "plates.title": "Plate calculator",
+    "plates.empty": "Type a weight above to see which plates to load on each side.",
+    "plates.summary": "Plates: {plates} each side",
+    "plates.summaryClosest": "Closest {total} {unit}: {plates} each side",
+    "plates.barOnly": "Just the bar",
+    "plates.tooLight": "Lighter than the bar ({bar} {unit})",
+    "plates.detail": "Bar {bar} {unit} + {plates} on each side = {total} {unit}.",
+    "plates.under": "That is the closest these plates can make to {target} {unit} ({short} {unit} under).",
+    "plates.bar": "Bar",
   },
 });

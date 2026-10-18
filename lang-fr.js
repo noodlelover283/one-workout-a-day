@@ -296,5 +296,15 @@ I18n.register("fr", {
 
     "set.repeat": "Répéter {weight} {unit} × {reps}",
     "set.repeatAria": "Ajouter une autre série de {exercise} : {weight} {unit} × {reps}",
+
+    "plates.title": "Calculateur de disques",
+    "plates.empty": "Saisissez un poids ci-dessus pour voir quels disques mettre de chaque côté.",
+    "plates.summary": "Disques : {plates} de chaque côté",
+    "plates.summaryClosest": "Le plus proche, {total} {unit} : {plates} de chaque côté",
+    "plates.barOnly": "Juste la barre",
+    "plates.tooLight": "Plus léger que la barre ({bar} {unit})",
+    "plates.detail": "Barre {bar} {unit} + {plates} de chaque côté = {total} {unit}.",
+    "plates.under": "C'est le plus proche que ces disques permettent de {target} {unit} ({short} {unit} de moins).",
+    "plates.bar": "Barre",
   },
 });

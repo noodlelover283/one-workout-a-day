@@ -296,5 +296,15 @@ I18n.register("pt", {
 
     "set.repeat": "Repetir {weight} {unit} × {reps}",
     "set.repeatAria": "Adicionar outra série de {exercise}: {weight} {unit} × {reps}",
+
+    "plates.title": "Calculadora de anilhas",
+    "plates.empty": "Digite um peso acima para ver quais anilhas colocar em cada lado.",
+    "plates.summary": "Anilhas: {plates} de cada lado",
+    "plates.summaryClosest": "Mais próximo, {total} {unit}: {plates} de cada lado",
+    "plates.barOnly": "Só a barra",
+    "plates.tooLight": "Mais leve que a barra ({bar} {unit})",
+    "plates.detail": "Barra {bar} {unit} + {plates} de cada lado = {total} {unit}.",
+    "plates.under": "É o mais próximo que essas anilhas permitem de {target} {unit} ({short} {unit} a menos).",
+    "plates.bar": "Barra",
   },
 });
