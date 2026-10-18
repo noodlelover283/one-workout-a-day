@@ -314,5 +314,11 @@ I18n.register("pt", {
 
     "barbell.label": "Usa barra",
     "barbell.badge": "Barra",
+
+    "offlineStatus.heading": "Uso sem conexão",
+    "offlineStatus.checking": "Verificando…",
+    "offlineStatus.ready": "Pronto: o app está salvo neste dispositivo e abre sem conexão.",
+    "offlineStatus.notReady": "Ainda não foi salvo. Abra o app uma vez com conexão, aguarde um instante e abra este painel de novo.",
+    "offlineStatus.unavailable": "Indisponível aqui. O uso sem conexão precisa do endereço web do app (https) em um navegador compatível.",
   },
 });

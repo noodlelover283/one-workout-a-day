@@ -314,5 +314,11 @@ I18n.register("en", {
 
     "barbell.label": "Uses a barbell",
     "barbell.badge": "Barbell",
+
+    "offlineStatus.heading": "Offline use",
+    "offlineStatus.checking": "Checking…",
+    "offlineStatus.ready": "Ready: the app is saved on this device and opens with no connection.",
+    "offlineStatus.notReady": "Not saved yet. Open the app once while online, wait a moment, then open this panel again.",
+    "offlineStatus.unavailable": "Not available here. Offline use needs the app's web address (https) in a browser that supports it.",
   },
 });

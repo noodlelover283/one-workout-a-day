@@ -313,5 +313,11 @@ I18n.register("zh", {
 
     "barbell.label": "使用杠铃",
     "barbell.badge": "杠铃",
+
+    "offlineStatus.heading": "离线使用",
+    "offlineStatus.checking": "正在检查…",
+    "offlineStatus.ready": "已就绪：应用已保存在此设备上，无需网络即可打开。",
+    "offlineStatus.notReady": "尚未保存。请在联网时打开一次应用，稍等片刻，然后再次打开此面板。",
+    "offlineStatus.unavailable": "此处不可用。离线使用需要通过应用的网址（https）并使用支持的浏览器。",
   },
 });

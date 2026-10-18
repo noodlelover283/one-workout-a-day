@@ -1513,6 +1513,7 @@ function renderMuscleOptions() {
 // Switches the language and redraws everything that contains text.
 function applyLanguage() {
   translatePage();
+  renderOfflineStatus();
   $("language-select").value = I18n.current();
   renderMuscleOptions();
   renderRestAdjustButtons();
@@ -1575,10 +1576,29 @@ function registerOfflineSupport() {
   navigator.serviceWorker.register("sw.js").catch((error) => console.warn("Offline support is not available.", error));
 }
 
+// Says whether the app is saved on this device for use with no connection (see sw.js).
+async function renderOfflineStatus() {
+  const status = $("offline-status");
+  status.textContent = t("offlineStatus.checking");
+  const facts = { supported: "serviceWorker" in navigator, hasWorker: false, hasFiles: false };
+  if (facts.supported) {
+    try {
+      const registration = await navigator.serviceWorker.getRegistration();
+      facts.hasWorker = Boolean(registration && registration.active);
+      const saved = await Promise.all(["index.html", "app.js"].map((file) => caches.match(new URL(file, location.href).href)));
+      facts.hasFiles = saved.every(Boolean);
+    } catch (error) {
+      console.warn("Could not check offline use.", error);
+    }
+  }
+  status.textContent = t(`offlineStatus.${Logic.offlineStatus(facts)}`);
+}
+
 // The gear in the header opens and closes the theme, text size and language settings.
 function toggleDisplayPanel() {
   const open = $("display-panel").classList.toggle("hidden") === false;
   $("display-toggle").setAttribute("aria-expanded", String(open));
+  if (open) renderOfflineStatus();
 }
 
 // The tab bar is fixed to the bottom of the screen, so the page keeps clear space equal to its height.

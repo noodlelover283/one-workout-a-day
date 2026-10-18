@@ -319,5 +319,11 @@ I18n.register("ar", {
 
     "barbell.label": "يستخدم الباربل",
     "barbell.badge": "باربل",
+
+    "offlineStatus.heading": "الاستخدام دون اتصال",
+    "offlineStatus.checking": "جارٍ الفحص…",
+    "offlineStatus.ready": "جاهز: التطبيق محفوظ على هذا الجهاز ويُفتح دون اتصال.",
+    "offlineStatus.notReady": "لم يُحفظ بعد. افتح التطبيق مرة واحدة أثناء الاتصال، وانتظر قليلًا، ثم افتح هذه اللوحة مجددًا.",
+    "offlineStatus.unavailable": "غير متاح هنا. يتطلب الاستخدام دون اتصال عنوان التطبيق على الويب (https) في متصفح يدعمه.",
   },
 });

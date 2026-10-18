@@ -314,5 +314,11 @@ I18n.register("hi", {
 
     "barbell.label": "बारबेल का इस्तेमाल होता है",
     "barbell.badge": "बारबेल",
+
+    "offlineStatus.heading": "ऑफ़लाइन इस्तेमाल",
+    "offlineStatus.checking": "जाँच हो रही है…",
+    "offlineStatus.ready": "तैयार: ऐप इस डिवाइस पर सेव है और बिना कनेक्शन के खुलता है।",
+    "offlineStatus.notReady": "अभी सेव नहीं हुआ। ऑनलाइन रहते हुए ऐप एक बार खोलें, थोड़ा रुकें, फिर यह पैनल दोबारा खोलें।",
+    "offlineStatus.unavailable": "यहाँ उपलब्ध नहीं। ऑफ़लाइन इस्तेमाल के लिए ऐप का वेब पता (https) और सहायक ब्राउज़र चाहिए।",
   },
 });

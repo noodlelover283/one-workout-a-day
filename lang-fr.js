@@ -314,5 +314,11 @@ I18n.register("fr", {
 
     "barbell.label": "Utilise une barre",
     "barbell.badge": "Barre",
+
+    "offlineStatus.heading": "Utilisation hors connexion",
+    "offlineStatus.checking": "Vérification…",
+    "offlineStatus.ready": "Prêt : l'application est enregistrée sur cet appareil et s'ouvre sans connexion.",
+    "offlineStatus.notReady": "Pas encore enregistrée. Ouvrez l'application une fois en ligne, patientez un instant, puis rouvrez ce panneau.",
+    "offlineStatus.unavailable": "Indisponible ici. Le mode hors connexion nécessite l'adresse web de l'application (https) dans un navigateur compatible.",
   },
 });

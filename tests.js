@@ -345,6 +345,14 @@ test("deleting an exercise deletes its note, and so does moving the last set out
   assertEqual(Logic.updateSetDetails(stillUsed, "1", { exercise: "Bench Press", weight: 100, reps: 5 }, "Chest").exerciseNotes, { "Cabel Fly": "Handles at 4", "Bench Press": "Seat at 3" });
 });
 
+// ---------- Offline status ----------
+
+test("the offline status is ready only with an active worker and saved files, and unavailable where the browser cannot do it", () => {
+  const status = (supported, hasWorker, hasFiles) => Logic.offlineStatus({ supported, hasWorker, hasFiles });
+  assertEqual([status(true, true, true), status(true, true, false), status(true, false, true), status(true, false, false)], ["ready", "notReady", "notReady", "notReady"]);
+  assertEqual([status(false, true, true), status(false, false, false)], ["unavailable", "unavailable"]);
+});
+
 // ---------- Barbell exercises ----------
 
 test("the built-in barbell exercises are real exercises, and the others have no plates", () => {
@@ -1260,6 +1268,22 @@ test("the plate calculator shows only for barbell exercises, and a new exercise 
   }
 });
 
+test("opening the gear shows an offline status that settles on one of the three messages", async () => {
+  const app = await openApp();
+  try {
+    const messages = ["ready", "notReady", "unavailable"].map((name) => registeredLanguages.en.strings[`offlineStatus.${name}`]);
+    const status = app.doc.getElementById("offline-status");
+    app.doc.getElementById("display-toggle").click();
+    for (let waited = 0; waited < 2000 && !messages.includes(status.textContent); waited += 50) {
+      await new Promise((resolve) => setTimeout(resolve, 50));
+    }
+    if (!messages.includes(status.textContent)) throw new Error(`the status never settled, and reads "${status.textContent}"`);
+    if (app.errors.length) throw new Error(`the app raised errors: ${app.errors.join("; ")}`);
+  } finally {
+    closeApp(app);
+  }
+});
+
 test("the gear in the header opens and closes the display settings", async () => {
   const app = await openApp();
   try {
@@ -1281,6 +1305,7 @@ test("no text key shows through on any tab in any language", async () => {
     // Every key any language defines, so a key missing from one language is still recognised if it shows.
     const keys = [...new Set(Object.values(registeredLanguages).flatMap((language) => Object.keys(language.strings)))];
     const select = app.doc.getElementById("language-select");
+    app.doc.getElementById("display-panel").classList.remove("hidden"); // so its text is read too
     // Open a routine for editing, so its target boxes and their labels are on screen too.
     showTab(app, "routines");
     app.doc.querySelector("#routine-list .routine-card button.link").click();

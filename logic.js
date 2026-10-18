@@ -544,6 +544,14 @@ const Logic = (() => {
     return streak;
   }
 
+  // Can the app open with no connection? It needs a browser that allows offline use, an active service
+  // worker, and the app's files saved by it. Returns the end of a message key: "unavailable", "ready"
+  // or "notReady" (everything is fine, but the files have not been saved yet).
+  function offlineStatus({ supported, hasWorker, hasFiles }) {
+    if (!supported) return "unavailable";
+    return hasWorker && hasFiles ? "ready" : "notReady";
+  }
+
   // Only exercises done with a barbell get the plate calculator. These built-in ones do; an exercise
   // someone adds is marked with a checkbox, kept as { "Landmine Press": true }.
   const BARBELL_EXERCISES = ["Bench Press", "Deadlift", "Barbell Row", "Squat", "Romanian Deadlift", "Overhead Press"];
@@ -738,6 +746,7 @@ const Logic = (() => {
   }
 
   return {
+    offlineStatus,
     BARBELL_EXERCISES,
     usesBarbell,
     sanitizeBarbellExercises,
