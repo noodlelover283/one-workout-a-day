@@ -291,5 +291,7 @@ I18n.register("es", {
     "settings.workout": "Ajustes del entrenamiento",
 
     "history.older": "Mostrar días anteriores ({count})",
+
+    "progress.aboutEstimate": "Sobre la estimación",
   },
 });

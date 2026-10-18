@@ -291,5 +291,7 @@ I18n.register("hi", {
     "settings.workout": "वर्कआउट सेटिंग",
 
     "history.older": "पुराने दिन दिखाएँ ({count})",
+
+    "progress.aboutEstimate": "अनुमान के बारे में",
   },
 });

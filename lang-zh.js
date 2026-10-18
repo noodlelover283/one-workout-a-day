@@ -290,5 +290,7 @@ I18n.register("zh", {
     "settings.workout": "训练设置",
 
     "history.older": "显示更早的日期（{count}）",
+
+    "progress.aboutEstimate": "关于估算",
   },
 });

@@ -293,5 +293,7 @@ I18n.register("ru", {
     "settings.workout": "Настройки тренировки",
 
     "history.older": "Показать более ранние дни ({count})",
+
+    "progress.aboutEstimate": "Об оценке",
   },
 });

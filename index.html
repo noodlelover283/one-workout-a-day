@@ -12,7 +12,7 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="theme-color" content="#f5f6f8" media="(prefers-color-scheme: light)">
   <meta name="theme-color" content="#12161c" media="(prefers-color-scheme: dark)">
-  <link rel="stylesheet" href="style.css?v=e9fa138758">
+  <link rel="stylesheet" href="style.css?v=296a27777c">
 </head>
 <body>
   <p id="offline-banner" class="offline-banner hidden" role="status" data-i18n="offline.notice">You're offline. Everything still works, and your data is saved on this device.</p>
@@ -197,10 +197,12 @@
       <p class="hint" data-i18n="progress.plateauHint">Muscle groups, by how recently you set a new weight record.</p>
       <div id="plateau-cards"></div>
 
-      <h2 data-i18n="progress.settingsHeading">Plateau settings</h2>
-      <p class="hint" data-i18n="progress.settingsHint">Days without a new weight record before a muscle group counts as stalled. Some groups are slower to progress, so set each one.</p>
-      <div id="stall-settings"></div>
-      <p id="stall-error" class="error" role="alert"></p>
+      <details class="section-fold">
+        <summary><h2 data-i18n="progress.settingsHeading">Plateau settings</h2></summary>
+        <p class="hint" data-i18n="progress.settingsHint">Days without a new weight record before a muscle group counts as stalled. Some groups are slower to progress, so set each one.</p>
+        <div id="stall-settings"></div>
+        <p id="stall-error" class="error" role="alert"></p>
+      </details>
 
       <h2 data-i18n="progress.exerciseHeading">Exercise progress</h2>
       <label for="progress-exercise" data-i18n="log.exercise">Exercise</label>
@@ -212,32 +214,41 @@
       </select>
       <div id="exercise-chart" class="chart"></div>
       <p id="one-rep-max-best"></p>
-      <p id="one-rep-max-hint" class="hint"></p>
+      <details id="one-rep-max-about" class="note-fold">
+        <summary data-i18n="progress.aboutEstimate">About the estimate</summary>
+        <p id="one-rep-max-hint" class="hint"></p>
+      </details>
 
-      <h2 data-i18n="strength.heading">Strength levels</h2>
-      <p class="hint" data-i18n="strength.hint">A rough guide to how your best lifts compare with other gym-goers of your sex and bodyweight. It uses your estimated one-rep max and typical strength-to-bodyweight ratios, so treat it as an estimate, not a ranking.</p>
-      <label for="strength-sex" data-i18n="strength.sexLabel">Compare me with</label>
-      <select id="strength-sex"></select>
-      <div id="strength-results"></div>
+      <details class="section-fold">
+        <summary><h2 data-i18n="strength.heading">Strength levels</h2></summary>
+        <p class="hint" data-i18n="strength.hint">A rough guide to how your best lifts compare with other gym-goers of your sex and bodyweight. It uses your estimated one-rep max and typical strength-to-bodyweight ratios, so treat it as an estimate, not a ranking.</p>
+        <label for="strength-sex" data-i18n="strength.sexLabel">Compare me with</label>
+        <select id="strength-sex"></select>
+        <div id="strength-results"></div>
+      </details>
 
-      <h2 data-i18n="progress.bodyweightHeading">Bodyweight</h2>
-      <form id="bodyweight-form" class="row inline" novalidate>
-        <input id="bodyweight" type="number" inputmode="decimal" min="0" step="any" data-i18n-aria="progress.bodyweightLabel" aria-label="Bodyweight">
-        <button type="submit" class="primary" data-i18n="progress.add">Add</button>
-      </form>
-      <p id="bodyweight-error" class="error" role="alert"></p>
-      <div id="bodyweight-chart" class="chart"></div>
+      <details class="section-fold">
+        <summary><h2 data-i18n="progress.bodyweightHeading">Bodyweight</h2></summary>
+        <form id="bodyweight-form" class="row inline" novalidate>
+          <input id="bodyweight" type="number" inputmode="decimal" min="0" step="any" data-i18n-aria="progress.bodyweightLabel" aria-label="Bodyweight">
+          <button type="submit" class="primary" data-i18n="progress.add">Add</button>
+        </form>
+        <p id="bodyweight-error" class="error" role="alert"></p>
+        <div id="bodyweight-chart" class="chart"></div>
+      </details>
 
-      <h2 data-i18n="measure.heading">Body measurements</h2>
-      <p class="hint" data-i18n="measure.hint">Measure the same spot each time, for example your waist at the navel. Adding one again on the same day replaces it.</p>
-      <label for="measure-name" data-i18n="measure.which">Measurement</label>
-      <select id="measure-name"></select>
-      <form id="measure-form" class="row inline" novalidate>
-        <input id="measure-value" type="number" inputmode="decimal" min="0" step="any" data-i18n-aria="measure.valueLabel" aria-label="Measurement">
-        <button type="submit" class="primary" data-i18n="progress.add">Add</button>
-      </form>
-      <p id="measure-error" class="error" role="alert"></p>
-      <div id="measure-chart" class="chart"></div>
+      <details class="section-fold">
+        <summary><h2 data-i18n="measure.heading">Body measurements</h2></summary>
+        <p class="hint" data-i18n="measure.hint">Measure the same spot each time, for example your waist at the navel. Adding one again on the same day replaces it.</p>
+        <label for="measure-name" data-i18n="measure.which">Measurement</label>
+        <select id="measure-name"></select>
+        <form id="measure-form" class="row inline" novalidate>
+          <input id="measure-value" type="number" inputmode="decimal" min="0" step="any" data-i18n-aria="measure.valueLabel" aria-label="Measurement">
+          <button type="submit" class="primary" data-i18n="progress.add">Add</button>
+        </form>
+        <p id="measure-error" class="error" role="alert"></p>
+        <div id="measure-chart" class="chart"></div>
+      </details>
     </section>
   </main>
 
@@ -250,16 +261,16 @@
     <button id="nav-progress" data-tab="progress" data-i18n="tab.progress">Progress</button>
   </nav>
 
-  <script src="i18n.js?v=e9fa138758"></script>
-  <script src="lang-en.js?v=e9fa138758"></script>
-  <script src="lang-es.js?v=e9fa138758"></script>
-  <script src="lang-zh.js?v=e9fa138758"></script>
-  <script src="lang-hi.js?v=e9fa138758"></script>
-  <script src="lang-ar.js?v=e9fa138758"></script>
-  <script src="lang-fr.js?v=e9fa138758"></script>
-  <script src="lang-pt.js?v=e9fa138758"></script>
-  <script src="lang-ru.js?v=e9fa138758"></script>
-  <script src="logic.js?v=e9fa138758"></script>
-  <script src="app.js?v=e9fa138758"></script>
+  <script src="i18n.js?v=296a27777c"></script>
+  <script src="lang-en.js?v=296a27777c"></script>
+  <script src="lang-es.js?v=296a27777c"></script>
+  <script src="lang-zh.js?v=296a27777c"></script>
+  <script src="lang-hi.js?v=296a27777c"></script>
+  <script src="lang-ar.js?v=296a27777c"></script>
+  <script src="lang-fr.js?v=296a27777c"></script>
+  <script src="lang-pt.js?v=296a27777c"></script>
+  <script src="lang-ru.js?v=296a27777c"></script>
+  <script src="logic.js?v=296a27777c"></script>
+  <script src="app.js?v=296a27777c"></script>
 </body>
 </html>

@@ -842,6 +842,61 @@ test("the calendar's jump opens the folded older days to reach a day", async () 
   }
 });
 
+test("Progress opens with the plateau check and exercise chart, and the other sections are folded", async () => {
+  const app = await openApp();
+  try {
+    const tab = showTab(app, "progress");
+    const folds = [...tab.querySelectorAll("details.section-fold")];
+    if (folds.length !== 4) throw new Error(`expected 4 folded sections, found ${folds.length}`);
+    if (folds.some((fold) => fold.open)) throw new Error("the folded sections should start closed");
+    const chart = tab.querySelector("#exercise-chart svg").getBoundingClientRect();
+    if (chart.bottom > 812 * 1.4) throw new Error(`the exercise chart ends ${Math.round(chart.bottom)}px down; it should be near the top`);
+    const screens = app.doc.documentElement.scrollHeight / 812;
+    if (screens > 2.2) throw new Error(`Progress is ${screens.toFixed(1)} screens tall; it used to be about 3.3`);
+    // Opening Bodyweight shows its form and chart.
+    const bodyweight = folds.find((fold) => fold.querySelector("#bodyweight-form"));
+    bodyweight.querySelector("summary").click();
+    if (!bodyweight.open || bodyweight.querySelector("#bodyweight").getBoundingClientRect().width === 0) throw new Error("tapping Bodyweight should open its form");
+    if (app.errors.length) throw new Error(`the app raised errors: ${app.errors.join("; ")}`);
+  } finally {
+    closeApp(app);
+  }
+});
+
+test("every tap-to-open heading shows an arrow that flips when it opens", async () => {
+  const app = await openApp();
+  try {
+    const style = (summary) => app.win.getComputedStyle(summary, "::after");
+    const exercise = app.doc.getElementById("exercise");
+    exercise.value = "Bench Press"; // shows the tips row and the suggestion on the Log tab
+    exercise.dispatchEvent(new Event("input", { bubbles: true }));
+    let checked = 0;
+    for (const name of TAB_NAMES) {
+      const tab = showTab(app, name);
+      // Only headings that are on screen can be measured (a hidden one has no drawn arrow).
+      for (const summary of [...tab.querySelectorAll("details > summary")].filter((node) => node.getClientRects().length > 0)) {
+        const arrow = style(summary);
+        // The arrow is a drawn corner (two borders), turned to point down while the heading is closed.
+        if (arrow.content === "none" || parseFloat(arrow.borderRightWidth) < 2 || arrow.transform === "none") {
+          throw new Error(`"${summary.textContent.trim().slice(0, 30)}" on the ${name} tab has no arrow`);
+        }
+        checked += 1;
+      }
+    }
+    if (checked < 12) throw new Error(`expected many tap-to-open headings, checked only ${checked}`);
+    // Turn the animation off in this hidden copy, so the arrow's final position can be read at once.
+    const noAnimation = app.doc.createElement("style");
+    noAnimation.textContent = "summary::after { transition: none !important; }";
+    app.doc.head.append(noAnimation);
+    const fold = showTab(app, "progress").querySelector("details.section-fold");
+    const closedArrow = style(fold.querySelector("summary")).transform;
+    fold.open = true;
+    if (style(fold.querySelector("summary")).transform === closedArrow) throw new Error("the arrow should flip when the heading opens");
+  } finally {
+    closeApp(app);
+  }
+});
+
 test("the gear in the header opens and closes the display settings", async () => {
   const app = await openApp();
   try {
@@ -871,6 +926,8 @@ test("no text key shows through on any tab in any language", async () => {
       select.dispatchEvent(new Event("change", { bubbles: true }));
       for (const name of TAB_NAMES) {
         const tab = showTab(app, name);
+        // Closed sections hide their text, so open every one before reading the screen.
+        for (const details of tab.querySelectorAll("details")) details.open = true;
         const attributes = [...tab.querySelectorAll("[aria-label], [placeholder], [title]")].map(
           (node) => `${node.getAttribute("aria-label")} ${node.getAttribute("placeholder")} ${node.title}`,
         );

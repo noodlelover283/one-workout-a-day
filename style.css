@@ -111,7 +111,8 @@ textarea { min-height: 80px; resize: vertical; }
 .level-meter { display: flex; gap: 4px; margin-top: 6px; }
 .level-meter span { flex: 1; height: 8px; border-radius: 4px; background: var(--border); }
 .level-meter span.reached { background: var(--accent); }
-:root[data-theme="contrast"] .strength-card { border-width: 2px; }
+:root[data-theme="contrast"] .strength-card,
+:root[data-theme="contrast"] .section-fold { border-width: 2px; }
 .draft-item { flex-wrap: wrap; }
 .target-row { flex-basis: 100%; display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 6px; }
 .target-row label { margin: 0; font-size: 0.85rem; font-weight: 600; }
@@ -162,10 +163,8 @@ button.link { min-height: 44px; border: none; background: none; color: var(--acc
 }
 .demo { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 8px; margin-top: 8px; }
 .demo summary, .pill { display: flex; align-items: center; min-height: 44px; padding: 0 16px; border: 1px solid var(--border); border-radius: 999px; background: var(--surface); font-weight: 600; font-size: 0.95rem; cursor: pointer; list-style: none; }
-.demo summary::-webkit-details-marker { display: none; }
-.demo summary::after { content: "\25BE"; margin-inline-start: 8px; }
+.demo summary::after { margin-inline-start: 12px; }
 .demo details[open] { flex-basis: 100%; }
-.demo details[open] summary::after { content: "\25B4"; }
 .pill { color: var(--accent); text-decoration: none; }
 .demo p { margin: 8px 0 0; }
 .suggestion { margin-top: 12px; padding: 8px 12px; background: var(--surface); border: 1px dashed var(--accent); border-radius: 10px; }
@@ -173,7 +172,8 @@ button.link { min-height: 44px; border: none; background: none; color: var(--acc
 .suggestion p { margin: 0; }
 .suggestion-main button { width: auto; flex-shrink: 0; margin: 0; padding: 0 18px; }
 .suggestion-note:empty, #suggestion-note:empty { display: none; }
-.suggestion-why summary { display: flex; align-items: center; min-height: 36px; color: var(--muted); font-size: 0.9rem; cursor: pointer; }
+.suggestion-why summary, .note-fold summary { display: flex; align-items: center; min-height: 36px; color: var(--muted); font-size: 0.9rem; }
+.suggestion-why summary::after, .note-fold summary::after { margin-inline-start: 10px; width: 7px; height: 7px; border-width: 2px; }
 .suggestion-why p { margin: 0 0 4px; }
 
 .rest-banner {
@@ -212,14 +212,11 @@ button.link { min-height: 44px; border: none; background: none; color: var(--acc
 
 .exercise-line { margin-bottom: 8px; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; }
 .exercise-line > summary { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 8px; min-height: 48px; padding: 10px 12px; cursor: pointer; list-style: none; }
-.exercise-line > summary::-webkit-details-marker { display: none; }
-.exercise-line > summary::after { content: "\25BE"; order: 2; margin-inline-start: auto; color: var(--muted); }
-.exercise-line[open] > summary::after { content: "\25B4"; }
+.exercise-line > summary::after { order: 2; }
 .exercise-name { order: 1; font-weight: 700; min-width: 0; overflow-wrap: anywhere; }
 .exercise-sets { order: 3; flex-basis: 100%; color: var(--muted); font-size: 0.9rem; overflow-wrap: anywhere; }
 .exercise-line > .entry-list { padding: 0 10px 4px; }
-.older-days > summary { display: flex; align-items: center; justify-content: center; min-height: 48px; margin-top: 8px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface); font-weight: 600; cursor: pointer; list-style: none; }
-.older-days > summary::-webkit-details-marker { display: none; }
+.older-days > summary { display: flex; align-items: center; justify-content: space-between; min-height: 48px; margin-top: 8px; padding: 0 12px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface); font-weight: 600; }
 .exercise-group { margin-bottom: 12px; }
 .exercise-group h4 { margin: 0 0 6px; font-size: 1.05rem; }
 .entry .detail { display: block; color: var(--muted); font-size: 0.9rem; }
@@ -262,7 +259,20 @@ button.link { min-height: 44px; border: none; background: none; color: var(--acc
 .heading-row h2 { margin: 0; }
 .heading-row input { width: auto; min-width: 0; flex-shrink: 1; }
 .settings-fold { margin-top: 24px; border-top: 1px solid var(--border); }
-.settings-fold summary { display: flex; align-items: center; min-height: 48px; font-weight: 600; cursor: pointer; }
+.settings-fold summary { display: flex; align-items: center; min-height: 48px; font-weight: 600; }
+
+/* Every tap-to-open heading gets the same arrow, which flips while it is open. */
+summary { cursor: pointer; list-style: none; }
+summary::-webkit-details-marker { display: none; }
+summary::after { content: ""; flex-shrink: 0; width: 9px; height: 9px; margin-inline-start: auto; margin-inline-end: 4px; border-right: 3px solid var(--accent); border-bottom: 3px solid var(--accent); transform: translateY(-2px) rotate(45deg); transition: transform 0.15s; }
+details[open] > summary::after { transform: translateY(2px) rotate(-135deg); }
+
+/* The folded sections on the Progress tab. */
+.section-fold { margin-top: 16px; padding: 0 12px; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; }
+.section-fold[open] { padding-bottom: 12px; }
+.section-fold > summary { display: flex; align-items: center; min-height: 52px; }
+.section-fold > summary h2 { margin: 0; }
+.section-fold > .hint:first-of-type { margin-top: 0; }
 
 .tabbar button { flex: 1; min-height: 60px; padding: 0 2px; font-size: min(0.9rem, 4.2vw); border: none; border-radius: 0; background: none; font-weight: 600; color: var(--muted); }
 .tabbar button.active { color: var(--accent); border-top: 3px solid var(--accent); }

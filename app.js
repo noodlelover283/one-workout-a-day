@@ -1178,6 +1178,7 @@ function renderOneRepMaxNote(best) {
       ? ""
       : t("progress.oneRepMaxNone", { max: Logic.ONE_REP_MAX_MAX_REPS });
   $("one-rep-max-hint").textContent = $("progress-exercise").disabled ? "" : t("progress.oneRepMaxHint", { max: Logic.ONE_REP_MAX_MAX_REPS });
+  $("one-rep-max-about").classList.toggle("hidden", $("progress-exercise").disabled);
 }
 
 // Chart data is stored in pounds; convert it to the unit the user picked.

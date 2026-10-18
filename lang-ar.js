@@ -296,5 +296,7 @@ I18n.register("ar", {
     "settings.workout": "إعدادات التمرين",
 
     "history.older": "عرض الأيام الأقدم ({count})",
+
+    "progress.aboutEstimate": "حول التقدير",
   },
 });
