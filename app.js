@@ -152,10 +152,13 @@ function updateMuscleRow() {
 
 // The set being edited, if any. Only one set is edited at a time, in whichever list shows it.
 let editingEntryId = null;
+// The set just added, and its exercise's routine chip, are drawn with a short animation.
+let justAddedEntryId = null;
+let justLoggedExercise = null;
 
 function setRow(entry, number) {
   if (entry.id === editingEntryId) return editSetRow(entry, number);
-  const item = el("li", "entry");
+  const item = el("li", entry.id === justAddedEntryId ? "entry just-added" : "entry");
   const text = el("div");
   const weight = `${Logic.formatWeight(entry.weight, state.unit)} ${state.unit}`;
   text.append(el("strong", "", t("set.title", { n: number })), el("span", "detail", `${weight} × ${repsText(entry.reps)}`));
@@ -310,12 +313,17 @@ function onLogSubmit(event) {
     state.customExercises[input.exercise] = $("muscle").value;
   }
   const previousBest = Logic.bestWeight(state.entries, input.exercise);
-  state.entries.push({ id: String(Date.now()), date, ...input });
+  const id = String(Date.now());
+  state.entries.push({ id, date, ...input });
   saveState();
 
   renderExerciseOptions();
   updateMuscleRow();
+  justAddedEntryId = id;
+  justLoggedExercise = input.exercise;
   renderToday();
+  justAddedEntryId = null;
+  justLoggedExercise = null;
   if (state.rest.autoStart) startRest(state.rest.seconds);
   const setNumber = state.entries.filter((e) => e.date === date && e.exercise === input.exercise).length;
   const exercise = exerciseLabel(input.exercise);
@@ -602,6 +610,7 @@ function renderRoutineChecklist(todaysEntries) {
       chip.type = "button";
       chip.classList.toggle("done", done);
       chip.classList.toggle("selected", exercise === current);
+      chip.classList.toggle("pulse", exercise === justLoggedExercise);
       chip.setAttribute(
         "aria-label",
         progress.goal ? t("routine.progressAria", { name, count: progress.logged, sets: progress.goal }) : done ? t("routine.loggedAria", { name }) : name
@@ -1299,7 +1308,7 @@ function lineChart(series, unit = state.unit) {
     if (text !== undefined) node.textContent = text;
     svg.append(node);
   };
-  add("polyline", { points: series.map((p) => `${x(p)},${y(p)}`).join(" "), class: "line" });
+  add("path", { d: `M${series.map((p) => `${x(p)},${y(p)}`).join(" L")}`, class: "line", pathLength: 1 });
   for (const p of series) add("circle", { cx: x(p), cy: y(p), r: 3.5, class: "dot" });
   add("text", { x: 4, y: pad, class: "axis" }, `${max}`);
   add("text", { x: 4, y: height - pad + 4, class: "axis" }, `${min}`);

@@ -237,8 +237,8 @@ button.link { min-height: 44px; border: none; background: none; color: var(--acc
 
 .chart { margin-top: 8px; }
 .chart svg { direction: ltr; width: 100%; height: auto; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; }
-.line { fill: none; stroke: var(--accent); stroke-width: 2.5; }
-.dot { fill: var(--accent); }
+.line { fill: none; stroke: var(--accent); stroke-width: 2.5; stroke-dasharray: 1; animation: draw-line 0.7s ease-out; }
+.dot { fill: var(--accent); animation: fade-in 0.3s 0.5s ease-out backwards; }
 .axis { fill: var(--muted); font-size: 10px; }
 
 .tabbar {
@@ -292,3 +292,43 @@ details[open] > summary::after { transform: translateY(2px) rotate(-135deg); }
 }
 .toast.show { opacity: 1; }
 .toast.record { width: max-content; max-width: calc(100vw - 32px); padding: 12px 18px; border-radius: 16px; background: var(--accent); color: var(--on-accent); font-weight: 700; text-align: center; }
+
+/* ---------- Motion ---------- */
+/* Short and quiet, so the app feels smooth without slowing anything down. */
+
+.tab:not(.hidden) { animation: tab-in 0.2s ease-out; }
+details[open] > :not(summary) { animation: fold-in 0.2s ease-out; }
+.entry.just-added { animation: row-in 1s ease-out; }
+.chip.pulse { animation: pulse 0.5s ease-out; }
+.toast.record.show { animation: pop 0.45s ease-out; }
+button { transition: scale 0.08s; }
+button:active:not(:disabled) { scale: 0.97; }
+
+@keyframes tab-in { from { opacity: 0; transform: translateY(6px); } }
+@keyframes fold-in { from { opacity: 0; transform: translateY(-6px); } }
+@keyframes row-in {
+  from { opacity: 0; transform: translateY(-8px); box-shadow: 0 0 0 3px var(--accent); }
+  35% { opacity: 1; transform: none; box-shadow: 0 0 0 3px var(--accent); }
+  to { box-shadow: 0 0 0 0 transparent; }
+}
+@keyframes pulse { 40% { transform: scale(1.12); } }
+@keyframes pop {
+  from { opacity: 0; transform: translateX(-50%) scale(0.85); }
+  60% { opacity: 1; transform: translateX(-50%) scale(1.06); }
+  to { transform: translateX(-50%) scale(1); }
+}
+@keyframes draw-line { from { stroke-dashoffset: 1; } to { stroke-dashoffset: 0; } }
+@keyframes fade-in { from { opacity: 0; } }
+
+/* Anyone who asks their device to reduce motion gets no movement at all. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-delay: 0s !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    transition-delay: 0s !important;
+    scroll-behavior: auto !important;
+  }
+  button:active:not(:disabled) { scale: 1; }
+}

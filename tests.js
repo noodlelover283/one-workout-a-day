@@ -897,6 +897,62 @@ test("every tap-to-open heading shows an arrow that flips when it opens", async 
   }
 });
 
+test("the stylesheet respects Reduce Motion, and every animation it uses is defined", async () => {
+  const css = await (await fetch("style.css", { cache: "no-store" })).text();
+  const reduce = css.match(/@media \(prefers-reduced-motion: reduce\)\s*\{[\s\S]*$/);
+  if (!reduce) throw new Error("style.css has no Reduce Motion rule");
+  for (const needed of ["animation-duration: 0.001ms !important", "transition-duration: 0.001ms !important"]) {
+    if (!reduce[0].includes(needed)) throw new Error(`the Reduce Motion rule is missing: ${needed}`);
+  }
+  const used = new Set([...css.matchAll(/animation:\s*([a-z][\w-]*)/g)].map((match) => match[1]));
+  const defined = new Set([...css.matchAll(/@keyframes\s+([\w-]+)/g)].map((match) => match[1]));
+  const undefinedNames = [...used].filter((name) => !defined.has(name));
+  if (used.size < 7) throw new Error(`expected the new animations, found ${used.size}`);
+  if (undefinedNames.length) throw new Error(`animations without keyframes: ${undefinedNames.join(", ")}`);
+});
+
+test("a tab fades in, a chart line draws in, and an opened section eases open", async () => {
+  const app = await openApp();
+  try {
+    const animationOf = (node) => app.win.getComputedStyle(node).animationName;
+    const progress = showTab(app, "progress");
+    assertEqual(animationOf(progress), "tab-in");
+    const line = progress.querySelector("#exercise-chart path.line");
+    if (!line || line.getAttribute("pathLength") !== "1") throw new Error("the chart line should be a path with pathLength 1, so it can draw in");
+    assertEqual(animationOf(line), "draw-line");
+    const fold = progress.querySelector("details.section-fold");
+    fold.open = true;
+    assertEqual(animationOf(fold.querySelector(":scope > :not(summary)")), "fold-in");
+  } finally {
+    closeApp(app);
+  }
+});
+
+test("a set that was just added flashes, and its routine chip pulses", async () => {
+  const app = await openApp();
+  try {
+    const routine = app.doc.getElementById("routine-select");
+    routine.value = "r1";
+    routine.dispatchEvent(new Event("change", { bubbles: true }));
+    app.doc.querySelector("#routine-checklist .chip").click(); // Bench Press
+    app.doc.getElementById("weight").value = "100";
+    app.doc.getElementById("reps").value = "8";
+    app.doc.getElementById("log-form").requestSubmit();
+    const added = app.doc.querySelectorAll("#today-list .entry.just-added");
+    if (added.length !== 1) throw new Error(`expected 1 new set to flash, found ${added.length}`);
+    assertEqual(app.win.getComputedStyle(added[0]).animationName, "row-in");
+    const pulsing = app.doc.querySelectorAll("#routine-checklist .chip.pulse");
+    if (pulsing.length !== 1) throw new Error(`expected 1 chip to pulse, found ${pulsing.length}`);
+    assertEqual(app.win.getComputedStyle(pulsing[0]).animationName, "pulse");
+    // Drawing the list again later (a tab change, say) must not replay the flash.
+    showTab(app, "history");
+    showTab(app, "log");
+    assertEqual(app.doc.querySelectorAll("#today-list .entry.just-added").length, 0);
+  } finally {
+    closeApp(app);
+  }
+});
+
 test("the gear in the header opens and closes the display settings", async () => {
   const app = await openApp();
   try {
