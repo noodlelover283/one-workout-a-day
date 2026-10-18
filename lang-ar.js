@@ -298,5 +298,8 @@ I18n.register("ar", {
     "history.older": "عرض الأيام الأقدم ({count})",
 
     "progress.aboutEstimate": "حول التقدير",
+
+    "set.repeat": "كرر {weight} {unit} × {reps}",
+    "set.repeatAria": "أضف مجموعة أخرى من {exercise}: {weight} {unit} × {reps}",
   },
 });

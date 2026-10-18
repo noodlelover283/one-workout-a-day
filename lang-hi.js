@@ -293,5 +293,8 @@ I18n.register("hi", {
     "history.older": "पुराने दिन दिखाएँ ({count})",
 
     "progress.aboutEstimate": "अनुमान के बारे में",
+
+    "set.repeat": "दोहराएँ {weight} {unit} × {reps}",
+    "set.repeatAria": "{exercise} का एक और सेट जोड़ें: {weight} {unit} × {reps}",
   },
 });

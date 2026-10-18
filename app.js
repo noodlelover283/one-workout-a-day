@@ -267,7 +267,13 @@ function exerciseGroups(entries) {
     const block = el("li", "exercise-group");
     const list = el("ul", "entry-list");
     list.append(...group.sets.map((entry, index) => setRow(entry, index + 1)));
-    block.append(el("h4", "", exerciseLabel(group.exercise)), list);
+    const last = Logic.lastSet(group.sets, group.exercise);
+    const shown = { weight: Logic.formatWeight(last.weight, state.unit), unit: state.unit, reps: repsText(last.reps) };
+    const repeat = el("button", "secondary repeat-set", t("set.repeat", shown));
+    repeat.type = "button";
+    repeat.setAttribute("aria-label", t("set.repeatAria", { ...shown, exercise: exerciseLabel(group.exercise) }));
+    repeat.addEventListener("click", () => repeatLastSet(group.exercise));
+    block.append(el("h4", "", exerciseLabel(group.exercise)), list, repeat);
     return block;
   });
 }
@@ -312,28 +318,48 @@ function onLogSubmit(event) {
   } else {
     state.customExercises[input.exercise] = $("muscle").value;
   }
-  const previousBest = Logic.bestWeight(state.entries, input.exercise);
-  const id = String(Date.now());
-  state.entries.push({ id, date, ...input });
-  saveState();
-
   renderExerciseOptions();
   updateMuscleRow();
+  addSet(date, input.exercise, input.weight, input.reps);
+}
+
+// An id no other set has, even for two sets saved in the same millisecond.
+function newEntryId() {
+  let id = Date.now();
+  while (state.entries.some((entry) => entry.id === String(id))) id += 1;
+  return String(id);
+}
+
+// Saves one set (the weight in pounds) and everything that follows from it: the lists, the routine
+// chip, the rest timer and the message. Used by the Add set form and by the Repeat button.
+function addSet(date, exercise, weight, reps) {
+  const previousBest = Logic.bestWeight(state.entries, exercise);
+  const id = newEntryId();
+  state.entries.push({ id, date, exercise, weight, reps });
+  saveState();
+
   justAddedEntryId = id;
-  justLoggedExercise = input.exercise;
+  justLoggedExercise = exercise;
   renderToday();
   justAddedEntryId = null;
   justLoggedExercise = null;
   if (state.rest.autoStart) startRest(state.rest.seconds);
-  const setNumber = state.entries.filter((e) => e.date === date && e.exercise === input.exercise).length;
-  const exercise = exerciseLabel(input.exercise);
-  if (Logic.isNewRecord(previousBest, input.weight)) {
-    const weight = Logic.formatWeight(input.weight, state.unit);
+  const setNumber = state.entries.filter((e) => e.date === date && e.exercise === exercise).length;
+  const name = exerciseLabel(exercise);
+  if (Logic.isNewRecord(previousBest, weight)) {
+    const shown = Logic.formatWeight(weight, state.unit);
     const previous = Logic.formatWeight(previousBest, state.unit);
-    showToast(t("toast.record", { exercise, weight, previous, unit: state.unit }), { celebrate: true });
+    showToast(t("toast.record", { exercise: name, weight: shown, previous, unit: state.unit }), { celebrate: true });
   } else {
-    showToast(t("toast.saved", { exercise, n: setNumber }));
+    showToast(t("toast.saved", { exercise: name, n: setNumber }));
   }
+}
+
+// Adds another set that copies the exercise's last set on the day shown.
+function repeatLastSet(exercise) {
+  const date = $("date").value || today();
+  const last = Logic.lastSet(state.entries.filter((e) => e.date === date), exercise);
+  if (last) addSet(date, exercise, last.weight, last.reps);
 }
 
 // ---------- Rest timer ----------

@@ -292,5 +292,8 @@ I18n.register("zh", {
     "history.older": "显示更早的日期（{count}）",
 
     "progress.aboutEstimate": "关于估算",
+
+    "set.repeat": "重复 {weight} {unit} × {reps}",
+    "set.repeatAria": "再加一组{exercise}：{weight} {unit} × {reps}",
   },
 });

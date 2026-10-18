@@ -295,5 +295,8 @@ I18n.register("ru", {
     "history.older": "Показать более ранние дни ({count})",
 
     "progress.aboutEstimate": "Об оценке",
+
+    "set.repeat": "Повторить {weight} {unit} × {reps}",
+    "set.repeatAria": "Добавить ещё подход: {exercise}, {weight} {unit} × {reps}",
   },
 });

@@ -293,5 +293,8 @@ I18n.register("es", {
     "history.older": "Mostrar días anteriores ({count})",
 
     "progress.aboutEstimate": "Sobre la estimación",
+
+    "set.repeat": "Repetir {weight} {unit} × {reps}",
+    "set.repeatAria": "Añadir otra serie de {exercise}: {weight} {unit} × {reps}",
   },
 });

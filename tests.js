@@ -953,6 +953,55 @@ test("a set that was just added flashes, and its routine chip pulses", async () 
   }
 });
 
+// Logs a set through the real form of an open copy of the app.
+function logSetInApp(app, exercise, weight, reps) {
+  const exerciseBox = app.doc.getElementById("exercise");
+  exerciseBox.value = exercise;
+  exerciseBox.dispatchEvent(new Event("input", { bubbles: true }));
+  app.doc.getElementById("weight").value = String(weight);
+  app.doc.getElementById("reps").value = String(reps);
+  app.doc.getElementById("log-form").requestSubmit();
+}
+
+test("Repeat adds another set that copies the last one and is saved like any other set", async () => {
+  const app = await openApp();
+  try {
+    app.win.Date.now = () => 1000; // every set is saved in the "same millisecond"; ids must still differ
+    logSetInApp(app, "Bench Press", 100, 8);
+    const button = app.doc.querySelector("#today-list .repeat-set");
+    if (!button || !button.textContent.includes("100 lb × 8 reps")) throw new Error(`the Repeat button should name the set it will add, but reads "${button && button.textContent}"`);
+    button.click();
+    assertEqual(app.doc.querySelectorAll("#today-list .entry").length, 2);
+    const saved = JSON.parse(localStorage.getItem(app.storage)).entries.filter((entry) => entry.exercise === "Bench Press" && entry.weight === 100);
+    assertEqual(saved.map((entry) => entry.reps), [8, 8]);
+    assertEqual(saved[0].date, saved[1].date);
+    if (saved[0].id === saved[1].id) throw new Error("two sets saved together must not share an id");
+    if (app.doc.getElementById("rest-banner").classList.contains("hidden")) throw new Error("repeating a set should start the rest timer");
+    if (!app.doc.getElementById("toast").textContent.includes("set 2")) throw new Error(`expected the Saved message for set 2, saw "${app.doc.getElementById("toast").textContent}"`);
+    assertEqual(app.doc.querySelectorAll("#today-list .entry.just-added").length, 1);
+    if (!app.doc.querySelector("#today-list .repeat-set").textContent.includes("100 lb × 8 reps")) throw new Error("the button should still offer the same set");
+    if (app.errors.length) throw new Error(`the app raised errors: ${app.errors.join("; ")}`);
+  } finally {
+    closeApp(app);
+  }
+});
+
+test("Repeat adds the set to the day shown, and copies the most recent set of that exercise", async () => {
+  const app = await openApp();
+  try {
+    const date = app.doc.getElementById("date");
+    date.value = "2026-09-05";
+    date.dispatchEvent(new Event("change", { bubbles: true }));
+    logSetInApp(app, "Squat", 200, 5);
+    logSetInApp(app, "Squat", 210, 4);
+    app.doc.querySelector("#today-list .repeat-set").click();
+    const onThatDay = JSON.parse(localStorage.getItem(app.storage)).entries.filter((entry) => entry.date === "2026-09-05" && entry.exercise === "Squat");
+    assertEqual(onThatDay.map((entry) => `${entry.weight}x${entry.reps}`), ["200x5", "210x4", "210x4"]);
+  } finally {
+    closeApp(app);
+  }
+});
+
 test("the gear in the header opens and closes the display settings", async () => {
   const app = await openApp();
   try {
