@@ -38,6 +38,7 @@ It copies only the app files, so the private course files are never published. T
 - `logic.js`: data rules (validation, plateau check, suggestions, sample data), no page access
 - `tests.html` and `tests.js`: the tests (open `tests.html` through the server)
 
+- `sw.js`: the service worker that lets the app open with no connection (it saves the app's files on the device)
 - `serve.py`: the local test server (it stops your browser keeping old copies of the files)
 - `publish.py`: copies the app files to the public hosting copy (see Hosting)
 - `app.js`: connects the page to the data

@@ -284,5 +284,7 @@ I18n.register("en", {
     "error.target": "Enter both a number of sets (1 to 20) and a number of reps (1 to 100), or leave both empty.",
     "routine.progressAria": "{name}: {count} of {sets} sets logged",
     "routines.targetHint": "Optional: give an exercise a target such as 3 sets of 8 reps. Starting the routine then shows your progress.",
+
+    "offline.notice": "You're offline. Everything still works, and your data is saved on this device.",
   },
 });

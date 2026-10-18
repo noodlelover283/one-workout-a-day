@@ -560,11 +560,109 @@ test("a backup from a newer version of the app is refused with its own message",
   assertEqual(Logic.parseBackup(text).error, "error.backupNewer");
 });
 
+// ---------- Offline use ----------
+
+test("sw.js saves every file the page loads, so the app can start with no connection", async () => {
+  const page = await (await fetch("index.html", { cache: "no-store" })).text();
+  const loaded = [...page.matchAll(/(?:src|href)="([\w.-]+\.(?:js|css))"/g)].map((match) => match[1]);
+  const worker = await (await fetch("sw.js", { cache: "no-store" })).text();
+  const missing = loaded.filter((file) => !worker.includes(`"${file}"`));
+  if (loaded.length < 10) throw new Error(`expected to find the page's files, found ${loaded.length}`);
+  if (missing.length) throw new Error(`sw.js does not list: ${missing.join(", ")}`);
+  if (!worker.includes('"index.html"')) throw new Error("sw.js does not list index.html");
+});
+
+// These run sw.js itself against a pretend network and a pretend cache, because a test page cannot
+// switch a real connection off. The pretend site is `files` (path -> text); change it to "update" the
+// site, and set `online.on = false` to take the connection away.
+async function startWorker() {
+  const source = await (await fetch("sw.js", { cache: "no-store" })).text();
+  const listed = [...source.match(/APP_FILES = \[([\s\S]*?)\]/)[1].matchAll(/"([^"]+)"/g)].map((match) => match[1]);
+  const files = {};
+  for (const name of listed) files[name === "./" ? "/app/" : `/app/${name}`] = `${name} v1`;
+  const online = { on: true };
+  const saved = new Map();
+  const handlers = {};
+  const fakeCaches = {
+    open: async () => ({
+      put: async (key, response) => saved.set(key, response.clone()),
+      match: async (key) => (saved.has(key) ? saved.get(key).clone() : undefined),
+    }),
+    keys: async () => [],
+    delete: async () => true,
+  };
+  const fakeSelf = {
+    location: new URL("https://example.test/app/sw.js"),
+    addEventListener: (type, handler) => (handlers[type] = handler),
+    skipWaiting: () => {},
+    clients: { claim: async () => {} },
+  };
+  const fakeFetch = async (request) => {
+    if (!online.on) throw new TypeError("Failed to fetch");
+    const path = new URL(request.url || String(request)).pathname;
+    return path in files ? new Response(files[path]) : new Response("missing", { status: 404 });
+  };
+  new Function("self", "caches", "fetch", source)(fakeSelf, fakeCaches, fakeFetch);
+
+  let installing;
+  handlers.install({ waitUntil: (work) => (installing = work) });
+  await installing;
+  return {
+    files,
+    online,
+    listed,
+    saved,
+    // The worker's answer text for a request, or null if it leaves the request to the browser.
+    async ask(url, { method = "GET", mode = "no-cors" } = {}) {
+      let answer = null;
+      handlers.fetch({ request: { url, method, mode }, respondWith: (work) => (answer = work) });
+      return answer === null ? null : (await answer).text();
+    },
+  };
+}
+
+test("installing saves a copy of every file in the worker's list", async () => {
+  const worker = await startWorker();
+  assertEqual(worker.saved.size, worker.listed.length);
+  assertEqual(worker.listed.length > 10, true);
+});
+
+test("online the worker serves the newest file and refreshes its copy; offline it serves that copy", async () => {
+  const worker = await startWorker();
+  assertEqual(await worker.ask("https://example.test/app/app.js?v=111"), "app.js v1");
+  worker.files["/app/app.js"] = "app.js v2"; // the site is updated while the phone is online
+  assertEqual(await worker.ask("https://example.test/app/app.js?v=222"), "app.js v2");
+  worker.online.on = false;
+  assertEqual(await worker.ask("https://example.test/app/app.js?v=222"), "app.js v2", "offline, same address:");
+  assertEqual(await worker.ask("https://example.test/app/app.js?v=999"), "app.js v2", "offline, a different ?v= code:");
+  assertEqual(await worker.ask("https://example.test/app/app.js"), "app.js v2", "offline, no ?v= code:");
+});
+
+test("offline, opening the app falls back to the saved home page, but an unsaved file is an error", async () => {
+  const worker = await startWorker();
+  worker.online.on = false;
+  assertEqual(await worker.ask("https://example.test/app/", { mode: "navigate" }), "./ v1");
+  assertEqual(await worker.ask("https://example.test/app/whatever", { mode: "navigate" }), "./ v1");
+  let failed = false;
+  try {
+    await worker.ask("https://example.test/app/never-saved.js");
+  } catch (error) {
+    failed = true;
+  }
+  assertEqual(failed, true, "an unsaved file should fail, not be invented:");
+});
+
+test("the worker leaves other websites and non-GET requests to the browser", async () => {
+  const worker = await startWorker();
+  assertEqual(await worker.ask("https://www.youtube.com/watch?v=abc"), null);
+  assertEqual(await worker.ask("https://example.test/app/app.js", { method: "POST" }), null);
+});
+
 // ---------- Screens ----------
 // These open the real app in a hidden frame and click through it. The app is given its own storage
 // name (see STORAGE_KEY in app.js), so the tests never touch real workouts.
 
-const SCREEN_STORAGE = "screen-test";
+let screenRuns = 0; // each screen test gets its own storage name, so tests running together cannot clash
 const TAB_NAMES = ["log", "routines", "history", "progress"];
 
 // Throwaway data with something on every screen: sets, bodyweights, a routine with targets, a note,
@@ -589,16 +687,17 @@ function screenTestData() {
 // Loads the app in a hidden frame on throwaway data. Resolves with the frame, its document, and a list
 // that fills with any errors the app raises afterwards.
 function openApp() {
-  localStorage.setItem(SCREEN_STORAGE, JSON.stringify(screenTestData()));
+  const storage = `screen-test-${(screenRuns += 1)}`;
+  localStorage.setItem(storage, JSON.stringify(screenTestData()));
   return new Promise((resolve) => {
     const frame = document.createElement("iframe");
     frame.style.cssText = "position: absolute; left: -9999px; width: 375px; height: 812px; border: 0;";
-    frame.src = `index.html?storage=${SCREEN_STORAGE}`;
+    frame.src = `index.html?storage=${storage}`;
     frame.addEventListener("load", () => {
       const errors = [];
       frame.contentWindow.addEventListener("error", (event) => errors.push(event.message));
       frame.contentWindow.addEventListener("unhandledrejection", (event) => errors.push(String(event.reason)));
-      resolve({ frame, doc: frame.contentDocument, win: frame.contentWindow, errors });
+      resolve({ frame, storage, doc: frame.contentDocument, win: frame.contentWindow, errors });
     });
     document.body.append(frame);
   });
@@ -606,7 +705,7 @@ function openApp() {
 
 function closeApp(app) {
   app.frame.remove();
-  localStorage.removeItem(SCREEN_STORAGE);
+  localStorage.removeItem(app.storage);
 }
 
 function showTab(app, name) {

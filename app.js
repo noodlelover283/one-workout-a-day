@@ -1392,6 +1392,19 @@ function setUnit(unit) {
 
 // ---------- Setup ----------
 
+// Shows a short notice while the device has no connection.
+function updateOfflineNotice() {
+  $("offline-banner").classList.toggle("hidden", navigator.onLine);
+}
+
+// Keeps a copy of the app's files on the device (see sw.js) so it opens with no connection. Skipped
+// for the screen tests, and where the browser does not allow it (it needs https or localhost).
+function registerOfflineSupport() {
+  const isTestRun = new URLSearchParams(location.search).has("storage");
+  if (!("serviceWorker" in navigator) || isTestRun) return;
+  navigator.serviceWorker.register("sw.js").catch((error) => console.warn("Offline support is not available.", error));
+}
+
 // The tab bar is fixed to the bottom of the screen, so the page keeps clear space equal to its height.
 function keepClearOfTabBar() {
   const tabbar = document.querySelector(".tabbar");
@@ -1455,6 +1468,10 @@ function init() {
   }
   applyLanguage();
   showTab("log");
+  window.addEventListener("online", updateOfflineNotice);
+  window.addEventListener("offline", updateOfflineNotice);
+  updateOfflineNotice();
+  registerOfflineSupport();
 }
 
 init();

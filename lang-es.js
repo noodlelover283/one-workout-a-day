@@ -284,5 +284,7 @@ I18n.register("es", {
     "error.target": "Introduce el número de series (1 a 20) y el de repeticiones (1 a 100), o deja ambos vacíos.",
     "routine.progressAria": "{name}: {count} de {sets} series registradas",
     "routines.targetHint": "Opcional: da a un ejercicio un objetivo, como 3 series de 8 repeticiones. Al iniciar la rutina verás tu progreso.",
+
+    "offline.notice": "Sin conexión. Todo sigue funcionando y tus datos se guardan en este dispositivo.",
   },
 });
