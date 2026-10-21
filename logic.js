@@ -674,6 +674,35 @@ const Logic = (() => {
     return { tooLight: false, perSide, loaded, short: round(target - loaded) };
   }
 
+  // Warm-up sets are saved with warmup: true. Records, volume, plateaus and suggestions only look at
+  // the working sets, so a warm-up never counts as progress.
+  const workingSets = (entries) => entries.filter((entry) => !entry.warmup);
+
+  // The ramp: the bar for 10 reps, then these shares of the working weight for fewer reps.
+  const WARMUP_STEPS = [
+    { share: 0, reps: 10 },
+    { share: 0.5, reps: 5 },
+    { share: 0.7, reps: 3 },
+    { share: 0.85, reps: 1 },
+  ];
+  // A working weight this close to the bar (in bars) needs no warm-up.
+  const WARMUP_MIN_BARS = 1.5;
+
+  // Warm-up sets, lightest first, for a working weight in the chosen unit. Each weight is rounded down
+  // to what the plates can make; steps that land on the previous weight or on the working weight are
+  // dropped. Empty when the working weight is so light that no warm-up is needed.
+  function warmupSets(workingWeight, bar, plates) {
+    if (!(workingWeight > bar * WARMUP_MIN_BARS)) return [];
+    const sets = [];
+    for (const step of WARMUP_STEPS) {
+      const { loaded } = platesPerSide(step.share === 0 ? bar : workingWeight * step.share, bar, plates);
+      const previous = sets[sets.length - 1];
+      if (loaded >= workingWeight || (previous && loaded <= previous.weight)) continue;
+      sets.push({ weight: loaded, reps: step.reps });
+    }
+    return sets;
+  }
+
   // Keeps only valid saved bar choices, falling back to the usual bar for each unit.
   function sanitizeBarWeights(saved) {
     const bars = { ...DEFAULT_BARS };
@@ -824,6 +853,8 @@ const Logic = (() => {
     setExerciseNote,
     sanitizeExerciseNotes,
     PLATES,
+    workingSets,
+    warmupSets,
     BARS,
     DEFAULT_BARS,
     platesPerSide,

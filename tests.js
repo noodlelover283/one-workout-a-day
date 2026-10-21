@@ -606,6 +606,46 @@ test("weekly volume follows where the week starts, and an empty log gives no gro
   assertEqual(Logic.weeklyVolume([], muscleOf, "2026-10-14", 1).groups, []);
 });
 
+// ---------- Warm-up sets ----------
+
+test("warm-up sets ramp up to the working weight with fewer reps, using weights the plates can make", () => {
+  assertEqual(Logic.warmupSets(135, 45, Logic.PLATES.lb), [
+    { weight: 45, reps: 10 }, { weight: 65, reps: 5 }, { weight: 90, reps: 3 }, { weight: 110, reps: 1 },
+  ]);
+  assertEqual(Logic.warmupSets(100, 20, Logic.PLATES.kg), [
+    { weight: 20, reps: 10 }, { weight: 50, reps: 5 }, { weight: 70, reps: 3 }, { weight: 85, reps: 1 },
+  ]);
+});
+
+test("warm-up steps that repeat a weight are dropped, so a light lift gets a short ramp", () => {
+  assertEqual(Logic.warmupSets(75, 45, Logic.PLATES.lb), [
+    { weight: 45, reps: 10 }, { weight: 50, reps: 3 }, { weight: 60, reps: 1 },
+  ]);
+});
+
+test("a working weight within one and a half bars needs no warm-up", () => {
+  assertEqual(Logic.warmupSets(65, 45, Logic.PLATES.lb), []);
+  assertEqual(Logic.warmupSets(45, 45, Logic.PLATES.lb), []);
+  assertEqual(Logic.warmupSets(30, 20, Logic.PLATES.kg), []);
+});
+
+test("every warm-up weight is lighter than the working weight and the weights only go up", () => {
+  for (const unit of ["lb", "kg"]) {
+    const bar = Logic.DEFAULT_BARS[unit];
+    for (let weight = bar; weight <= bar + 400; weight += 2.5) {
+      const sets = Logic.warmupSets(weight, bar, Logic.PLATES[unit]);
+      const weights = sets.map((s) => s.weight);
+      if (weights.some((w, i) => w >= weight || (i > 0 && w <= weights[i - 1]))) throw new Error(`bad ramp for ${weight} ${unit}`);
+    }
+  }
+});
+
+test("working sets leave out warm-ups, so they never count as a record", () => {
+  const entries = [set("2026-10-01", 135, 8), { ...set("2026-10-02", 300, 1), warmup: true }];
+  assertEqual(Logic.workingSets(entries).length, 1);
+  assertEqual(Logic.personalRecords(Logic.workingSets(entries))[0].weight, 135);
+});
+
 // ---------- Personal records ----------
 
 test("a personal record is the heaviest weight, dated the first time it was lifted", () => {
@@ -1234,6 +1274,33 @@ test("Repeat adds the set to the day shown, and copies the most recent set of th
     app.doc.querySelector("#today-list .repeat-set").click();
     const onThatDay = JSON.parse(localStorage.getItem(app.storage)).entries.filter((entry) => entry.date === "2026-09-05" && entry.exercise === "Squat");
     assertEqual(onThatDay.map((entry) => `${entry.weight}x${entry.reps}`), ["200x5", "210x4", "210x4"]);
+  } finally {
+    closeApp(app);
+  }
+});
+
+test("warm-up sets can be logged from the Log tab and never count as a record", async () => {
+  const app = await openApp();
+  try {
+    const exerciseBox = app.doc.getElementById("exercise");
+    exerciseBox.value = "Bench Press";
+    exerciseBox.dispatchEvent(new Event("input", { bubbles: true }));
+    const weight = app.doc.getElementById("weight");
+    weight.value = "400";
+    weight.dispatchEvent(new Event("input", { bubbles: true }));
+    const summary = app.doc.getElementById("warmup-summary").textContent;
+    if (!summary.startsWith("Warm-up: 45×10")) throw new Error(`the warm-up summary reads "${summary}"`);
+    const buttons = () => [...app.doc.querySelectorAll("#warmup-list button")];
+    if (buttons().length < 3) throw new Error("expected a Log button for each warm-up set");
+    // The heaviest warm-up is far above the 140 lb best in the sample data, so it would be a record if it counted.
+    buttons()[buttons().length - 1].click();
+    if (!app.doc.getElementById("today-list").textContent.includes("Warm-up 1")) throw new Error("the logged set should show as Warm-up 1");
+    if (!buttons()[buttons().length - 1].disabled) throw new Error("a logged warm-up's button should be disabled");
+    if (app.doc.querySelector("#toast.record")) throw new Error("a warm-up must not give a New record message");
+    const tab = showTab(app, "progress");
+    const bench = [...tab.querySelectorAll("#records-list .record-row")].find((row) => row.textContent.includes("Bench Press"));
+    if (!bench || !bench.textContent.includes("140 lb")) throw new Error(`the Bench Press record should still be 140 lb, but reads "${bench && bench.textContent}"`);
+    if (app.errors.length) throw new Error(app.errors.join("; "));
   } finally {
     closeApp(app);
   }

@@ -12,7 +12,7 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="theme-color" content="#f5f6f8" media="(prefers-color-scheme: light)">
   <meta name="theme-color" content="#12161c" media="(prefers-color-scheme: dark)">
-  <link rel="stylesheet" href="style.css?v=60b7920249">
+  <link rel="stylesheet" href="style.css?v=a4ac9d1a46">
 </head>
 <body>
   <p id="offline-banner" class="offline-banner hidden" role="status" data-i18n="offline.notice">You're offline. Everything still works, and your data is saved on this device.</p>
@@ -131,6 +131,12 @@
         <p id="form-error" class="error" role="alert"></p>
         <button type="submit" class="primary" data-i18n="log.addSet">Add set</button>
         <p class="hint" data-i18n="log.addSetHint">Each set saves right away. The weight and reps stay filled in for your next set.</p>
+
+        <details id="warmup" class="slim-fold hidden">
+          <summary id="warmup-summary" data-i18n="warmup.title">Warm-up sets</summary>
+          <p id="warmup-detail" class="hint"></p>
+          <ul id="warmup-list" class="warmup-list"></ul>
+        </details>
       </form>
 
       <h3 data-i18n="log.todayHeading">Today's workout</h3>
@@ -290,16 +296,16 @@
     <button id="nav-progress" data-tab="progress" data-i18n="tab.progress">Progress</button>
   </nav>
 
-  <script src="i18n.js?v=60b7920249"></script>
-  <script src="lang-en.js?v=60b7920249"></script>
-  <script src="lang-es.js?v=60b7920249"></script>
-  <script src="lang-zh.js?v=60b7920249"></script>
-  <script src="lang-hi.js?v=60b7920249"></script>
-  <script src="lang-ar.js?v=60b7920249"></script>
-  <script src="lang-fr.js?v=60b7920249"></script>
-  <script src="lang-pt.js?v=60b7920249"></script>
-  <script src="lang-ru.js?v=60b7920249"></script>
-  <script src="logic.js?v=60b7920249"></script>
-  <script src="app.js?v=60b7920249"></script>
+  <script src="i18n.js?v=a4ac9d1a46"></script>
+  <script src="lang-en.js?v=a4ac9d1a46"></script>
+  <script src="lang-es.js?v=a4ac9d1a46"></script>
+  <script src="lang-zh.js?v=a4ac9d1a46"></script>
+  <script src="lang-hi.js?v=a4ac9d1a46"></script>
+  <script src="lang-ar.js?v=a4ac9d1a46"></script>
+  <script src="lang-fr.js?v=a4ac9d1a46"></script>
+  <script src="lang-pt.js?v=a4ac9d1a46"></script>
+  <script src="lang-ru.js?v=a4ac9d1a46"></script>
+  <script src="logic.js?v=a4ac9d1a46"></script>
+  <script src="app.js?v=a4ac9d1a46"></script>
 </body>
 </html>

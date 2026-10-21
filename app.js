@@ -79,6 +79,8 @@ function saveState() {
 const $ = (id) => document.getElementById(id);
 const t = I18n.t;
 const today = () => Logic.toDateString(new Date());
+// Every logged set except warm-ups: what records, volume, plateaus and suggestions are worked out from.
+const workingEntries = () => Logic.workingSets(state.entries);
 const muscleOf = (exercise) => Logic.DEFAULT_EXERCISES[exercise] || state.customExercises[exercise] || "";
 const stallDaysOf = (group) => state.stallDays[group] || Logic.STALL_DAYS;
 // The weight jump for a muscle group, in the unit currently shown.
@@ -162,20 +164,29 @@ let editingEntryId = null;
 let justAddedEntryId = null;
 let justLoggedExercise = null;
 
+// Working sets are numbered 1, 2, 3 ...; warm-ups are numbered separately.
+function numberSets(sets) {
+  let working = 0;
+  let warmups = 0;
+  return sets.map((entry) => (entry.warmup ? (warmups += 1) : (working += 1)));
+}
+
+const setTitle = (entry, number) => t(entry.warmup ? "set.warmupTitle" : "set.title", { n: number });
+
 function setRow(entry, number) {
   if (entry.id === editingEntryId) return editSetRow(entry, number);
   const item = el("li", entry.id === justAddedEntryId ? "entry just-added" : "entry");
   const text = el("div");
   const weight = `${Logic.formatWeight(entry.weight, state.unit)} ${state.unit}`;
-  text.append(el("strong", "", t("set.title", { n: number })), el("span", "detail", `${weight} × ${repsText(entry.reps)}`));
+  text.append(el("strong", "", setTitle(entry, number)), el("span", "detail", `${weight} × ${repsText(entry.reps)}`));
   const where = { n: number, exercise: exerciseLabel(entry.exercise), date: I18n.formatDate(entry.date) };
   const edit = el("button", "link", t("set.edit"));
   edit.type = "button";
-  edit.setAttribute("aria-label", t("set.editAria", where));
+  edit.setAttribute("aria-label", t(entry.warmup ? "set.editWarmupAria" : "set.editAria", where));
   edit.addEventListener("click", () => startEditing(entry));
   const remove = el("button", "link", t("set.delete"));
   remove.type = "button";
-  remove.setAttribute("aria-label", t("set.deleteAria", where));
+  remove.setAttribute("aria-label", t(entry.warmup ? "set.deleteWarmupAria" : "set.deleteAria", where));
   remove.addEventListener("click", () => deleteEntry(entry));
   const actions = el("div", "entry-actions");
   actions.append(edit, remove);
@@ -229,7 +240,7 @@ function editSetRow(entry, number) {
   cancel.addEventListener("click", stopEditing);
   const buttons = el("div", "row");
   buttons.append(save, cancel);
-  form.append(el("strong", "", t("set.title", { n: number })), exerciseLabelNode, groupLabel, barbellLabel, fields, error, buttons);
+  form.append(el("strong", "", setTitle(entry, number)), exerciseLabelNode, groupLabel, barbellLabel, fields, error, buttons);
   form.addEventListener("submit", (event) => {
     event.preventDefault();
     const typed = resolveExercise(exercise.value) || Logic.normalizeName(exercise.value);
@@ -281,14 +292,19 @@ function exerciseGroups(entries) {
   return Logic.groupByExercise(entries).map((group) => {
     const block = el("li", "exercise-group");
     const list = el("ul", "entry-list");
-    list.append(...group.sets.map((entry, index) => setRow(entry, index + 1)));
-    const last = Logic.lastSet(group.sets, group.exercise);
-    const shown = { weight: Logic.formatWeight(last.weight, state.unit), unit: state.unit, reps: repsText(last.reps) };
-    const repeat = el("button", "secondary repeat-set", t("set.repeat", shown));
-    repeat.type = "button";
-    repeat.setAttribute("aria-label", t("set.repeatAria", { ...shown, exercise: exerciseLabel(group.exercise) }));
-    repeat.addEventListener("click", () => repeatLastSet(group.exercise));
-    block.append(el("h4", "", exerciseLabel(group.exercise)), list, repeat);
+    const numbers = numberSets(group.sets);
+    list.append(...group.sets.map((entry, index) => setRow(entry, numbers[index])));
+    block.append(el("h4", "", exerciseLabel(group.exercise)), list);
+    // Repeat copies the last working set; a warm-up is never repeated.
+    const last = Logic.lastSet(Logic.workingSets(group.sets), group.exercise);
+    if (last) {
+      const shown = { weight: Logic.formatWeight(last.weight, state.unit), unit: state.unit, reps: repsText(last.reps) };
+      const repeat = el("button", "secondary repeat-set", t("set.repeat", shown));
+      repeat.type = "button";
+      repeat.setAttribute("aria-label", t("set.repeatAria", { ...shown, exercise: exerciseLabel(group.exercise) }));
+      repeat.addEventListener("click", () => repeatLastSet(group.exercise));
+      block.append(repeat);
+    }
     return block;
   });
 }
@@ -304,7 +320,8 @@ function renderToday() {
   const date = $("date").value || today();
   const list = $("today-list");
   const entries = state.entries.filter((e) => e.date === date);
-  renderRoutineChecklist(entries);
+  renderRoutineChecklist(Logic.workingSets(entries));
+  renderWarmup();
   const note = $("workout-note");
   if (document.activeElement !== note) note.value = state.notes[date] || "";
   if (entries.length === 0) {
@@ -350,7 +367,7 @@ function newEntryId() {
 // Saves one set (the weight in pounds) and everything that follows from it: the lists, the routine
 // chip, the rest timer and the message. Used by the Add set form and by the Repeat button.
 function addSet(date, exercise, weight, reps) {
-  const previousBest = Logic.bestWeight(state.entries, exercise);
+  const previousBest = Logic.bestWeight(workingEntries(), exercise);
   const id = newEntryId();
   state.entries.push({ id, date, exercise, weight, reps });
   saveState();
@@ -361,7 +378,7 @@ function addSet(date, exercise, weight, reps) {
   justAddedEntryId = null;
   justLoggedExercise = null;
   if (state.rest.autoStart) startRest(state.rest.seconds);
-  const setNumber = state.entries.filter((e) => e.date === date && e.exercise === exercise).length;
+  const setNumber = workingEntries().filter((e) => e.date === date && e.exercise === exercise).length;
   const name = exerciseLabel(exercise);
   if (Logic.isNewRecord(previousBest, weight)) {
     const shown = Logic.formatWeight(weight, state.unit);
@@ -372,10 +389,22 @@ function addSet(date, exercise, weight, reps) {
   }
 }
 
-// Adds another set that copies the exercise's last set on the day shown.
+// Saves one warm-up set. It is marked so it never counts toward records, volume or plateaus, and it
+// does not start the rest timer.
+function addWarmupSet(date, exercise, weight, reps) {
+  const id = newEntryId();
+  state.entries.push({ id, date, exercise, weight, reps, warmup: true });
+  saveState();
+  justAddedEntryId = id;
+  renderToday();
+  justAddedEntryId = null;
+  showToast(t("toast.warmupSaved", { exercise: exerciseLabel(exercise) }));
+}
+
+// Adds another set that copies the exercise's last working set on the day shown.
 function repeatLastSet(exercise) {
   const date = $("date").value || today();
-  const last = Logic.lastSet(state.entries.filter((e) => e.date === date), exercise);
+  const last = Logic.lastSet(Logic.workingSets(state.entries.filter((e) => e.date === date)), exercise);
   if (last) addSet(date, exercise, last.weight, last.reps);
 }
 
@@ -537,6 +566,7 @@ const shownNumber = (value) => String(Math.round(value * 100) / 100);
 
 // Shows which plates to load on each side for the weight typed above, in the row under Weight and Reps.
 function renderPlates() {
+  renderWarmup();
   // Only barbell exercises get it: a known one by its list, a new one by the checkbox.
   const known = resolveExercise($("exercise").value);
   const isNew = !known && Logic.normalizeName($("exercise").value) !== "";
@@ -576,6 +606,55 @@ function renderPlates() {
   }
 }
 
+// ---------- Warm-up sets ----------
+
+// The warm-up row under the plate calculator: the ramp up to the weight typed, one Log button per
+// set. Only for known barbell exercises (a brand-new exercise needs its first set logged first).
+function renderWarmup() {
+  const exercise = resolveExercise($("exercise").value);
+  const show = Boolean(exercise) && Logic.usesBarbell(exercise, state.barbellExercises);
+  $("warmup").classList.toggle("hidden", !show);
+  if (!show) return;
+  const unit = state.unit;
+  const working = parseFloat($("weight").value);
+  const sets = Logic.warmupSets(working, state.barWeight[unit], Logic.PLATES[unit]);
+  const summary = $("warmup-summary");
+  const detail = $("warmup-detail");
+  const list = $("warmup-list");
+  list.replaceChildren();
+  if (!(working > 0)) {
+    summary.textContent = t("warmup.title");
+    detail.textContent = t("warmup.empty");
+    return;
+  }
+  if (sets.length === 0) {
+    summary.textContent = t("warmup.none");
+    detail.textContent = t("warmup.noneDetail");
+    return;
+  }
+  summary.textContent = t("warmup.summary", { sets: sets.map((s) => `${shownNumber(s.weight)}×${s.reps}`).join(", ") });
+  detail.textContent = t("warmup.detail");
+  const date = $("date").value || today();
+  const alreadyLogged = (set) =>
+    state.entries.some(
+      (e) => e.warmup && e.date === date && e.exercise === exercise && e.reps === set.reps && Logic.formatWeight(e.weight, unit) === Logic.formatWeight(Logic.toLb(set.weight, unit), unit)
+    );
+  list.replaceChildren(
+    ...sets.map((set) => {
+      const row = el("li", "warmup-row");
+      const logged = alreadyLogged(set);
+      const label = `${shownNumber(set.weight)} ${unit} × ${repsText(set.reps)}`;
+      const button = el("button", "secondary", logged ? t("warmup.logged") : t("warmup.log"));
+      button.type = "button";
+      button.disabled = logged;
+      button.setAttribute("aria-label", t(logged ? "warmup.loggedAria" : "warmup.logAria", { set: label }));
+      button.addEventListener("click", () => addWarmupSet(date, exercise, Logic.toLb(set.weight, unit), set.reps));
+      row.append(el("span", "", label), button);
+      return row;
+    })
+  );
+}
+
 function onBarChange() {
   state.barWeight[state.unit] = Number($("bar-select").value);
   saveState();
@@ -607,7 +686,7 @@ function renderSuggestion() {
   }
   const date = $("date").value || today();
   // Only sessions before the chosen day count, so the suggestion stays put while you log sets.
-  const history = state.entries.filter((e) => e.date < date);
+  const history = workingEntries().filter((e) => e.date < date);
   const group = muscleOf(exercise);
   const unit = state.unit;
   const repGoal = (activeRoutineTarget(exercise) || {}).reps || state.progression.repGoal;
@@ -621,7 +700,7 @@ function renderSuggestion() {
     useButton.classList.add("hidden");
     return;
   }
-  const status = Logic.plateauStatus(state.entries, muscleOf, today(), stallDaysOf).find((s) => s.group === group);
+  const status = Logic.plateauStatus(workingEntries(), muscleOf, today(), stallDaysOf).find((s) => s.group === group);
   const stalled = Boolean(status && status.state === "stalled");
   const deload = stalled && Logic.deloadNext(history, exercise, repGoal, Logic.toLb(jumpOf(group), unit));
   const shown = deload || suggestion;
@@ -759,13 +838,13 @@ function renderRoutineChecklist(todaysEntries) {
 // Fills the form with an exercise and, if it has been done before, last time's weight and reps.
 function pickRoutineExercise(exercise) {
   $("exercise").value = exerciseLabel(exercise);
-  const last = Logic.lastSet(state.entries, exercise);
+  const last = Logic.lastSet(workingEntries(), exercise);
   $("weight").value = last ? Logic.formatWeight(last.weight, state.unit) : "";
   renderPlates();
   const target = activeRoutineTarget(exercise);
   $("reps").value = last ? last.reps : target ? target.reps : "";
   updateMuscleRow();
-  renderRoutineChecklist(state.entries.filter((e) => e.date === ($("date").value || today())));
+  renderRoutineChecklist(workingEntries().filter((e) => e.date === ($("date").value || today())));
   $("weight").focus();
 }
 
@@ -1152,9 +1231,12 @@ function historyDay(date) {
     line.open = openHistoryLines.has(key) || group.sets.some((entry) => entry.id === editingEntryId);
     line.addEventListener("toggle", () => (line.open ? openHistoryLines.add(key) : openHistoryLines.delete(key)));
     const summary = el("summary");
-    summary.append(el("span", "exercise-name", exerciseLabel(group.exercise)), el("span", "exercise-sets", setsText(group.sets)));
+    // The one-line summary lists the working sets; the warm-ups are inside the opened card.
+    const working = Logic.workingSets(group.sets);
+    summary.append(el("span", "exercise-name", exerciseLabel(group.exercise)), el("span", "exercise-sets", setsText(working.length ? working : group.sets)));
     const sets = el("ul", "entry-list");
-    sets.append(...group.sets.map((entry, index) => setRow(entry, index + 1)));
+    const numbers = numberSets(group.sets);
+    sets.append(...group.sets.map((entry, index) => setRow(entry, numbers[index])));
     line.append(summary, sets);
     day.append(line);
   }
@@ -1241,7 +1323,7 @@ function plateauText(status) {
 
 function renderPlateaus() {
   const container = $("plateau-cards");
-  const statuses = Logic.plateauStatus(state.entries, muscleOf, today(), stallDaysOf);
+  const statuses = Logic.plateauStatus(workingEntries(), muscleOf, today(), stallDaysOf);
   if (statuses.length === 0) {
     container.replaceChildren(el("p", "empty", t("progress.plateauEmpty")));
     return;
@@ -1264,7 +1346,7 @@ const setsCountText = (count) => I18n.plural("volumeSets", count);
 function renderVolume() {
   const { low, high } = Logic.VOLUME_RANGE;
   $("volume-hint").textContent = t("volume.hint", { weeks: Logic.VOLUME_WEEKS, low, high });
-  const { groups } = Logic.weeklyVolume(state.entries, muscleOf, today(), weekStartDay());
+  const { groups } = Logic.weeklyVolume(workingEntries(), muscleOf, today(), weekStartDay());
   if (groups.length === 0) {
     $("volume-groups").replaceChildren(el("p", "empty", t("volume.empty")));
     return;
@@ -1300,7 +1382,7 @@ function renderVolume() {
 // ---------- Personal records ----------
 
 function renderRecords() {
-  const records = Logic.personalRecords(state.entries);
+  const records = Logic.personalRecords(workingEntries());
   if (records.length === 0) {
     $("records-list").replaceChildren(el("p", "empty", t("records.empty")));
     return;
@@ -1376,10 +1458,10 @@ function renderExerciseChart() {
   metric.disabled = false;
   const series =
     metric.value === "oneRepMax"
-      ? Logic.oneRepMaxSeries(state.entries, select.value)
-      : Logic.exerciseSeries(state.entries, select.value);
+      ? Logic.oneRepMaxSeries(workingEntries(), select.value)
+      : Logic.exerciseSeries(workingEntries(), select.value);
   chart.replaceChildren(lineChart(inDisplayUnit(series)));
-  renderOneRepMaxNote(Logic.bestOneRepMax(state.entries, select.value));
+  renderOneRepMaxNote(Logic.bestOneRepMax(workingEntries(), select.value));
 }
 
 // The best estimate for the chosen exercise, and how far to trust it.
@@ -1430,7 +1512,7 @@ function renderStrength() {
 
 function strengthCard(lift, bodyweight) {
   const card = el("div", "strength-card");
-  const best = Logic.bestOneRepMax(state.entries, lift);
+  const best = Logic.bestOneRepMax(workingEntries(), lift);
   const result = best && Logic.strengthLevel(state.sex, lift, best.value, bodyweight);
   if (!result) {
     card.append(el("p", "level-name", exerciseLabel(lift)), el("p", "hint", t("strength.notLogged")));
