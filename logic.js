@@ -401,6 +401,31 @@ const Logic = (() => {
     return records;
   }
 
+  // A record younger than this many days gets a "New" tag.
+  const NEW_RECORD_DAYS = 7;
+
+  // The heaviest weight logged for each exercise, newest record first. The date is the first day that
+  // weight was lifted (the same rule as the plateau check) and the reps are the most done at it that
+  // day. Exercises that were only ever logged with no weight (bodyweight) have no record to show.
+  function personalRecords(entries) {
+    const best = {};
+    for (const entry of entries) {
+      if (!(entry.weight > 0)) continue;
+      const record = best[entry.exercise];
+      if (!record || entry.weight > record.weight) {
+        best[entry.exercise] = { exercise: entry.exercise, weight: entry.weight, reps: entry.reps, date: entry.date };
+      } else if (entry.weight === record.weight) {
+        if (entry.date < record.date) {
+          record.date = entry.date;
+          record.reps = entry.reps;
+        } else if (entry.date === record.date) {
+          record.reps = Math.max(record.reps, entry.reps);
+        }
+      }
+    }
+    return Object.values(best).sort((a, b) => b.date.localeCompare(a.date) || a.exercise.localeCompare(b.exercise));
+  }
+
   // One status per muscle group that has been trained at least once.
   function plateauStatus(entries, muscleOf, today, stallDaysOf = () => STALL_DAYS) {
     const records = recordDates(entries);
@@ -821,6 +846,8 @@ const Logic = (() => {
     weekStartOf,
     currentWeeklyStreak,
     weeklyVolume,
+    personalRecords,
+    NEW_RECORD_DAYS,
     VOLUME_RANGE,
     VOLUME_WEEKS,
     NOTE_MAX_LENGTH,

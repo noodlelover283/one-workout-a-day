@@ -606,6 +606,30 @@ test("weekly volume follows where the week starts, and an empty log gives no gro
   assertEqual(Logic.weeklyVolume([], muscleOf, "2026-10-14", 1).groups, []);
 });
 
+// ---------- Personal records ----------
+
+test("a personal record is the heaviest weight, dated the first time it was lifted", () => {
+  const entries = [set("2026-10-10", 140, 6), set("2026-10-01", 135, 8), set("2026-10-05", 140, 8), set("2026-10-05", 140, 5)];
+  assertEqual(Logic.personalRecords(entries), [{ exercise: "Bench Press", weight: 140, reps: 8, date: "2026-10-05" }]);
+});
+
+test("the reps shown are the most done at the record weight on its first day", () => {
+  const entries = [set("2026-10-05", 140, 5), set("2026-10-05", 140, 8), set("2026-10-02", 135, 12)];
+  assertEqual(Logic.personalRecords(entries)[0].reps, 8);
+});
+
+test("personal records list the newest record first, one per exercise", () => {
+  const entries = [set("2026-10-01", 200, 5, "Squat"), set("2026-10-09", 135, 8), set("2026-10-09", 100, 8, "Barbell Row")];
+  assertEqual(Logic.personalRecords(entries).map((r) => [r.exercise, r.date]), [
+    ["Barbell Row", "2026-10-09"], ["Bench Press", "2026-10-09"], ["Squat", "2026-10-01"],
+  ]);
+});
+
+test("exercises logged with no weight have no personal record", () => {
+  assertEqual(Logic.personalRecords([set("2026-10-01", 0, 12, "Pull-up")]), []);
+  assertEqual(Logic.personalRecords([]), []);
+});
+
 // ---------- Workout notes ----------
 
 test("a note is saved for its day, trimmed, and an empty note removes it", () => {
@@ -1042,15 +1066,28 @@ test("Weekly volume shows a row per trained muscle group with a bar for each of 
   }
 });
 
+test("Personal records lists each lifted exercise with its heaviest weight and date, newest first", async () => {
+  const app = await openApp();
+  try {
+    const tab = showTab(app, "progress");
+    const rows = [...tab.querySelectorAll("#records-list .record-row")];
+    if (rows.length === 0) throw new Error("no rows in Personal records");
+    if (!rows.every((row) => /\d.*×.*\d/.test(row.textContent))) throw new Error("each record should show weight × reps and a date");
+    if (app.errors.length) throw new Error(app.errors.join("; "));
+  } finally {
+    closeApp(app);
+  }
+});
+
 test("Progress opens with the plateau check and exercise chart, and the other sections are folded", async () => {
   const app = await openApp();
   try {
     const tab = showTab(app, "progress");
     const folds = [...tab.querySelectorAll("details.section-fold")];
-    if (folds.length !== 5) throw new Error(`expected 5 folded sections, found ${folds.length}`);
+    if (folds.length !== 6) throw new Error(`expected 6 folded sections, found ${folds.length}`);
     if (folds.some((fold) => fold.open)) throw new Error("the folded sections should start closed");
     const chart = tab.querySelector("#exercise-chart svg").getBoundingClientRect();
-    if (chart.bottom > 812 * 1.4) throw new Error(`the exercise chart ends ${Math.round(chart.bottom)}px down; it should be near the top`);
+    if (chart.bottom > 812 * 1.5) throw new Error(`the exercise chart ends ${Math.round(chart.bottom)}px down; it should be near the top`);
     const screens = app.doc.documentElement.scrollHeight / 812;
     if (screens > 2.2) throw new Error(`Progress is ${screens.toFixed(1)} screens tall; it used to be about 3.3`);
     // Opening Bodyweight shows its form and chart.

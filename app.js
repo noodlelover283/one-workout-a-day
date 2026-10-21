@@ -1297,6 +1297,33 @@ function renderVolume() {
   );
 }
 
+// ---------- Personal records ----------
+
+function renderRecords() {
+  const records = Logic.personalRecords(state.entries);
+  if (records.length === 0) {
+    $("records-list").replaceChildren(el("p", "empty", t("records.empty")));
+    return;
+  }
+  const unit = state.unit;
+  $("records-list").replaceChildren(
+    ...records.map((record) => {
+      const head = el("div", "record-head");
+      head.append(el("strong", "", exerciseLabel(record.exercise)));
+      if (Logic.daysBetween(record.date, today()) < Logic.NEW_RECORD_DAYS) head.append(el("span", "badge", t("records.new")));
+      const detail = t("records.best", {
+        weight: Logic.formatWeight(record.weight, unit),
+        unit,
+        reps: repsText(record.reps),
+        date: I18n.formatDate(record.date),
+      });
+      const row = el("div", "record-row");
+      row.append(head, el("p", "hint", detail));
+      return row;
+    })
+  );
+}
+
 function renderStallSettings() {
   const rows = Logic.MUSCLE_GROUPS.map((group) => {
     const row = el("div", "setting-row");
@@ -1519,6 +1546,7 @@ function onBodyweightSubmit(event) {
 function renderProgress() {
   renderPlateaus();
   renderVolume();
+  renderRecords();
   renderStallSettings();
   renderExerciseChart();
   renderBodyweightChart();
