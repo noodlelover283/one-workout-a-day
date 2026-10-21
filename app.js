@@ -1257,6 +1257,46 @@ function renderPlateaus() {
   );
 }
 
+// ---------- Weekly volume ----------
+
+const setsCountText = (count) => I18n.plural("volumeSets", count);
+
+function renderVolume() {
+  const { low, high } = Logic.VOLUME_RANGE;
+  $("volume-hint").textContent = t("volume.hint", { weeks: Logic.VOLUME_WEEKS, low, high });
+  const { groups } = Logic.weeklyVolume(state.entries, muscleOf, today(), weekStartDay());
+  if (groups.length === 0) {
+    $("volume-groups").replaceChildren(el("p", "empty", t("volume.empty")));
+    return;
+  }
+  // One scale for every group, so the bars can be compared between groups.
+  const scale = Math.max(high, ...groups.flatMap((g) => g.counts));
+  $("volume-groups").replaceChildren(
+    ...groups.map(({ group, counts }) => {
+      const bars = el("div", "volume-bars");
+      bars.setAttribute("role", "img");
+      bars.setAttribute("aria-label", t("volume.aria", { group: muscleLabel(group), counts: counts.join(", ") }));
+      const band = el("div", "volume-band");
+      band.style.bottom = `${(low / scale) * 100}%`;
+      band.style.height = `${((high - low) / scale) * 100}%`;
+      bars.append(band);
+      counts.forEach((count, i) => {
+        const bar = el("span", i === counts.length - 1 ? "volume-bar current" : "volume-bar");
+        bar.style.height = `${(count / scale) * 100}%`;
+        bars.append(bar);
+      });
+      const head = el("div", "volume-head");
+      head.append(
+        el("strong", "", muscleLabel(group)),
+        el("span", "hint", t("volume.thisWeek", { sets: setsCountText(counts[counts.length - 1]) }))
+      );
+      const row = el("div", "volume-row");
+      row.append(head, bars);
+      return row;
+    })
+  );
+}
+
 function renderStallSettings() {
   const rows = Logic.MUSCLE_GROUPS.map((group) => {
     const row = el("div", "setting-row");
@@ -1478,6 +1518,7 @@ function onBodyweightSubmit(event) {
 
 function renderProgress() {
   renderPlateaus();
+  renderVolume();
   renderStallSettings();
   renderExerciseChart();
   renderBodyweightChart();

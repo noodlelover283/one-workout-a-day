@@ -580,6 +580,32 @@ test("where the week starts can change the streak, and a streak crosses the new 
   assertEqual(Logic.currentWeeklyStreak(new Set(["2026-12-30", "2027-01-05"]), "2027-01-06", 1), 2);
 });
 
+// ---------- Weekly volume ----------
+
+test("weekly volume counts sets per muscle group in each of the last weeks, newest last", () => {
+  const entries = [
+    set("2026-10-13", 135, 8), set("2026-10-12", 135, 8), set("2026-10-06", 135, 8), // Chest: 2 this week, 1 before
+    set("2026-10-07", 200, 5, "Squat"),
+  ];
+  const volume = Logic.weeklyVolume(entries, muscleOf, "2026-10-14", 1, 3);
+  assertEqual(volume.weeks, ["2026-09-28", "2026-10-05", "2026-10-12"]);
+  assertEqual(volume.groups.map((g) => [g.group, g.counts]), [["Chest", [0, 1, 2]], ["Legs", [0, 1, 0]]]);
+});
+
+test("weekly volume leaves out sets older than the chart, but still lists the group", () => {
+  const volume = Logic.weeklyVolume([set("2026-01-05", 135, 8)], muscleOf, "2026-10-14", 1);
+  assertEqual([volume.weeks.length, volume.groups.map((g) => g.group), volume.groups[0].counts.every((n) => n === 0)], [8, ["Chest"], true]);
+});
+
+test("weekly volume follows where the week starts, and an empty log gives no groups", () => {
+  // Sunday 11 October belongs to the week of 5 October when weeks start on Monday, and starts a new one on Sunday.
+  const sunday = [set("2026-10-11", 135, 8)];
+  const mondayWeeks = Logic.weeklyVolume(sunday, muscleOf, "2026-10-14", 1, 2).groups[0].counts;
+  const sundayWeeks = Logic.weeklyVolume(sunday, muscleOf, "2026-10-14", 0, 2).groups[0].counts;
+  assertEqual([mondayWeeks, sundayWeeks], [[1, 0], [0, 1]]);
+  assertEqual(Logic.weeklyVolume([], muscleOf, "2026-10-14", 1).groups, []);
+});
+
 // ---------- Workout notes ----------
 
 test("a note is saved for its day, trimmed, and an empty note removes it", () => {
@@ -999,12 +1025,29 @@ test("the calendar's jump opens the folded older days to reach a day", async () 
   }
 });
 
+test("Weekly volume shows a row per trained muscle group with a bar for each of the last 8 weeks", async () => {
+  const app = await openApp();
+  try {
+    const tab = showTab(app, "progress");
+    const rows = [...tab.querySelectorAll("#volume-groups .volume-row")];
+    if (rows.length === 0) throw new Error("no muscle group rows in Weekly volume");
+    for (const row of rows) {
+      if (row.querySelectorAll(".volume-bar").length !== 8) throw new Error("each row needs 8 weekly bars");
+      if (row.querySelectorAll(".volume-bar.current").length !== 1) throw new Error("only the newest bar is highlighted");
+    }
+    if (!/this week/i.test(rows[0].querySelector(".volume-head").textContent)) throw new Error("the row should say how many sets this week");
+    if (app.errors.length) throw new Error(app.errors.join("; "));
+  } finally {
+    closeApp(app);
+  }
+});
+
 test("Progress opens with the plateau check and exercise chart, and the other sections are folded", async () => {
   const app = await openApp();
   try {
     const tab = showTab(app, "progress");
     const folds = [...tab.querySelectorAll("details.section-fold")];
-    if (folds.length !== 4) throw new Error(`expected 4 folded sections, found ${folds.length}`);
+    if (folds.length !== 5) throw new Error(`expected 5 folded sections, found ${folds.length}`);
     if (folds.some((fold) => fold.open)) throw new Error("the folded sections should start closed");
     const chart = tab.querySelector("#exercise-chart svg").getBoundingClientRect();
     if (chart.bottom > 812 * 1.4) throw new Error(`the exercise chart ends ${Math.round(chart.bottom)}px down; it should be near the top`);

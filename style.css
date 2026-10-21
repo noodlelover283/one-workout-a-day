@@ -111,6 +111,13 @@ textarea { min-height: 80px; resize: vertical; }
 .level-meter { display: flex; gap: 4px; margin-top: 6px; }
 .level-meter span { flex: 1; height: 8px; border-radius: 4px; background: var(--border); }
 .level-meter span.reached { background: var(--accent); }
+.volume-row { margin-top: 12px; }
+.volume-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.volume-head .hint { margin: 0; }
+.volume-bars { position: relative; display: flex; align-items: flex-end; gap: 4px; height: 56px; margin-top: 6px; direction: ltr; }
+.volume-band { position: absolute; left: 0; right: 0; background: var(--border); opacity: 0.6; border-radius: 4px; }
+.volume-bar { position: relative; flex: 1; min-height: 2px; background: var(--accent); opacity: 0.55; border-radius: 3px 3px 0 0; }
+.volume-bar.current { opacity: 1; }
 :root[data-theme="contrast"] .strength-card,
 :root[data-theme="contrast"] .section-fold { border-width: 2px; }
 .draft-item { flex-wrap: wrap; }

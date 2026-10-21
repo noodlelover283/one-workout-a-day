@@ -564,6 +564,31 @@ const Logic = (() => {
     return streak;
   }
 
+  // How many weeks the weekly volume chart covers, and the range of hard sets per muscle group per
+  // week that training guidance commonly gives for building muscle (a reference, not a rule).
+  const VOLUME_WEEKS = 8;
+  const VOLUME_RANGE = { low: 10, high: 20 };
+
+  // Sets logged per week for each muscle group that has ever been trained, over the last `weekCount`
+  // weeks ending with the week of `today`. counts[i] belongs to weeks[i] (oldest first); weeks hold
+  // each week's first date. Every logged set counts, since sets are not marked as warm-ups.
+  function weeklyVolume(entries, muscleOf, today, weekStart, weekCount = VOLUME_WEEKS) {
+    const [year, month, day] = weekStartOf(today, weekStart).split("-").map(Number);
+    const weeks = Array.from({ length: weekCount }, (_, i) =>
+      toDateString(new Date(year, month - 1, day - 7 * (weekCount - 1 - i)))
+    );
+    const indexOfWeek = new Map(weeks.map((week, i) => [week, i]));
+    const byGroup = {};
+    for (const entry of entries) {
+      const group = muscleOf(entry.exercise);
+      if (!group) continue;
+      const row = byGroup[group] || (byGroup[group] = { group, counts: new Array(weekCount).fill(0) });
+      const index = indexOfWeek.get(weekStartOf(entry.date, weekStart));
+      if (index !== undefined) row.counts[index] += 1;
+    }
+    return { weeks, groups: MUSCLE_GROUPS.filter((group) => byGroup[group]).map((group) => byGroup[group]) };
+  }
+
   // Can the app open with no connection? It needs a browser that allows offline use, an active service
   // worker, and the app's files saved by it. Returns the end of a message key: "unavailable", "ready"
   // or "notReady" (everything is fine, but the files have not been saved yet).
@@ -795,6 +820,9 @@ const Logic = (() => {
     monthCells,
     weekStartOf,
     currentWeeklyStreak,
+    weeklyVolume,
+    VOLUME_RANGE,
+    VOLUME_WEEKS,
     NOTE_MAX_LENGTH,
     setNote,
     sanitizeNotes,
