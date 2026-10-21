@@ -77,6 +77,8 @@ I18n.register("ar", {
     "suggest.reasonRepeat": "لم تصل كل المجموعات بأعلى وزن لديك إلى {goal}، لذا كرّر الوزن نفسه واستهدف {target}.",
     "suggest.last": "المرة الماضية ({date}): {sets} {unit}.",
     "suggest.stalled": "{group} في حالة جمود الآن، لذا هذا تمرين جيد لبذل جهد أكبر فيه.",
+    "suggest.deloadText": "تخفيف الحمل: {weight} {unit} × {reps}",
+    "suggest.deloadReason": "{group} في حالة جمود، لذا جرّب أسبوعًا أخف: أقل بنحو {percent}% من أعلى وزن لك في المرة الماضية ({top} {unit}).",
     "suggest.use": "استخدم الاقتراح",
 
     "progression.heading": "اقتراحات الوزن",
@@ -125,6 +127,7 @@ I18n.register("ar", {
     "badge.new": "مبكر جدًا",
     "badge.progressing": "يتقدم",
     "plateau.stalled": "لا يوجد رقم قياسي جديد للوزن منذ {since} (الحد: {limit}). جرّب زيادة الوزن أو التكرارات.",
+    "plateau.deloadTip": "أو جرّب أسبوعًا أخف: وزن أقل بنحو {percent}%. يقترح تبويب التسجيل هذه الأوزان ما دامت هذه المجموعة في حالة جمود.",
     "plateau.progressing": "آخر رقم قياسي للوزن: {when}. يُعدّ جمودًا بعد {limit}.",
     "plateau.new": "الجلسات المسجَّلة حتى الآن: {sessions}. نحتاج إلى {needed} للحكم.",
 

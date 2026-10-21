@@ -621,21 +621,35 @@ function renderSuggestion() {
     useButton.classList.add("hidden");
     return;
   }
-  const weight = Logic.formatWeight(suggestion.weight, unit);
+  const status = Logic.plateauStatus(state.entries, muscleOf, today(), stallDaysOf).find((s) => s.group === group);
+  const stalled = Boolean(status && status.state === "stalled");
+  const deload = stalled && Logic.deloadNext(history, exercise, repGoal, Logic.toLb(jumpOf(group), unit));
+  const shown = deload || suggestion;
+  const weight = Logic.formatWeight(shown.weight, unit);
   const goal = repsText(repGoal);
   const sets = setsText(suggestion.session);
-  $("suggestion-text").textContent = t("suggest.text", { weight, unit, reps: repsText(suggestion.reps) });
-  const reason = suggestion.increased
-    ? t("suggest.reasonUp", { goal, jump: jumpOf(group), unit })
-    : t("suggest.reasonRepeat", { goal, target: repsText(suggestion.reps) });
   const last = t("suggest.last", { date: I18n.formatDate(suggestion.sessionDate), sets, unit });
-  $("suggestion-detail").textContent = `${reason} ${last}`;
-  const status = Logic.plateauStatus(state.entries, muscleOf, today(), stallDaysOf).find((s) => s.group === group);
-  $("suggestion-note").textContent =
-    status && status.state === "stalled" ? t("suggest.stalled", { group: muscleLabel(group) }) : "";
+  if (deload) {
+    $("suggestion-text").textContent = t("suggest.deloadText", { weight, unit, reps: repsText(shown.reps) });
+    const reason = t("suggest.deloadReason", {
+      group: muscleLabel(group),
+      percent: Logic.DELOAD_PERCENT,
+      top: Logic.formatWeight(deload.topWeight, unit),
+      unit,
+    });
+    $("suggestion-detail").textContent = `${reason} ${last}`;
+    $("suggestion-note").textContent = "";
+  } else {
+    $("suggestion-text").textContent = t("suggest.text", { weight, unit, reps: repsText(suggestion.reps) });
+    const reason = suggestion.increased
+      ? t("suggest.reasonUp", { goal, jump: jumpOf(group), unit })
+      : t("suggest.reasonRepeat", { goal, target: repsText(suggestion.reps) });
+    $("suggestion-detail").textContent = `${reason} ${last}`;
+    $("suggestion-note").textContent = stalled ? t("suggest.stalled", { group: muscleLabel(group) }) : "";
+  }
   useButton.classList.remove("hidden");
   useButton.dataset.weight = weight;
-  useButton.dataset.reps = suggestion.reps;
+  useButton.dataset.reps = shown.reps;
 }
 
 function onUseSuggestion() {
@@ -1237,6 +1251,7 @@ function renderPlateaus() {
       const card = el("div", `card ${s.state}`);
       card.append(el("strong", "", muscleLabel(s.group)), el("span", "badge", t(`badge.${s.state}`)));
       card.append(el("p", "", plateauText(s)));
+      if (s.state === "stalled") card.append(el("p", "deload-tip", t("plateau.deloadTip", { percent: Logic.DELOAD_PERCENT })));
       return card;
     })
   );

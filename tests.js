@@ -113,6 +113,25 @@ test("no suggestion for an exercise that was never logged", () => {
   assertEqual(Logic.suggestNext([set("2026-10-01", 135, 8)], "Squat", 8, 10), null);
 });
 
+test("a deload is 10% under the last top weight, rounded to the weight jump, at the rep goal", () => {
+  const entries = [set("2026-10-01", 135, 8), set("2026-10-01", 135, 7)];
+  const deload = Logic.deloadNext(entries, "Bench Press", 8, 5);
+  assertEqual([deload.weight, deload.topWeight, deload.reps], [120, 135, 8]);
+});
+
+test("a deload never drops below one weight jump", () => {
+  assertEqual(Logic.deloadNext([set("2026-10-01", 5, 8)], "Bench Press", 8, 5).weight, 5);
+});
+
+test("no deload for an exercise that was never logged", () => {
+  assertEqual(Logic.deloadNext([set("2026-10-01", 135, 8)], "Squat", 8, 10), null);
+});
+
+test("no second deload once the last session was already lighter than the best", () => {
+  const entries = [set("2026-09-01", 135, 8), set("2026-10-01", 120, 8)];
+  assertEqual(Logic.deloadNext(entries, "Bench Press", 8, 5), null);
+});
+
 // ---------- Plateau check ----------
 
 const muscleOf = (exercise) => Logic.DEFAULT_EXERCISES[exercise];

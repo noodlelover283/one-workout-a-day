@@ -72,6 +72,8 @@ I18n.register("fr", {
     "suggest.reasonRepeat": "Toutes les séries avec votre poids maximal n'ont pas atteint {goal} ; refaites ce poids et visez {target}.",
     "suggest.last": "La dernière fois ({date}) : {sets} {unit}.",
     "suggest.stalled": "Le groupe musculaire « {group} » est en plateau en ce moment, c'est donc un bon exercice sur lequel insister.",
+    "suggest.deloadText": "Décharge : {weight} {unit} × {reps}",
+    "suggest.deloadReason": "Le groupe musculaire « {group} » est en plateau ; essayez une semaine plus légère : environ {percent} % de moins que votre poids maximal de la dernière fois ({top} {unit}).",
     "suggest.use": "Utiliser la suggestion",
 
     "progression.heading": "Suggestions de poids",
@@ -120,6 +122,7 @@ I18n.register("fr", {
     "badge.new": "Trop tôt",
     "badge.progressing": "En progrès",
     "plateau.stalled": "Aucun nouveau record de poids depuis {since} (limite : {limit}). Essayez d'ajouter du poids ou des répétitions.",
+    "plateau.deloadTip": "Ou essayez une semaine plus légère : environ {percent} % de poids en moins. L'onglet Journal propose ces poids tant que ce groupe est en plateau.",
     "plateau.progressing": "Dernier record de poids : {when}. Considéré en plateau après {limit}.",
     "plateau.new": "Séances enregistrées jusqu'ici : {sessions}. Il en faut {needed} pour juger.",
 

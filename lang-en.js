@@ -72,6 +72,8 @@ I18n.register("en", {
     "suggest.reasonRepeat": "Not every set at your top weight reached {goal}, so repeat it and aim for {target}.",
     "suggest.last": "Last time ({date}): {sets} {unit}.",
     "suggest.stalled": "{group} is stalled right now, so this is a good lift to push.",
+    "suggest.deloadText": "Deload: {weight} {unit} × {reps}",
+    "suggest.deloadReason": "{group} is stalled, so try a lighter week: about {percent}% under your top weight last time ({top} {unit}).",
     "suggest.use": "Use suggestion",
 
     "progression.heading": "Weight suggestions",
@@ -120,6 +122,7 @@ I18n.register("en", {
     "badge.new": "Too early",
     "badge.progressing": "Progressing",
     "plateau.stalled": "No new weight record in {since} (limit {limit}). Try adding weight or reps.",
+    "plateau.deloadTip": "Or try a lighter week: about {percent}% less weight. The Log tab suggests those weights while this group is stalled.",
     "plateau.progressing": "Last weight record {when}. Counts as stalled after {limit}.",
     "plateau.new": "Sessions logged so far: {sessions}. Need {needed} to judge.",
 

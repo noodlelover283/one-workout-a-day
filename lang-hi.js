@@ -72,6 +72,8 @@ I18n.register("hi", {
     "suggest.reasonRepeat": "आपके सबसे ज़्यादा वज़न वाले सभी सेट {goal} तक नहीं पहुँचे, इसलिए वही वज़न दोहराएँ और {target} का लक्ष्य रखें।",
     "suggest.last": "पिछली बार ({date}): {sets} {unit}।",
     "suggest.stalled": "{group} अभी ठहराव में है, इसलिए यह ज़ोर लगाने के लिए अच्छा व्यायाम है।",
+    "suggest.deloadText": "डीलोड: {weight} {unit} × {reps}",
+    "suggest.deloadReason": "{group} ठहराव में है, इसलिए एक हल्का हफ़्ता आज़माएँ: पिछली बार के आपके सबसे ज़्यादा वज़न ({top} {unit}) से लगभग {percent}% कम।",
     "suggest.use": "सुझाव इस्तेमाल करें",
 
     "progression.heading": "वज़न के सुझाव",
@@ -120,6 +122,7 @@ I18n.register("hi", {
     "badge.new": "अभी जल्दी है",
     "badge.progressing": "प्रगति पर",
     "plateau.stalled": "{since} से वज़न का कोई नया रिकॉर्ड नहीं (सीमा: {limit})। वज़न या रेप्स बढ़ाकर देखें।",
+    "plateau.deloadTip": "या एक हल्का हफ़्ता आज़माएँ: लगभग {percent}% कम वज़न। जब तक यह समूह ठहराव में है, लॉग टैब यही वज़न सुझाता है।",
     "plateau.progressing": "वज़न का आख़िरी रिकॉर्ड: {when}। {limit} बाद इसे ठहरा हुआ माना जाएगा।",
     "plateau.new": "अब तक दर्ज सेशन: {sessions}। आकलन के लिए {needed} चाहिए।",
 

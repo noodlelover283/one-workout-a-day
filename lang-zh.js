@@ -71,6 +71,8 @@ I18n.register("zh", {
     "suggest.reasonRepeat": "用最大重量的组数没有全部达到{goal}，所以保持这个重量，目标是{target}。",
     "suggest.last": "上次（{date}）：{sets} {unit}。",
     "suggest.stalled": "{group}目前处于停滞期，这个动作值得多加把劲。",
+    "suggest.deloadText": "减负：{weight} {unit} × {reps}",
+    "suggest.deloadReason": "{group}处于停滞期，不妨试试轻量周：比上次的最大重量（{top} {unit}）轻约 {percent}%。",
     "suggest.use": "使用建议",
 
     "progression.heading": "重量建议",
@@ -119,6 +121,7 @@ I18n.register("zh", {
     "badge.new": "为时尚早",
     "badge.progressing": "进步中",
     "plateau.stalled": "已有 {since}没有刷新重量纪录（上限：{limit}）。试试增加重量或次数。",
+    "plateau.deloadTip": "或者试试轻量周：重量减轻约 {percent}%。这个肌群处于停滞期时，“记录”页会建议这些重量。",
     "plateau.progressing": "上次刷新重量纪录：{when}。超过 {limit}会被视为停滞。",
     "plateau.new": "目前已记录的训练次数：{sessions}。需要 {needed} 次才能判断。",
 

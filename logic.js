@@ -340,6 +340,26 @@ const Logic = (() => {
     };
   }
 
+  // A deload takes this share of the weight off, a common rule of thumb for a lighter week.
+  const DELOAD_PERCENT = 10;
+  // Once the last session is already this far under the best weight, the deload has been done.
+  const DELOAD_DONE_FRACTION = 0.95;
+
+  // A lighter-week suggestion for a stalled exercise: the last session's top weight minus
+  // DELOAD_PERCENT, rounded to the nearest jumpLb so it still makes a loadable weight, at the rep
+  // goal. Returns null if the exercise has never been done, or if the last session was already a
+  // deload (so the suggestion goes back to climbing instead of dropping again and again).
+  function deloadNext(entries, exercise, repGoal, jumpLb) {
+    const last = lastSet(entries, exercise);
+    if (!last) return null;
+    const session = entries.filter((e) => e.exercise === exercise && e.date === last.date);
+    const topWeight = Math.max(...session.map((e) => e.weight));
+    if (topWeight < bestWeight(entries, exercise) * DELOAD_DONE_FRACTION) return null;
+    const lighter = (topWeight * (100 - DELOAD_PERCENT)) / 100;
+    const weight = jumpLb > 0 ? Math.max(jumpLb, Math.round(lighter / jumpLb) * jumpLb) : lighter;
+    return { weight, topWeight, reps: repGoal, sessionDate: last.date, session };
+  }
+
   // The most recently logged set of an exercise (latest date, then latest added), or null.
   function lastSet(entries, exercise) {
     let latest = null;
@@ -812,6 +832,8 @@ const Logic = (() => {
     validateRepGoal,
     validateWeightJump,
     suggestNext,
+    deloadNext,
+    DELOAD_PERCENT,
     DEFAULT_REP_GOAL,
     DEFAULT_WEIGHT_JUMPS,
     DEFAULT_APPEARANCE,

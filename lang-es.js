@@ -72,6 +72,8 @@ I18n.register("es", {
     "suggest.reasonRepeat": "No todas las series con tu peso máximo llegaron a {goal}, así que repítelo y apunta a {target}.",
     "suggest.last": "La última vez ({date}): {sets} {unit}.",
     "suggest.stalled": "El grupo muscular «{group}» está estancado ahora mismo, así que es un buen ejercicio para esforzarte.",
+    "suggest.deloadText": "Descarga: {weight} {unit} × {reps}",
+    "suggest.deloadReason": "El grupo muscular «{group}» está estancado, así que prueba una semana más ligera: un {percent} % menos que tu peso máximo de la última vez ({top} {unit}).",
     "suggest.use": "Usar sugerencia",
 
     "progression.heading": "Sugerencias de peso",
@@ -120,6 +122,7 @@ I18n.register("es", {
     "badge.new": "Muy pronto",
     "badge.progressing": "Progresando",
     "plateau.stalled": "Sin un nuevo récord de peso desde hace {since} (límite: {limit}). Prueba a añadir peso o repeticiones.",
+    "plateau.deloadTip": "O prueba una semana más ligera: un {percent} % menos de peso. La pestaña Registro sugiere esos pesos mientras este grupo esté estancado.",
     "plateau.progressing": "Último récord de peso: {when}. Se considera estancado tras {limit}.",
     "plateau.new": "Sesiones registradas hasta ahora: {sessions}. Se necesitan {needed} para evaluar.",
 
