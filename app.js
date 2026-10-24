@@ -31,6 +31,7 @@ function loadState() {
     exerciseNotes: {},
     barbellExercises: {},
     routineSwaps: {},
+    customMeasurements: [],
     measurements: [],
     rest: { ...DEFAULT_REST },
     progression: { repGoal: Logic.DEFAULT_REP_GOAL, jumps: { lb: {}, kg: {} } },
@@ -49,7 +50,8 @@ function normalizeState(saved) {
   loaded.exerciseNotes = Logic.sanitizeExerciseNotes(saved.exerciseNotes);
   loaded.barbellExercises = Logic.sanitizeBarbellExercises(saved.barbellExercises);
   loaded.routineSwaps = Logic.sanitizeRoutineSwaps(saved.routineSwaps);
-  loaded.measurements = Logic.sanitizeMeasurements(saved.measurements);
+  loaded.customMeasurements = Logic.sanitizeCustomMeasurements(saved.customMeasurements);
+  loaded.measurements = Logic.sanitizeMeasurements(saved.measurements, loaded.customMeasurements);
   loaded.routines = loaded.routines.map((routine) =>
     routine && Array.isArray(routine.exercises) ? { ...routine, targets: Logic.sanitizeTargets(routine.targets, routine.exercises) } : routine
   );
@@ -1674,6 +1676,7 @@ function onStrengthSexChange() {
 
 // A measurement's name for the screen. The older ones with no side say so, next to the new left and right ones.
 function measureLabel(name) {
+  if (!Logic.MEASUREMENTS.includes(name)) return name; // one the user named themselves
   const label = t(`measure.${name}`);
   return Logic.UNSIDED_MEASUREMENTS.includes(name) ? t("measure.noSide", { name: label }) : label;
 }
@@ -1691,7 +1694,7 @@ function leftRightText(name) {
 function renderMeasurementChart() {
   const select = $("measure-name");
   const previous = select.value;
-  const choices = Logic.measurementChoices(state.measurements);
+  const choices = Logic.measurementChoices(state.measurements, state.customMeasurements);
   select.replaceChildren(...choices.map((name) => option(name, measureLabel(name))));
   if (choices.includes(previous)) select.value = previous;
   const unit = Logic.lengthUnitFor(state.unit);
@@ -1704,6 +1707,121 @@ function renderMeasurementChart() {
     series.length === 0 ? el("p", "empty", t("measure.none", { name: measureLabel(select.value) })) : lineChart(series, unit),
   );
   $("measure-compare").textContent = leftRightText(select.value);
+  renderCustomMeasurements();
+}
+
+// ---------- Measurements you name yourself ----------
+
+let editingMeasureName = null;
+
+// Every built-in measurement name as it appears in any language, so a new name cannot copy one.
+const builtInMeasureNames = () => Logic.MEASUREMENTS.flatMap((name) => I18n.textInEveryLanguage(`measure.${name}`));
+
+function renderCustomMeasurements() {
+  const names = [...state.customMeasurements].sort((a, b) => a.localeCompare(b));
+  $("measure-custom-list").replaceChildren(
+    ...(names.length === 0
+      ? [el("p", "empty", t("measure.customEmpty"))]
+      : names.map((name) => (name === editingMeasureName ? editMeasureCard(name) : measureCard(name))))
+  );
+}
+
+function measureCard(name) {
+  const card = el("div", "routine-card");
+  const header = el("div", "entry-header");
+  header.append(el("strong", "", name));
+  const edit = el("button", "link", t("routines.edit"));
+  edit.type = "button";
+  edit.setAttribute("aria-label", t("measure.editAria", { name }));
+  edit.addEventListener("click", () => startEditingMeasure(name));
+  const remove = el("button", "link", t("routines.delete"));
+  remove.type = "button";
+  remove.setAttribute("aria-label", t("measure.deleteAria", { name }));
+  remove.addEventListener("click", () => deleteCustomMeasure(name));
+  const actions = el("div", "routine-actions");
+  actions.append(edit, remove);
+  header.append(actions);
+  card.append(header);
+  return card;
+}
+
+function editMeasureCard(name) {
+  const card = el("form", "routine-card");
+  card.noValidate = true;
+  const nameInput = Object.assign(el("input"), { value: name, autocomplete: "off", maxLength: Logic.CUSTOM_MEASUREMENT_MAX_LENGTH });
+  const nameLabel = el("label", "", t("routines.name"));
+  nameLabel.append(nameInput);
+  const error = el("p", "error");
+  error.setAttribute("role", "alert");
+  const save = el("button", "primary", t("set.save"));
+  save.type = "submit";
+  const cancel = el("button", "secondary", t("set.cancel"));
+  cancel.type = "button";
+  cancel.addEventListener("click", stopEditingMeasure);
+  card.append(nameLabel, error, save, cancel);
+  card.addEventListener("submit", (event) => {
+    event.preventDefault();
+    renameCustomMeasure(name, nameInput.value, error);
+  });
+  card.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") stopEditingMeasure();
+  });
+  return card;
+}
+
+function startEditingMeasure(name) {
+  editingMeasureName = name;
+  renderCustomMeasurements();
+  document.querySelector("#measure-custom-list input").focus();
+}
+
+function stopEditingMeasure() {
+  editingMeasureName = null;
+  renderCustomMeasurements();
+}
+
+function onCustomMeasureSubmit(event) {
+  event.preventDefault();
+  const name = Logic.normalizeName($("measure-custom-name").value);
+  const error = Logic.validateCustomMeasurementName(name, state.customMeasurements, builtInMeasureNames());
+  $("measure-custom-error").textContent = errorText(error);
+  if (error) return;
+  state.customMeasurements = [...state.customMeasurements, name];
+  saveState();
+  $("measure-custom-name").value = "";
+  renderMeasurementChart(); // adds the name to the list ...
+  $("measure-name").value = name; // ... and chooses it, ready for its first reading
+  renderMeasurementChart();
+  showToast(t("toast.measureAdded", { name }));
+}
+
+function renameCustomMeasure(name, newName, errorNode) {
+  const error = Logic.validateCustomMeasurementName(newName, state.customMeasurements, builtInMeasureNames(), name);
+  errorNode.textContent = errorText(error);
+  if (error) return;
+  const wasChosen = $("measure-name").value === name;
+  const result = Logic.renameCustomMeasurement(state, name, newName);
+  state.customMeasurements = result.customMeasurements;
+  state.measurements = result.measurements;
+  editingMeasureName = null;
+  saveState();
+  renderMeasurementChart();
+  if (wasChosen) {
+    $("measure-name").value = Logic.normalizeName(newName);
+    renderMeasurementChart();
+  }
+  showToast(t("toast.measureRenamed"));
+}
+
+function deleteCustomMeasure(name) {
+  const count = state.measurements.filter((m) => m.name === name).length;
+  if (!window.confirm(t("measure.deleteConfirm", { name, count }))) return;
+  const result = Logic.deleteCustomMeasurement(state, name);
+  state.customMeasurements = result.customMeasurements;
+  state.measurements = result.measurements;
+  saveState();
+  renderMeasurementChart();
+  showToast(t("toast.measureDeleted", { name }));
 }
 
 function onMeasurementSubmit(event) {
@@ -1946,6 +2064,7 @@ function init() {
     renderSuggestion();
   });
   $("use-suggestion").addEventListener("click", onUseSuggestion);
+  $("measure-custom-form").addEventListener("submit", onCustomMeasureSubmit);
   $("backup-merge-go").addEventListener("click", onBackupMerge);
   $("backup-replace-go").addEventListener("click", onBackupReplace);
   $("backup-merge-cancel").addEventListener("click", closeBackupChoice);

@@ -53,6 +53,12 @@ const I18n = (() => {
     return template === undefined ? key : fill(template, params);
   }
 
+  // The text for a key in every language we have, for checking that a name typed by the user does not
+  // copy a built-in one in any of them.
+  function textInEveryLanguage(key) {
+    return Object.values(languages).map((definition) => definition.strings[key]).filter((text) => text !== undefined);
+  }
+
   // Chooses the right word form for a count, using the language's own plural rules.
   // Looks for "key.one", "key.few", ... and falls back to "key.other".
   function plural(key, count, params = {}) {
@@ -101,6 +107,7 @@ const I18n = (() => {
     locale,
     has,
     t,
+    textInEveryLanguage,
     plural,
     formatDate,
     formatShortDate,

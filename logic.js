@@ -833,9 +833,58 @@ const Logic = (() => {
     return [...measurements.filter((m) => !(m.date === date && m.name === name)), { date, name, cm }];
   }
 
-  // The measurements to offer in the list: all of them, except an unsided one nobody has a reading for.
-  function measurementChoices(measurements) {
-    return MEASUREMENTS.filter((name) => !UNSIDED_MEASUREMENTS.includes(name) || measurements.some((m) => m.name === name));
+  // The measurements to offer in the list: all of them, except an unsided one nobody has a reading for,
+  // followed by the ones the user made up (customNames), alphabetically.
+  function measurementChoices(measurements, customNames = []) {
+    const builtIn = MEASUREMENTS.filter((name) => !UNSIDED_MEASUREMENTS.includes(name) || measurements.some((m) => m.name === name));
+    return [...builtIn, ...[...customNames].sort((a, b) => a.localeCompare(b))];
+  }
+
+  // Measurements the user adds themselves are lengths too, saved by name next to the built-in ones.
+  const CUSTOM_MEASUREMENT_MAX_LENGTH = 30;
+
+  // The error key for a new or renamed custom measurement name, or "" if it is fine. `shownNames` are the
+  // built-in names as they appear on screen (in every language), so none of them can be copied; `ignore`
+  // is the name being renamed, which may keep its own spelling.
+  function validateCustomMeasurementName(name, customNames, shownNames, ignore = "") {
+    const clean = normalizeName(name);
+    if (!clean) return "error.measureName";
+    if (clean.length > CUSTOM_MEASUREMENT_MAX_LENGTH) return "error.measureNameLong";
+    const lower = clean.toLowerCase();
+    const taken = [...MEASUREMENTS, ...shownNames, ...customNames.filter((existing) => existing !== ignore)];
+    return taken.some((existing) => existing.toLowerCase() === lower) ? "error.measureNameTaken" : "";
+  }
+
+  // Keeps only valid saved custom names: clean text within the length limit, none repeated or built in.
+  function sanitizeCustomMeasurements(saved) {
+    const names = [];
+    if (!Array.isArray(saved)) return names;
+    for (const entry of saved) {
+      if (typeof entry !== "string") continue;
+      const clean = normalizeName(entry);
+      const lower = clean.toLowerCase();
+      if (!clean || clean.length > CUSTOM_MEASUREMENT_MAX_LENGTH) continue;
+      if (MEASUREMENTS.some((builtIn) => builtIn.toLowerCase() === lower) || names.some((n) => n.toLowerCase() === lower)) continue;
+      names.push(clean);
+    }
+    return names;
+  }
+
+  // A custom measurement under a new name: its readings follow it. Returns the new names and readings.
+  function renameCustomMeasurement({ customMeasurements, measurements }, from, to) {
+    const name = normalizeName(to);
+    return {
+      customMeasurements: customMeasurements.map((existing) => (existing === from ? name : existing)),
+      measurements: measurements.map((m) => (m.name === from ? { ...m, name } : m)),
+    };
+  }
+
+  // A custom measurement removed together with all of its readings.
+  function deleteCustomMeasurement({ customMeasurements, measurements }, name) {
+    return {
+      customMeasurements: customMeasurements.filter((existing) => existing !== name),
+      measurements: measurements.filter((m) => m.name !== name),
+    };
   }
 
   // The other side of a "LeftArm" or "RightArm" style measurement, or null for one with no sides.
@@ -869,10 +918,10 @@ const Logic = (() => {
   }
 
   // Keeps only valid saved measurements.
-  function sanitizeMeasurements(saved) {
+  function sanitizeMeasurements(saved, customNames = []) {
     if (!Array.isArray(saved)) return [];
     return saved.filter(
-      (m) => m && MEASUREMENTS.includes(m.name) && DATE_PATTERN.test(m.date) && typeof m.cm === "number" && validateMeasurement(m.cm) === "",
+      (m) => m && (MEASUREMENTS.includes(m.name) || customNames.includes(m.name)) && DATE_PATTERN.test(m.date) && typeof m.cm === "number" && validateMeasurement(m.cm) === "",
     );
   }
 
@@ -962,6 +1011,11 @@ const Logic = (() => {
     }
 
     const missingKeys = (mineMap, theirMap) => Object.keys(theirMap).filter((key) => !(key in mineMap));
+    const myMeasureNames = mine.customMeasurements || [];
+    const customMeasurements = [...myMeasureNames];
+    for (const name of theirs.customMeasurements || []) {
+      if (!customMeasurements.some((existing) => existing.toLowerCase() === name.toLowerCase())) customMeasurements.push(name);
+    }
     const newExercises = missingKeys(mine.customExercises, theirs.customExercises);
     const customExercises = { ...mine.customExercises };
     for (const name of newExercises) customExercises[name] = theirs.customExercises[name];
@@ -988,6 +1042,7 @@ const Logic = (() => {
         routines: [...mine.routines, ...newRoutines],
         notes,
         customExercises,
+        customMeasurements,
         exerciseNotes,
         barbellExercises: { ...theirs.barbellExercises, ...mine.barbellExercises },
         routineSwaps,
@@ -1028,6 +1083,11 @@ const Logic = (() => {
     MEASUREMENTS,
     UNSIDED_MEASUREMENTS,
     measurementChoices,
+    CUSTOM_MEASUREMENT_MAX_LENGTH,
+    validateCustomMeasurementName,
+    sanitizeCustomMeasurements,
+    renameCustomMeasurement,
+    deleteCustomMeasurement,
     leftRightGap,
     lengthUnitFor,
     lengthToCm,

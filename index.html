@@ -12,7 +12,7 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="theme-color" content="#f5f6f8" media="(prefers-color-scheme: light)">
   <meta name="theme-color" content="#12161c" media="(prefers-color-scheme: dark)">
-  <link rel="stylesheet" href="style.css?v=227ec0d2d0">
+  <link rel="stylesheet" href="style.css?v=a9d4d951a8">
 </head>
 <body>
   <p id="offline-banner" class="offline-banner hidden" role="status" data-i18n="offline.notice">You're offline. Everything still works, and your data is saved on this device.</p>
@@ -307,6 +307,14 @@
         <p id="measure-error" class="error" role="alert"></p>
         <div id="measure-chart" class="chart"></div>
         <p id="measure-compare" class="hint"></p>
+
+        <h3 data-i18n="measure.customHeading">Your own measurements</h3>
+        <form id="measure-custom-form" class="row inline" novalidate>
+          <input id="measure-custom-name" maxlength="30" autocomplete="off" data-i18n-placeholder="measure.customPlaceholder" placeholder="e.g. Wrist" data-i18n-aria="measure.customAria" aria-label="New measurement name">
+          <button type="submit" class="primary" data-i18n="progress.add">Add</button>
+        </form>
+        <p id="measure-custom-error" class="error" role="alert"></p>
+        <div id="measure-custom-list"></div>
       </details>
     </section>
   </main>
@@ -320,16 +328,16 @@
     <button id="nav-progress" data-tab="progress" data-i18n="tab.progress">Progress</button>
   </nav>
 
-  <script src="i18n.js?v=227ec0d2d0"></script>
-  <script src="lang-en.js?v=227ec0d2d0"></script>
-  <script src="lang-es.js?v=227ec0d2d0"></script>
-  <script src="lang-zh.js?v=227ec0d2d0"></script>
-  <script src="lang-hi.js?v=227ec0d2d0"></script>
-  <script src="lang-ar.js?v=227ec0d2d0"></script>
-  <script src="lang-fr.js?v=227ec0d2d0"></script>
-  <script src="lang-pt.js?v=227ec0d2d0"></script>
-  <script src="lang-ru.js?v=227ec0d2d0"></script>
-  <script src="logic.js?v=227ec0d2d0"></script>
-  <script src="app.js?v=227ec0d2d0"></script>
+  <script src="i18n.js?v=a9d4d951a8"></script>
+  <script src="lang-en.js?v=a9d4d951a8"></script>
+  <script src="lang-es.js?v=a9d4d951a8"></script>
+  <script src="lang-zh.js?v=a9d4d951a8"></script>
+  <script src="lang-hi.js?v=a9d4d951a8"></script>
+  <script src="lang-ar.js?v=a9d4d951a8"></script>
+  <script src="lang-fr.js?v=a9d4d951a8"></script>
+  <script src="lang-pt.js?v=a9d4d951a8"></script>
+  <script src="lang-ru.js?v=a9d4d951a8"></script>
+  <script src="logic.js?v=a9d4d951a8"></script>
+  <script src="app.js?v=a9d4d951a8"></script>
 </body>
 </html>

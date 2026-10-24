@@ -665,6 +665,49 @@ test("merging brings in swaps, barbell marks and exercise notes this device does
   assertEqual([data.barbellExercises, data.routineSwaps, data.exerciseNotes], [{ Rack: true, Wrist: true }, theirs.routineSwaps, { Squat: "Low bar" }]);
 });
 
+// ---------- Measurements named by the user ----------
+
+test("a custom measurement name must be new, short, and not copy a built-in one in any language", () => {
+  const check = (name, custom = [], shown = ["Cuello"], ignore = "") => Logic.validateCustomMeasurementName(name, custom, shown, ignore);
+  assertEqual(check("Wrist"), "");
+  assertEqual([check("   "), check("x".repeat(31)), check("x".repeat(30))], ["error.measureName", "error.measureNameLong", ""]);
+  assertEqual([check("neck"), check("LeftArm"), check("cuello")], Array(3).fill("error.measureNameTaken"));
+  assertEqual([check("wrist", ["Wrist"]), check("Wrist", ["Wrist"], ["Cuello"], "Wrist")], ["error.measureNameTaken", ""]);
+});
+
+test("saved custom names are cleaned up: repeats, built-in names and overlong names are dropped", () => {
+  assertEqual(Logic.sanitizeCustomMeasurements(["Wrist", " wrist ", "Neck", "x".repeat(31), 5, "  Biceps   flexed "]), ["Wrist", "Biceps flexed"]);
+  assertEqual(Logic.sanitizeCustomMeasurements("nope"), []);
+});
+
+test("custom measurements are offered after the built-in ones, and their readings are only kept while the name exists", () => {
+  const readings = [{ date: "2026-10-01", name: "Wrist", cm: 17 }, { date: "2026-10-01", name: "Ghost", cm: 9 }];
+  const choices = Logic.measurementChoices([], ["Wrist", "Ankle"]);
+  assertEqual(choices.slice(-2), ["Ankle", "Wrist"]);
+  assertEqual(choices.includes("Neck"), true);
+  assertEqual(Logic.sanitizeMeasurements(readings, ["Wrist"]).map((m) => m.name), ["Wrist"]);
+  assertEqual(Logic.sanitizeMeasurements(readings).length, 0);
+});
+
+test("renaming a custom measurement keeps its readings, and deleting one removes them", () => {
+  const data = {
+    customMeasurements: ["Wrist", "Ankle"],
+    measurements: [{ date: "2026-10-01", name: "Wrist", cm: 17 }, { date: "2026-10-02", name: "Wrist", cm: 17.5 }, { date: "2026-10-01", name: "Ankle", cm: 22 }, { date: "2026-10-01", name: "Waist", cm: 80 }],
+  };
+  const renamed = Logic.renameCustomMeasurement(data, "Wrist", "  Left   wrist ");
+  assertEqual(renamed.customMeasurements, ["Left wrist", "Ankle"]);
+  assertEqual(renamed.measurements.map((m) => m.name), ["Left wrist", "Left wrist", "Ankle", "Waist"]);
+  const deleted = Logic.deleteCustomMeasurement(data, "Wrist");
+  assertEqual([deleted.customMeasurements, deleted.measurements.map((m) => m.name)], [["Ankle"], ["Ankle", "Waist"]]);
+});
+
+test("merging a backup adds the custom measurement names this device lacks, ignoring letter case", () => {
+  const mine = { ...emptyData(), customMeasurements: ["Wrist"] };
+  const theirs = { ...emptyData(), customMeasurements: ["wrist", "Ankle"], measurements: [{ date: "2026-10-01", name: "Ankle", cm: 22 }] };
+  const { data, counts } = Logic.mergeBackup(mine, theirs);
+  assertEqual([data.customMeasurements, counts.measurements], [["Wrist", "Ankle"], 1]);
+});
+
 // ---------- Left and right measurements ----------
 
 test("the old Upper arm and Thigh measurements are only offered while they have readings", () => {
@@ -1492,6 +1535,44 @@ test("choosing a backup file offers Merge, which adds only what is new and does 
     if (!doc.getElementById("backup-merge-summary").textContent.includes("already here")) throw new Error("the panel should say everything is already here");
     doc.getElementById("backup-merge-cancel").click();
     if (!panel.classList.contains("hidden") || saved().entries.length !== after.entries.length) throw new Error("Cancel should change nothing");
+    if (app.errors.length) throw new Error(app.errors.join("; "));
+  } finally {
+    closeApp(app);
+  }
+});
+
+test("a measurement named by the user can be added, measured, renamed and deleted", async () => {
+  const app = await openApp();
+  try {
+    const doc = app.doc;
+    app.win.confirm = () => true;
+    showTab(app, "progress");
+    const fire = (node, type) => node.dispatchEvent(new Event(type, { bubbles: true, cancelable: true }));
+    const saved = () => JSON.parse(app.win.localStorage.getItem(app.storage));
+    const nameBox = doc.getElementById("measure-custom-name");
+    const addCustom = (name) => {
+      nameBox.value = name;
+      fire(doc.getElementById("measure-custom-form"), "submit");
+    };
+    addCustom("neck");
+    if (!doc.getElementById("measure-custom-error").textContent) throw new Error("copying a built-in name should show an error");
+    addCustom("Wrist");
+    if (doc.getElementById("measure-name").value !== "Wrist") throw new Error("the new measurement should be chosen in the list");
+    doc.getElementById("measure-value").value = "6.5";
+    fire(doc.getElementById("measure-form"), "submit");
+    const reading = saved().measurements.find((m) => m.name === "Wrist");
+    if (!reading || Math.abs(reading.cm - 16.51) > 0.01) throw new Error("the reading should be saved under the new name, in cm");
+    // Rename: the reading follows.
+    doc.querySelector("#measure-custom-list .routine-card .link").click();
+    doc.querySelector("#measure-custom-list form input").value = "Left wrist";
+    fire(doc.querySelector("#measure-custom-list form"), "submit");
+    const afterRename = saved();
+    if (afterRename.customMeasurements[0] !== "Left wrist" || !afterRename.measurements.some((m) => m.name === "Left wrist")) throw new Error("renaming should move the reading to the new name");
+    if (doc.getElementById("measure-name").value !== "Left wrist") throw new Error("the renamed measurement should stay chosen");
+    // Delete: the name and its reading go.
+    [...doc.querySelectorAll("#measure-custom-list .routine-card .link")][1].click();
+    const afterDelete = saved();
+    if (afterDelete.customMeasurements.length !== 0 || afterDelete.measurements.some((m) => m.name === "Left wrist")) throw new Error("deleting should remove the name and its readings");
     if (app.errors.length) throw new Error(app.errors.join("; "));
   } finally {
     closeApp(app);
