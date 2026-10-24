@@ -1369,6 +1369,38 @@ function logSetInApp(app, exercise, weight, reps) {
   app.doc.getElementById("log-form").requestSubmit();
 }
 
+test("the rest timer is one slim row, with Adjust hiding the time buttons, and Skip ends it", async () => {
+  const app = await openApp();
+  try {
+    const doc = app.doc;
+    logSetInApp(app, "Bench Press", 135, 8);
+    const banner = doc.getElementById("rest-banner");
+    if (banner.classList.contains("hidden")) throw new Error("logging a set should start the rest timer");
+    const height = banner.getBoundingClientRect().height;
+    if (height > 80) throw new Error(`the rest row is ${Math.round(height)}px tall; it should be one slim row (it used to be about 250px)`);
+    // The form's main controls stay on the first screen while the timer runs.
+    const tabBarTop = doc.querySelector(".tabbar").getBoundingClientRect().top;
+    const addSet = doc.querySelector("#log-form button.primary").getBoundingClientRect();
+    if (addSet.bottom > tabBarTop) throw new Error(`Add set ends at ${Math.round(addSet.bottom)}px, below the first screen (${Math.round(tabBarTop)}px)`);
+    const adjust = doc.getElementById("rest-adjust");
+    const toggle = doc.getElementById("rest-adjust-toggle");
+    if (!adjust.classList.contains("hidden")) throw new Error("the time buttons should start tucked away");
+    const clock = () => doc.getElementById("rest-clock").textContent;
+    const before = clock();
+    toggle.click();
+    if (adjust.classList.contains("hidden") || toggle.getAttribute("aria-expanded") !== "true") throw new Error("Adjust should show the time buttons");
+    adjust.querySelector('button[data-delta="15"]').click();
+    if (clock() === before) throw new Error(`+15s should change the clock, which still reads ${before}`);
+    toggle.click();
+    if (!adjust.classList.contains("hidden")) throw new Error("tapping Adjust again should tuck the buttons away");
+    doc.getElementById("rest-skip").click();
+    if (!banner.classList.contains("hidden")) throw new Error("Skip should end the rest row");
+    if (app.errors.length) throw new Error(app.errors.join("; "));
+  } finally {
+    closeApp(app);
+  }
+});
+
 test("Repeat adds another set that copies the last one and is saved like any other set", async () => {
   const app = await openApp();
   try {

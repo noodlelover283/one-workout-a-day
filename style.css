@@ -199,25 +199,29 @@ button.link { min-height: 44px; border: none; background: none; color: var(--acc
 .suggestion-why summary::after, .note-fold summary::after { margin-inline-start: 10px; width: 7px; height: 7px; border-width: 2px; }
 .suggestion-why p { margin: 0 0 4px; }
 
+/* The slot takes no room, so the timer floats over the top of the page and nothing below it moves. */
+.rest-slot { position: sticky; top: 0; height: 0; z-index: 5; }
 .rest-banner {
-  position: sticky;
-  top: 0;
-  z-index: 5;
-  margin: 12px 0 0;
-  padding: 10px 12px;
-  text-align: center;
+  position: absolute;
+  top: 8px;
+  left: 0;
+  right: 0;
+  padding: 6px 10px;
   background: var(--surface);
   border: 2px solid var(--accent);
   border-radius: 12px;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.35);
 }
 .rest-banner.over { background: var(--good-bg); border-color: var(--good); }
 .rest-banner p { margin: 0; }
+.rest-main { display: flex; align-items: center; gap: 8px; }
+.rest-text { flex: 1; min-width: 0; display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
 .rest-label { font-weight: 600; }
-.rest-clock { font-size: 2.4rem; font-weight: 700; font-variant-numeric: tabular-nums; }
-.rest-adjust { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin: 6px 0; }
+.rest-clock { font-size: 1.7rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+.rest-main button { min-height: 40px; padding: 0 12px; }
+.rest-adjust { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin: 6px 0 2px; }
 .rest-adjust button { padding: 0 2px; white-space: nowrap; font-size: min(1rem, 4.4vw); }
-.rest-skip { width: 100%; }
-.rest-banner.over .rest-clock, .rest-banner.over .rest-adjust { display: none; }
+.rest-banner.over .rest-clock, .rest-banner.over .rest-toggle, .rest-banner.over .rest-adjust { display: none; }
 
 .check { display: flex; align-items: center; gap: 10px; margin: 10px 0 0; font-weight: 400; }
 .check input { width: 24px; min-height: 24px; flex-shrink: 0; }

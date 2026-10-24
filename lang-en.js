@@ -35,6 +35,7 @@ I18n.register("en", {
     "rest.label": "Rest",
     "rest.over": "Rest over. Time for your next set.",
     "rest.skip": "Skip",
+    "rest.adjust": "Adjust",
     "rest.dismiss": "Dismiss",
     "rest.minus": "−{n}s",
     "rest.plus": "+{n}s",

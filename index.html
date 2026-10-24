@@ -12,7 +12,7 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="theme-color" content="#f5f6f8" media="(prefers-color-scheme: light)">
   <meta name="theme-color" content="#12161c" media="(prefers-color-scheme: dark)">
-  <link rel="stylesheet" href="style.css?v=0159b2ee23">
+  <link rel="stylesheet" href="style.css?v=937795bbb1">
 </head>
 <body>
   <p id="offline-banner" class="offline-banner hidden" role="status" data-i18n="offline.notice">You're offline. Everything still works, and your data is saved on this device.</p>
@@ -49,16 +49,20 @@
 
   <main>
     <section id="tab-log" class="tab" aria-labelledby="nav-log">
+      <div class="rest-slot">
       <div id="rest-banner" class="rest-banner hidden" role="group" data-i18n-aria="rest.timerLabel" aria-label="Rest timer">
-        <p id="rest-label" class="rest-label">Rest</p>
-        <p id="rest-clock" class="rest-clock">1:30</p>
-        <div id="rest-adjust" class="rest-adjust">
+        <div class="rest-main">
+          <p class="rest-text"><span id="rest-label" class="rest-label">Rest</span> <span id="rest-clock" class="rest-clock">1:30</span></p>
+          <button type="button" id="rest-adjust-toggle" class="rest-toggle" aria-expanded="false" aria-controls="rest-adjust" data-i18n="rest.adjust">Adjust</button>
+          <button type="button" id="rest-skip" class="rest-skip">Skip</button>
+        </div>
+        <div id="rest-adjust" class="rest-adjust hidden">
           <button type="button" data-delta="-15"></button>
           <button type="button" data-delta="-5"></button>
           <button type="button" data-delta="5"></button>
           <button type="button" data-delta="15"></button>
         </div>
-        <button type="button" id="rest-skip" class="rest-skip">Skip</button>
+      </div>
       </div>
 
       <div class="heading-row">
@@ -312,16 +316,16 @@
     <button id="nav-progress" data-tab="progress" data-i18n="tab.progress">Progress</button>
   </nav>
 
-  <script src="i18n.js?v=0159b2ee23"></script>
-  <script src="lang-en.js?v=0159b2ee23"></script>
-  <script src="lang-es.js?v=0159b2ee23"></script>
-  <script src="lang-zh.js?v=0159b2ee23"></script>
-  <script src="lang-hi.js?v=0159b2ee23"></script>
-  <script src="lang-ar.js?v=0159b2ee23"></script>
-  <script src="lang-fr.js?v=0159b2ee23"></script>
-  <script src="lang-pt.js?v=0159b2ee23"></script>
-  <script src="lang-ru.js?v=0159b2ee23"></script>
-  <script src="logic.js?v=0159b2ee23"></script>
-  <script src="app.js?v=0159b2ee23"></script>
+  <script src="i18n.js?v=937795bbb1"></script>
+  <script src="lang-en.js?v=937795bbb1"></script>
+  <script src="lang-es.js?v=937795bbb1"></script>
+  <script src="lang-zh.js?v=937795bbb1"></script>
+  <script src="lang-hi.js?v=937795bbb1"></script>
+  <script src="lang-ar.js?v=937795bbb1"></script>
+  <script src="lang-fr.js?v=937795bbb1"></script>
+  <script src="lang-pt.js?v=937795bbb1"></script>
+  <script src="lang-ru.js?v=937795bbb1"></script>
+  <script src="logic.js?v=937795bbb1"></script>
+  <script src="app.js?v=937795bbb1"></script>
 </body>
 </html>

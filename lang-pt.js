@@ -35,6 +35,7 @@ I18n.register("pt", {
     "rest.label": "Descanso",
     "rest.over": "Descanso encerrado. Hora da próxima série.",
     "rest.skip": "Pular",
+    "rest.adjust": "Ajustar",
     "rest.dismiss": "Fechar",
     "rest.minus": "−{n} s",
     "rest.plus": "+{n} s",

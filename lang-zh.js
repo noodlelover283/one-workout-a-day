@@ -34,6 +34,7 @@ I18n.register("zh", {
     "rest.label": "休息",
     "rest.over": "休息结束，该做下一组了。",
     "rest.skip": "跳过",
+    "rest.adjust": "调整",
     "rest.dismiss": "关闭",
     "rest.minus": "−{n}秒",
     "rest.plus": "+{n}秒",

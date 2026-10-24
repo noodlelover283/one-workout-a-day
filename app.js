@@ -474,6 +474,13 @@ function dismissRest() {
   clearInterval(restTicker);
   restEndsAt = null;
   $("rest-banner").classList.add("hidden");
+  setRestAdjustOpen(false);
+}
+
+// The ±15s and ±5s buttons stay tucked away until Adjust is tapped.
+function setRestAdjustOpen(open) {
+  $("rest-adjust").classList.toggle("hidden", !open);
+  $("rest-adjust-toggle").setAttribute("aria-expanded", String(open));
 }
 
 // Browsers only allow sound after a tap, so the audio context is created when a rest starts.
@@ -1952,6 +1959,7 @@ function init() {
   $("rest-auto").addEventListener("change", onRestToggleChange);
   $("rest-sound").addEventListener("change", onRestToggleChange);
   $("rest-skip").addEventListener("click", dismissRest);
+  $("rest-adjust-toggle").addEventListener("click", () => setRestAdjustOpen($("rest-adjust").classList.contains("hidden")));
   for (const button of document.querySelectorAll("#rest-adjust button")) {
     button.addEventListener("click", () => adjustRest(Number(button.dataset.delta)));
   }

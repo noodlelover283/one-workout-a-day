@@ -40,6 +40,7 @@ I18n.register("ar", {
     "rest.label": "راحة",
     "rest.over": "انتهت الراحة. حان وقت المجموعة التالية.",
     "rest.skip": "تخطّي",
+    "rest.adjust": "تعديل",
     "rest.dismiss": "إغلاق",
     "rest.minus": "⁦−{n}ث⁩",
     "rest.plus": "⁦+{n}ث⁩",

@@ -35,6 +35,7 @@ I18n.register("hi", {
     "rest.label": "आराम",
     "rest.over": "आराम खत्म। अगले सेट का समय हो गया।",
     "rest.skip": "छोड़ें",
+    "rest.adjust": "बदलें",
     "rest.dismiss": "बंद करें",
     "rest.minus": "−{n} सेक.",
     "rest.plus": "+{n} सेक.",

@@ -37,6 +37,7 @@ I18n.register("ru", {
     "rest.label": "Отдых",
     "rest.over": "Отдых закончен. Пора на следующий подход.",
     "rest.skip": "Пропустить",
+    "rest.adjust": "Изменить",
     "rest.dismiss": "Закрыть",
     "rest.minus": "−{n} с",
     "rest.plus": "+{n} с",
