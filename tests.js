@@ -606,6 +606,45 @@ test("weekly volume follows where the week starts, and an empty log gives no gro
   assertEqual(Logic.weeklyVolume([], muscleOf, "2026-10-14", 1).groups, []);
 });
 
+// ---------- Swapping a routine exercise for one day ----------
+
+const pushRoutine = { id: "r1", exercises: ["Bench Press", "Overhead Press", "Bench Press"] };
+const knownForSwaps = ["Bench Press", "Overhead Press", "Incline Press"];
+
+test("a swap replaces one slot of the routine and leaves the others alone", () => {
+  const slots = Logic.routineSlots(pushRoutine, { 2: "Incline Press" }, knownForSwaps);
+  assertEqual(slots.map((s) => [s.exercise, s.original, s.swapped]), [
+    ["Bench Press", "Bench Press", false], ["Overhead Press", "Overhead Press", false], ["Incline Press", "Bench Press", true],
+  ]);
+});
+
+test("a swap to an exercise that no longer exists is ignored", () => {
+  assertEqual(Logic.routineSlots(pushRoutine, { 0: "Gone" }, knownForSwaps)[0].exercise, "Bench Press");
+  assertEqual(Logic.routineSlots(pushRoutine, undefined, knownForSwaps).every((s) => !s.swapped), true);
+});
+
+test("setting and undoing a swap changes only that day, and leaves the old data as it was", () => {
+  const before = { "2026-10-23": { r1: { 0: "Incline Press" } } };
+  const swapped = Logic.setRoutineSwap(before, "2026-10-24", "r1", 1, "Incline Press");
+  assertEqual(swapped["2026-10-24"], { r1: { 1: "Incline Press" } });
+  assertEqual(before, { "2026-10-23": { r1: { 0: "Incline Press" } } });
+  assertEqual(Logic.setRoutineSwap(swapped, "2026-10-24", "r1", 1, null), before);
+});
+
+test("only the most recent days of swaps are kept", () => {
+  let swaps = {};
+  for (let day = 1; day <= 20; day += 1) swaps = Logic.setRoutineSwap(swaps, `2026-09-${String(day).padStart(2, "0")}`, "r1", 0, "Incline Press");
+  const days = Object.keys(swaps);
+  assertEqual([days.length, days[0], days[days.length - 1]], [14, "2026-09-07", "2026-09-20"]);
+});
+
+test("saved swaps that are not well formed are dropped", () => {
+  assertEqual(Logic.sanitizeRoutineSwaps({ "2026-10-24": { r1: { 0: "Incline Press", x: "Squat", 1: 5 } }, nope: { r1: { 0: "Squat" } }, "2026-10-25": 3 }), {
+    "2026-10-24": { r1: { 0: "Incline Press" } },
+  });
+  assertEqual(Logic.sanitizeRoutineSwaps(null), {});
+});
+
 // ---------- Warm-up sets ----------
 
 test("warm-up sets ramp up to the working weight with fewer reps, using weights the plates can make", () => {
@@ -1267,13 +1306,47 @@ test("Repeat adds the set to the day shown, and copies the most recent set of th
   const app = await openApp();
   try {
     const date = app.doc.getElementById("date");
-    date.value = "2026-09-05";
+    // A day long before the sample data (which is dated back from today), so nothing else is logged on it.
+    date.value = "2020-01-02";
     date.dispatchEvent(new Event("change", { bubbles: true }));
     logSetInApp(app, "Squat", 200, 5);
     logSetInApp(app, "Squat", 210, 4);
     app.doc.querySelector("#today-list .repeat-set").click();
-    const onThatDay = JSON.parse(localStorage.getItem(app.storage)).entries.filter((entry) => entry.date === "2026-09-05" && entry.exercise === "Squat");
+    const onThatDay = JSON.parse(localStorage.getItem(app.storage)).entries.filter((entry) => entry.date === "2020-01-02" && entry.exercise === "Squat");
     assertEqual(onThatDay.map((entry) => `${entry.weight}x${entry.reps}`), ["200x5", "210x4", "210x4"]);
+  } finally {
+    closeApp(app);
+  }
+});
+
+test("a routine exercise can be swapped for today only, keeps its target, and can be put back", async () => {
+  const app = await openApp();
+  try {
+    const doc = app.doc;
+    const fire = (node, type) => node.dispatchEvent(new Event(type, { bubbles: true }));
+    const routine = doc.getElementById("routine-select");
+    routine.value = "r1";
+    fire(routine, "change");
+    const chips = () => [...doc.querySelectorAll("#routine-checklist .chip")].map((chip) => chip.textContent);
+    const swapRow = doc.getElementById("swap");
+    if (!swapRow.classList.contains("hidden")) throw new Error("the Swap row should wait until an exercise is chosen");
+    doc.querySelector("#routine-checklist .chip").click();
+    if (swapRow.classList.contains("hidden")) throw new Error("choosing a routine exercise should show the Swap row");
+    // Squat is not in the Push routine; it takes over Bench Press's slot and its 3-set target.
+    const choice = doc.getElementById("swap-select");
+    choice.value = "Squat";
+    fire(choice, "change");
+    if (!chips()[0].includes("Squat") || !chips()[0].includes("⇄") || !chips()[0].includes("/3")) throw new Error(`the first chip reads "${chips()[0]}"`);
+    if (doc.getElementById("exercise").value !== "Squat") throw new Error("the form should switch to the new exercise");
+    if (!chips()[1].includes("Overhead Press")) throw new Error("the other chips should not change");
+    const saved = JSON.parse(app.win.localStorage.getItem(app.storage));
+    if (JSON.stringify(Object.values(saved.routineSwaps)[0]) !== '{"r1":{"0":"Squat"}}') throw new Error("the swap should be saved for today");
+    if (JSON.stringify(saved.routines[0].exercises) !== '["Bench Press","Overhead Press"]') throw new Error("the routine itself must not change");
+    // Putting it back.
+    doc.getElementById("swap-undo").click();
+    if (chips()[0].includes("Squat") || !chips()[0].includes("Bench Press")) throw new Error(`after undo the first chip reads "${chips()[0]}"`);
+    if (Object.keys(JSON.parse(app.win.localStorage.getItem(app.storage)).routineSwaps).length !== 0) throw new Error("undoing should leave no swap saved");
+    if (app.errors.length) throw new Error(app.errors.join("; "));
   } finally {
     closeApp(app);
   }

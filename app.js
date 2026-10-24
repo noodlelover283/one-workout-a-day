@@ -30,6 +30,7 @@ function loadState() {
     barWeight: { ...Logic.DEFAULT_BARS },
     exerciseNotes: {},
     barbellExercises: {},
+    routineSwaps: {},
     measurements: [],
     rest: { ...DEFAULT_REST },
     progression: { repGoal: Logic.DEFAULT_REP_GOAL, jumps: { lb: {}, kg: {} } },
@@ -47,6 +48,7 @@ function normalizeState(saved) {
   loaded.barWeight = Logic.sanitizeBarWeights(saved.barWeight);
   loaded.exerciseNotes = Logic.sanitizeExerciseNotes(saved.exerciseNotes);
   loaded.barbellExercises = Logic.sanitizeBarbellExercises(saved.barbellExercises);
+  loaded.routineSwaps = Logic.sanitizeRoutineSwaps(saved.routineSwaps);
   loaded.measurements = Logic.sanitizeMeasurements(saved.measurements);
   loaded.routines = loaded.routines.map((routine) =>
     routine && Array.isArray(routine.exercises) ? { ...routine, targets: Logic.sanitizeTargets(routine.targets, routine.exercises) } : routine
@@ -671,7 +673,10 @@ function setsText(sets) {
 // The target a routine gives an exercise, for the routine currently chosen on the Log tab.
 function activeRoutineTarget(exercise) {
   const routine = state.routines.find((r) => r.id === $("routine-select").value);
-  return routine && routine.targets ? routine.targets[exercise] : undefined;
+  if (!routine || !routine.targets) return undefined;
+  // A swapped-in exercise inherits the target of the exercise it replaced.
+  const slot = routineSlotsFor(routine, $("date").value || today()).find((s) => s.exercise === exercise);
+  return slot ? routine.targets[slot.original] : undefined;
 }
 
 function renderSuggestion() {
@@ -680,6 +685,7 @@ function renderSuggestion() {
   renderDemo(exercise);
   renderExerciseNote(exercise);
   renderPlates();
+  renderSwap();
   if (!exercise) {
     box.classList.add("hidden");
     return;
@@ -805,20 +811,23 @@ function renderRoutineChecklist(todaysEntries) {
   const list = $("routine-checklist");
   if (!routine) {
     list.replaceChildren();
+    renderSwap();
     return;
   }
   const current = resolveExercise($("exercise").value);
-  const timesInRoutine = (exercise) => routine.exercises.filter((e) => e === exercise).length;
+  // The routine as it is today: swapped exercises stand in for the ones they replaced.
+  const slots = routineSlotsFor(routine, $("date").value || today());
+  const timesInRoutine = (exercise) => slots.filter((s) => s.exercise === exercise).length;
   list.replaceChildren(
-    ...routine.exercises.map((exercise, index) => {
-      const progress = Logic.routineProgress(todaysEntries, exercise, routine.targets && routine.targets[exercise]);
+    ...slots.map(({ exercise, original, swapped }, index) => {
+      const progress = Logic.routineProgress(todaysEntries, exercise, routine.targets && routine.targets[original]);
       const done = progress.done;
       const total = timesInRoutine(exercise);
-      const position = routine.exercises.slice(0, index + 1).filter((e) => e === exercise).length;
+      const position = slots.slice(0, index + 1).filter((s) => s.exercise === exercise).length;
       const name =
         total > 1 ? t("routine.repeat", { name: exerciseLabel(exercise), position, total }) : exerciseLabel(exercise);
       const label = progress.goal ? `${name} ${progress.logged}/${progress.goal}` : name;
-      const chip = el("button", "chip", done ? `✓ ${label}` : label);
+      const chip = el("button", swapped ? "chip swapped" : "chip", `${swapped ? "⇄ " : ""}${done ? "✓ " : ""}${label}`);
       chip.type = "button";
       chip.classList.toggle("done", done);
       chip.classList.toggle("selected", exercise === current);
@@ -833,6 +842,74 @@ function renderRoutineChecklist(todaysEntries) {
       return item;
     })
   );
+  renderSwap();
+}
+
+// The routine's exercises for one day, with that day's swaps applied.
+function routineSlotsFor(routine, date) {
+  const overrides = (state.routineSwaps[date] || {})[routine.id];
+  return Logic.routineSlots(routine, overrides, allExerciseNames());
+}
+
+// The routine slot the exercise on the form fills today, or null when no routine is chosen or the
+// exercise is not one of its slots.
+function currentSwapSlot() {
+  const routine = state.routines.find((r) => r.id === $("routine-select").value);
+  const current = resolveExercise($("exercise").value);
+  if (!routine || !current) return null;
+  const date = $("date").value || today();
+  const slot = routineSlotsFor(routine, date).find((s) => s.exercise === current);
+  return slot ? { routine, date, slot } : null;
+}
+
+// The Swap row under the routine chips: swap the chosen routine exercise for another one, today only.
+function renderSwap() {
+  const found = currentSwapSlot();
+  $("swap").classList.toggle("hidden", !found);
+  if (!found) return;
+  const { slot } = found;
+  $("swap-summary").textContent = t("swap.summary", { name: exerciseLabel(slot.exercise) });
+  // Exercises of the same muscle group come first, then the rest.
+  const group = muscleOf(slot.exercise);
+  const others = allExerciseNames().filter((name) => name !== slot.exercise);
+  const optgroup = (label, names) => {
+    const node = el("optgroup");
+    node.label = label;
+    node.append(...names.map((name) => option(name, exerciseLabel(name))));
+    return node;
+  };
+  const sameGroup = others.filter((name) => muscleOf(name) === group);
+  const rest = others.filter((name) => muscleOf(name) !== group);
+  $("swap-select").replaceChildren(
+    option("", t("swap.choose")),
+    ...(sameGroup.length ? [optgroup(muscleLabel(group), sameGroup)] : []),
+    ...(rest.length ? [optgroup(t("swap.others"), rest)] : [])
+  );
+  $("swap-undo").classList.toggle("hidden", !slot.swapped);
+  $("swap-undo").textContent = t("swap.undo", { name: exerciseLabel(slot.original) });
+}
+
+function onSwapChosen() {
+  const found = currentSwapSlot();
+  const chosen = $("swap-select").value;
+  if (!found || !chosen) return;
+  const { routine, date, slot } = found;
+  state.routineSwaps = Logic.setRoutineSwap(state.routineSwaps, date, routine.id, slot.index, chosen === slot.original ? null : chosen);
+  saveState();
+  $("swap").open = false;
+  showToast(t("toast.swapped", { from: exerciseLabel(slot.exercise), to: exerciseLabel(chosen) }));
+  pickRoutineExercise(chosen);
+}
+
+function onSwapUndo() {
+  const found = currentSwapSlot();
+  if (!found || !found.slot.swapped) return;
+  const { routine, date, slot } = found;
+  state.routineSwaps = Logic.setRoutineSwap(state.routineSwaps, date, routine.id, slot.index, null);
+  saveState();
+  $("swap").open = false;
+  showToast(t("toast.swapUndone", { name: exerciseLabel(slot.original) }));
+  pickRoutineExercise(slot.original);
 }
 
 // Fills the form with an exercise and, if it has been done before, last time's weight and reps.
@@ -1799,6 +1876,8 @@ function init() {
     renderSuggestion();
   });
   $("use-suggestion").addEventListener("click", onUseSuggestion);
+  $("swap-select").addEventListener("change", onSwapChosen);
+  $("swap-undo").addEventListener("click", onSwapUndo);
   $("rep-goal").addEventListener("change", onRepGoalChange);
   $("routine-form").addEventListener("submit", onRoutineSubmit);
   $("routine-add-exercise").addEventListener("click", addDraftExercise);

@@ -12,7 +12,7 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="theme-color" content="#f5f6f8" media="(prefers-color-scheme: light)">
   <meta name="theme-color" content="#12161c" media="(prefers-color-scheme: dark)">
-  <link rel="stylesheet" href="style.css?v=a4ac9d1a46">
+  <link rel="stylesheet" href="style.css?v=059871d15d">
 </head>
 <body>
   <p id="offline-banner" class="offline-banner hidden" role="status" data-i18n="offline.notice">You're offline. Everything still works, and your data is saved on this device.</p>
@@ -71,6 +71,13 @@
         <select id="routine-select"></select>
         <p id="routine-hint" class="hint hidden" data-i18n="routine.hint">Create routines on the Routines tab to start a workout with one tap.</p>
         <ul id="routine-checklist" class="chip-list"></ul>
+        <details id="swap" class="slim-fold hidden">
+          <summary id="swap-summary" data-i18n="swap.title">Swap this exercise</summary>
+          <label for="swap-select" data-i18n="swap.label">Do this instead today</label>
+          <select id="swap-select"></select>
+          <button type="button" id="swap-undo" class="secondary hidden"></button>
+          <p class="hint" data-i18n="swap.hint">Only for today. The routine itself does not change.</p>
+        </details>
       </div>
       <form id="log-form" novalidate>
         <label for="exercise" data-i18n="log.exercise">Exercise</label>
@@ -296,16 +303,16 @@
     <button id="nav-progress" data-tab="progress" data-i18n="tab.progress">Progress</button>
   </nav>
 
-  <script src="i18n.js?v=a4ac9d1a46"></script>
-  <script src="lang-en.js?v=a4ac9d1a46"></script>
-  <script src="lang-es.js?v=a4ac9d1a46"></script>
-  <script src="lang-zh.js?v=a4ac9d1a46"></script>
-  <script src="lang-hi.js?v=a4ac9d1a46"></script>
-  <script src="lang-ar.js?v=a4ac9d1a46"></script>
-  <script src="lang-fr.js?v=a4ac9d1a46"></script>
-  <script src="lang-pt.js?v=a4ac9d1a46"></script>
-  <script src="lang-ru.js?v=a4ac9d1a46"></script>
-  <script src="logic.js?v=a4ac9d1a46"></script>
-  <script src="app.js?v=a4ac9d1a46"></script>
+  <script src="i18n.js?v=059871d15d"></script>
+  <script src="lang-en.js?v=059871d15d"></script>
+  <script src="lang-es.js?v=059871d15d"></script>
+  <script src="lang-zh.js?v=059871d15d"></script>
+  <script src="lang-hi.js?v=059871d15d"></script>
+  <script src="lang-ar.js?v=059871d15d"></script>
+  <script src="lang-fr.js?v=059871d15d"></script>
+  <script src="lang-pt.js?v=059871d15d"></script>
+  <script src="lang-ru.js?v=059871d15d"></script>
+  <script src="logic.js?v=059871d15d"></script>
+  <script src="app.js?v=059871d15d"></script>
 </body>
 </html>

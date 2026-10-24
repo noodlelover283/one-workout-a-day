@@ -223,6 +223,8 @@ button.link { min-height: 44px; border: none; background: none; color: var(--acc
 .chip { padding: 0 14px; border-radius: 999px; font-weight: 600; }
 .chip.done { background: var(--good-bg); border-color: var(--good); color: var(--good); }
 .chip.selected { outline: 3px solid var(--accent); }
+.chip.swapped { border-style: dashed; }
+#swap-undo { margin-top: 8px; }
 
 .routine-card { margin-bottom: 8px; padding: 10px 12px; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; }
 .routine-card p { margin: 4px 0 0; color: var(--muted); font-size: 0.9rem; }

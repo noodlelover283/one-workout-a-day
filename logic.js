@@ -173,6 +173,55 @@ const Logic = (() => {
     return { logged, goal: target ? target.sets : null, done: target ? logged >= target.sets : logged > 0 };
   }
 
+  // A swap replaces one exercise of a routine for a single day without changing the routine:
+  // routineSwaps is { "2026-10-24": { routineId: { "0": "Incline Press" } } }, keyed by the exercise's
+  // position in the routine so an exercise that appears twice can be swapped on one of its turns.
+  const SWAP_DAYS_KEPT = 14;
+
+  // The routine's exercises for one day, with swaps applied. `dayOverrides` is that day's swaps for
+  // this routine ({ "0": "Incline Press" }); a swap to an exercise that is not in `known` is ignored.
+  // Each slot keeps its `original`, which still decides the slot's target sets and reps.
+  function routineSlots(routine, dayOverrides, known) {
+    return routine.exercises.map((original, index) => {
+      const swap = dayOverrides && dayOverrides[index];
+      const exercise = swap && known.includes(swap) ? swap : original;
+      return { index, original, exercise, swapped: exercise !== original };
+    });
+  }
+
+  // A copy of routineSwaps with one swap set, or removed when `exercise` is null. Only the most recent
+  // days are kept, so old swaps do not pile up.
+  function setRoutineSwap(swaps, date, routineId, index, exercise) {
+    const next = {};
+    for (const [day, routines] of Object.entries(swaps || {})) next[day] = { ...routines };
+    const day = next[date] || (next[date] = {});
+    const forRoutine = { ...day[routineId] };
+    if (exercise === null) delete forRoutine[index];
+    else forRoutine[index] = exercise;
+    if (Object.keys(forRoutine).length > 0) day[routineId] = forRoutine;
+    else delete day[routineId];
+    if (Object.keys(day).length === 0) delete next[date];
+    for (const old of Object.keys(next).sort().slice(0, -SWAP_DAYS_KEPT)) delete next[old];
+    return next;
+  }
+
+  // Keeps only well-formed saved swaps: date -> routine id -> position -> exercise name.
+  function sanitizeRoutineSwaps(saved) {
+    const clean = {};
+    if (!saved || typeof saved !== "object") return clean;
+    for (const [date, routines] of Object.entries(saved)) {
+      if (!DATE_PATTERN.test(date) || !routines || typeof routines !== "object") continue;
+      for (const [routineId, positions] of Object.entries(routines)) {
+        if (!positions || typeof positions !== "object") continue;
+        for (const [index, exercise] of Object.entries(positions)) {
+          if (!/^\d+$/.test(index) || typeof exercise !== "string" || !normalizeName(exercise)) continue;
+          ((clean[date] = clean[date] || {})[routineId] = clean[date][routineId] || {})[index] = exercise;
+        }
+      }
+    }
+    return clean;
+  }
+
   // Renaming a custom exercise (and optionally changing its muscle group) has to update everything
   // that uses the name. If the new name is another exercise that already exists (a typo fixed into a
   // real name, say), the two are merged: the sets move over and the existing exercise keeps its group.
@@ -901,6 +950,9 @@ const Logic = (() => {
     parseTargets,
     sanitizeTargets,
     routineProgress,
+    routineSlots,
+    setRoutineSwap,
+    sanitizeRoutineSwaps,
     renameExercise,
     deleteExercise,
     exerciseUsage,
