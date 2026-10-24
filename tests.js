@@ -606,6 +606,65 @@ test("weekly volume follows where the week starts, and an empty log gives no gro
   assertEqual(Logic.weeklyVolume([], muscleOf, "2026-10-14", 1).groups, []);
 });
 
+// ---------- Merging a backup ----------
+
+const emptyData = () => ({
+  entries: [], bodyweights: [], measurements: [], routines: [], notes: {}, customExercises: {}, exerciseNotes: {},
+  barbellExercises: {}, routineSwaps: {}, unit: "lb", language: "en",
+});
+const setWithId = (id, date = "2026-10-01") => ({ id, date, exercise: "Bench Press", weight: 135, reps: 8 });
+
+test("merging adds the sets this device lacks and keeps the ones it has", () => {
+  const mine = { ...emptyData(), entries: [setWithId("1"), setWithId("2")] };
+  const theirs = { ...emptyData(), entries: [setWithId("2"), setWithId("3")] };
+  const merged = Logic.mergeBackup(mine, theirs);
+  assertEqual([merged.data.entries.map((e) => e.id), merged.counts.sets], [["1", "2", "3"], 1]);
+});
+
+test("merging the same backup twice changes nothing the second time", () => {
+  const mine = { ...emptyData(), notes: { "2026-10-01": "Felt strong" } };
+  const theirs = {
+    ...emptyData(),
+    entries: [setWithId("3")], bodyweights: [{ date: "2026-10-01", weight: 180 }],
+    measurements: [{ date: "2026-10-01", name: "Waist", cm: 80 }],
+    routines: [{ id: "r1", name: "Push", exercises: ["Bench Press"] }],
+    notes: { "2026-10-01": "Slept badly" }, customExercises: { Wrist: "Arms" }, exerciseNotes: { Squat: "Seat at 3" },
+  };
+  const once = Logic.mergeBackup(mine, theirs);
+  assertEqual(once.counts, { sets: 1, bodyweights: 1, measurements: 1, routines: 1, notes: 1, exercises: 1 });
+  const twice = Logic.mergeBackup(once.data, theirs);
+  assertEqual(twice.counts, { sets: 0, bodyweights: 0, measurements: 0, routines: 0, notes: 0, exercises: 0 });
+  assertEqual(twice.data, once.data);
+});
+
+test("on a clash this device wins, and notes for the same day are kept together", () => {
+  const mine = {
+    ...emptyData(),
+    bodyweights: [{ date: "2026-10-01", weight: 180 }],
+    measurements: [{ date: "2026-10-01", name: "Waist", cm: 80 }],
+    routines: [{ id: "r1", name: "Push (mine)", exercises: ["Bench Press"] }],
+    customExercises: { Wrist: "Arms" }, notes: { "2026-10-01": "Felt strong" }, unit: "kg", language: "fr",
+  };
+  const theirs = {
+    ...emptyData(),
+    bodyweights: [{ date: "2026-10-01", weight: 200 }],
+    measurements: [{ date: "2026-10-01", name: "Waist", cm: 90 }],
+    routines: [{ id: "r1", name: "Push (theirs)", exercises: ["Squat"] }],
+    customExercises: { Wrist: "Chest" }, notes: { "2026-10-01": "Slept badly" }, unit: "lb", language: "en",
+  };
+  const { data } = Logic.mergeBackup(mine, theirs);
+  assertEqual([data.bodyweights[0].weight, data.measurements[0].cm, data.routines[0].name, data.customExercises.Wrist], [180, 80, "Push (mine)", "Arms"]);
+  assertEqual([data.unit, data.language], ["kg", "fr"]);
+  assertEqual(data.notes["2026-10-01"], "Felt strong\nSlept badly");
+});
+
+test("merging brings in swaps, barbell marks and exercise notes this device does not have", () => {
+  const mine = { ...emptyData(), barbellExercises: { Wrist: true } };
+  const theirs = { ...emptyData(), barbellExercises: { Rack: true }, routineSwaps: { "2026-10-01": { r1: { 0: "Squat" } } }, exerciseNotes: { Squat: "Low bar" } };
+  const { data } = Logic.mergeBackup(mine, theirs);
+  assertEqual([data.barbellExercises, data.routineSwaps, data.exerciseNotes], [{ Rack: true, Wrist: true }, theirs.routineSwaps, { Squat: "Low bar" }]);
+});
+
 // ---------- Left and right measurements ----------
 
 test("the old Upper arm and Thigh measurements are only offered while they have readings", () => {
@@ -1345,6 +1404,44 @@ test("Repeat adds the set to the day shown, and copies the most recent set of th
     app.doc.querySelector("#today-list .repeat-set").click();
     const onThatDay = JSON.parse(localStorage.getItem(app.storage)).entries.filter((entry) => entry.date === "2020-01-02" && entry.exercise === "Squat");
     assertEqual(onThatDay.map((entry) => `${entry.weight}x${entry.reps}`), ["200x5", "210x4", "210x4"]);
+  } finally {
+    closeApp(app);
+  }
+});
+
+test("choosing a backup file offers Merge, which adds only what is new and does nothing the second time", async () => {
+  const app = await openApp();
+  try {
+    const doc = app.doc;
+    showTab(app, "history");
+    const saved = () => JSON.parse(app.win.localStorage.getItem(app.storage));
+    const before = saved();
+    const backup = Logic.makeBackup({ ...before, entries: [...before.entries, { id: "from-phone", date: "2026-10-02", exercise: "Squat", weight: 225, reps: 5 }] }, "2026-10-03T08:00:00.000Z");
+    const chooseFile = async () => {
+      const files = new app.win.DataTransfer();
+      files.items.add(new app.win.File([JSON.stringify(backup)], "backup.json", { type: "application/json" }));
+      const input = doc.getElementById("backup-file");
+      input.files = files.files;
+      input.dispatchEvent(new Event("change", { bubbles: true }));
+      // Reading the file takes a moment; wait for the panel to appear instead of guessing how long.
+      for (let waited = 0; waited < 3000 && doc.getElementById("backup-merge").classList.contains("hidden"); waited += 50) {
+        await new Promise((resolve) => setTimeout(resolve, 50));
+      }
+    };
+    await chooseFile();
+    const panel = doc.getElementById("backup-merge");
+    if (panel.classList.contains("hidden")) throw new Error("choosing a backup should show the Merge panel");
+    if (!doc.getElementById("backup-merge-counts").textContent.includes("New sets: 1")) throw new Error(`the panel reads "${doc.getElementById("backup-merge-counts").textContent}"`);
+    doc.getElementById("backup-merge-go").click();
+    const after = saved();
+    if (after.entries.length !== before.entries.length + 1) throw new Error("merging should add exactly the one new set");
+    if (!panel.classList.contains("hidden")) throw new Error("the panel should close after merging");
+    await chooseFile();
+    if (!doc.getElementById("backup-merge-go").disabled) throw new Error("with nothing new, Merge should be disabled");
+    if (!doc.getElementById("backup-merge-summary").textContent.includes("already here")) throw new Error("the panel should say everything is already here");
+    doc.getElementById("backup-merge-cancel").click();
+    if (!panel.classList.contains("hidden") || saved().entries.length !== after.entries.length) throw new Error("Cancel should change nothing");
+    if (app.errors.length) throw new Error(app.errors.join("; "));
   } finally {
     closeApp(app);
   }

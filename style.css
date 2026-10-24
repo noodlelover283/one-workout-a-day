@@ -112,6 +112,9 @@ textarea { min-height: 80px; resize: vertical; }
 .level-meter span { flex: 1; height: 8px; border-radius: 4px; background: var(--border); }
 .level-meter span.reached { background: var(--accent); }
 #records-list { margin-top: 12px; }
+.backup-merge { margin-top: 12px; padding: 12px; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; }
+.backup-merge button { display: block; width: 100%; margin-top: 8px; }
+.merge-counts { margin: 8px 0; padding-inline-start: 20px; }
 .warmup-list { list-style: none; margin: 0; padding: 0; }
 .warmup-row { display: flex; justify-content: space-between; align-items: center; gap: 8px; min-height: 48px; }
 .warmup-row span { flex: 1; min-width: 0; }
@@ -333,6 +336,7 @@ details[open] > :not(summary) { animation: fold-in 0.2s ease-out; }
 .toast.record.show { animation: pop 0.45s ease-out; }
 button { transition: scale 0.08s; }
 button:active:not(:disabled) { scale: 0.97; }
+button:disabled { opacity: 0.5; cursor: not-allowed; }
 
 @keyframes tab-in { from { opacity: 0; transform: translateY(6px); } }
 @keyframes fold-in { from { opacity: 0; transform: translateY(-6px); } }

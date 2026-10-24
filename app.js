@@ -1376,10 +1376,51 @@ async function onBackupFileChosen(event) {
   }
   $("backup-error").textContent = "";
   const date = result.exportedAt ? I18n.formatDate(Logic.toDateString(new Date(result.exportedAt))) : "?";
+  pendingBackup = { restored, date, merge: Logic.mergeBackup(state, restored) };
+  renderBackupChoice();
+}
+
+// The backup that was just chosen, waiting for Merge, Replace everything or Cancel.
+let pendingBackup = null;
+
+const BACKUP_COUNT_ORDER = ["sets", "bodyweights", "measurements", "routines", "notes", "exercises"];
+
+// Shows what the chosen backup would add to this browser, with the three choices.
+function renderBackupChoice() {
+  const panel = $("backup-merge");
+  panel.classList.toggle("hidden", !pendingBackup);
+  if (!pendingBackup) return;
+  const { date, merge } = pendingBackup;
+  const total = BACKUP_COUNT_ORDER.reduce((sum, key) => sum + merge.counts[key], 0);
+  $("backup-merge-summary").textContent = t(total === 0 ? "backup.mergeNothing" : "backup.mergeSummary", { date });
+  $("backup-merge-counts").replaceChildren(
+    ...(total === 0 ? [] : BACKUP_COUNT_ORDER.map((key) => el("li", "", `${t(`backup.new.${key}`)}: ${merge.counts[key]}`)))
+  );
+  $("backup-merge-go").disabled = total === 0;
+}
+
+function closeBackupChoice() {
+  pendingBackup = null;
+  renderBackupChoice();
+}
+
+function onBackupMerge() {
+  if (!pendingBackup) return;
+  state = pendingBackup.merge.data;
+  saveState();
+  closeBackupChoice();
+  applyLanguage();
+  showToast(t("toast.backupMerged"));
+}
+
+function onBackupReplace() {
+  if (!pendingBackup) return;
+  const { restored, date } = pendingBackup;
   if (!window.confirm(t("backup.confirm", { date, count: restored.entries.length }))) return;
   state = restored;
   I18n.setLanguage(state.language);
   saveState();
+  closeBackupChoice();
   applyAppearance();
   renderRestSettings();
   applyLanguage();
@@ -1894,6 +1935,9 @@ function init() {
     renderSuggestion();
   });
   $("use-suggestion").addEventListener("click", onUseSuggestion);
+  $("backup-merge-go").addEventListener("click", onBackupMerge);
+  $("backup-replace-go").addEventListener("click", onBackupReplace);
+  $("backup-merge-cancel").addEventListener("click", closeBackupChoice);
   $("swap-select").addEventListener("change", onSwapChosen);
   $("swap-undo").addEventListener("click", onSwapUndo);
   $("rep-goal").addEventListener("change", onRepGoalChange);

@@ -927,7 +927,84 @@ const Logic = (() => {
     return { data: backup.data, exportedAt: backup.exportedAt };
   }
 
+  // Joins two notes for the same day, unless the first already contains the second (so merging the
+  // same backup again changes nothing). Kept within the usual length limit.
+  function joinNotes(mine, theirs) {
+    if (mine.includes(theirs)) return mine;
+    return `${mine}\n${theirs}`.slice(0, NOTE_MAX_LENGTH);
+  }
+
+  // Merges a backup (`theirs`) into the data on this device (`mine`), both already cleaned up as saved
+  // data. Everything on this device stays, and anything it lacks is added. Where both have something for
+  // the same thing (a bodyweight or measurement on one day, a routine, a custom exercise's group), this
+  // device wins; notes for the same day are joined. Settings always stay as they are here.
+  // Returns { data, counts } where counts is how much was added: sets, bodyweights, measurements,
+  // routines, notes (added or joined) and exercises (custom ones). A set deleted on this device comes
+  // back if the backup still has it, since a backup does not record deletions.
+  function mergeBackup(mine, theirs) {
+    const have = (items, same) => (item) => items.some((existing) => same(existing, item));
+    const addedBy = (mineItems, theirItems, same) => theirItems.filter((item) => !have(mineItems, same)(item));
+
+    const mySetIds = new Set(mine.entries.map((entry) => entry.id));
+    const newSets = theirs.entries.filter((entry) => !mySetIds.has(entry.id));
+    const newBodyweights = addedBy(mine.bodyweights, theirs.bodyweights, (a, b) => a.date === b.date);
+    const newMeasurements = addedBy(mine.measurements, theirs.measurements, (a, b) => a.date === b.date && a.name === b.name);
+    const newRoutines = addedBy(mine.routines, theirs.routines, (a, b) => a.id === b.id);
+
+    const notes = { ...mine.notes };
+    let notesChanged = 0;
+    for (const [date, text] of Object.entries(theirs.notes)) {
+      const joined = notes[date] === undefined ? text : joinNotes(notes[date], text);
+      if (joined !== notes[date]) {
+        notes[date] = joined;
+        notesChanged += 1;
+      }
+    }
+
+    const missingKeys = (mineMap, theirMap) => Object.keys(theirMap).filter((key) => !(key in mineMap));
+    const newExercises = missingKeys(mine.customExercises, theirs.customExercises);
+    const customExercises = { ...mine.customExercises };
+    for (const name of newExercises) customExercises[name] = theirs.customExercises[name];
+    const exerciseNotes = { ...mine.exerciseNotes };
+    for (const name of missingKeys(mine.exerciseNotes, theirs.exerciseNotes)) exerciseNotes[name] = theirs.exerciseNotes[name];
+
+    let routineSwaps = mine.routineSwaps;
+    for (const [date, routines] of Object.entries(theirs.routineSwaps)) {
+      for (const [routineId, positions] of Object.entries(routines)) {
+        for (const [index, exercise] of Object.entries(positions)) {
+          if (!(((routineSwaps[date] || {})[routineId] || {})[index] !== undefined)) {
+            routineSwaps = setRoutineSwap(routineSwaps, date, routineId, index, exercise);
+          }
+        }
+      }
+    }
+
+    return {
+      data: {
+        ...mine,
+        entries: [...mine.entries, ...newSets],
+        bodyweights: [...mine.bodyweights, ...newBodyweights],
+        measurements: [...mine.measurements, ...newMeasurements],
+        routines: [...mine.routines, ...newRoutines],
+        notes,
+        customExercises,
+        exerciseNotes,
+        barbellExercises: { ...theirs.barbellExercises, ...mine.barbellExercises },
+        routineSwaps,
+      },
+      counts: {
+        sets: newSets.length,
+        bodyweights: newBodyweights.length,
+        measurements: newMeasurements.length,
+        routines: newRoutines.length,
+        notes: notesChanged,
+        exercises: newExercises.length,
+      },
+    };
+  }
+
   return {
+    mergeBackup,
     offlineStatus,
     BARBELL_EXERCISES,
     usesBarbell,

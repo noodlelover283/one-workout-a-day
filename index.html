@@ -12,7 +12,7 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="theme-color" content="#f5f6f8" media="(prefers-color-scheme: light)">
   <meta name="theme-color" content="#12161c" media="(prefers-color-scheme: dark)">
-  <link rel="stylesheet" href="style.css?v=a1c6de2069">
+  <link rel="stylesheet" href="style.css?v=0159b2ee23">
 </head>
 <body>
   <p id="offline-banner" class="offline-banner hidden" role="status" data-i18n="offline.notice">You're offline. Everything still works, and your data is saved on this device.</p>
@@ -219,6 +219,14 @@
         <label for="backup-file" data-i18n="backup.restore">Restore from a backup file</label>
         <input id="backup-file" type="file" accept=".json,application/json">
         <p id="backup-error" class="error" role="alert"></p>
+        <div id="backup-merge" class="backup-merge hidden">
+          <p id="backup-merge-summary"></p>
+          <ul id="backup-merge-counts" class="merge-counts"></ul>
+          <p class="hint" data-i18n="backup.mergeHint">Merging keeps everything on this device and adds what is missing. If both have something for the same day or item, this device's version stays. A set you deleted here comes back if the backup still has it.</p>
+          <button type="button" id="backup-merge-go" class="primary" data-i18n="backup.merge">Merge</button>
+          <button type="button" id="backup-replace-go" class="secondary" data-i18n="backup.replace">Replace everything</button>
+          <button type="button" id="backup-merge-cancel" class="secondary" data-i18n="backup.cancel">Cancel</button>
+        </div>
       </details>
     </section>
 
@@ -304,16 +312,16 @@
     <button id="nav-progress" data-tab="progress" data-i18n="tab.progress">Progress</button>
   </nav>
 
-  <script src="i18n.js?v=a1c6de2069"></script>
-  <script src="lang-en.js?v=a1c6de2069"></script>
-  <script src="lang-es.js?v=a1c6de2069"></script>
-  <script src="lang-zh.js?v=a1c6de2069"></script>
-  <script src="lang-hi.js?v=a1c6de2069"></script>
-  <script src="lang-ar.js?v=a1c6de2069"></script>
-  <script src="lang-fr.js?v=a1c6de2069"></script>
-  <script src="lang-pt.js?v=a1c6de2069"></script>
-  <script src="lang-ru.js?v=a1c6de2069"></script>
-  <script src="logic.js?v=a1c6de2069"></script>
-  <script src="app.js?v=a1c6de2069"></script>
+  <script src="i18n.js?v=0159b2ee23"></script>
+  <script src="lang-en.js?v=0159b2ee23"></script>
+  <script src="lang-es.js?v=0159b2ee23"></script>
+  <script src="lang-zh.js?v=0159b2ee23"></script>
+  <script src="lang-hi.js?v=0159b2ee23"></script>
+  <script src="lang-ar.js?v=0159b2ee23"></script>
+  <script src="lang-fr.js?v=0159b2ee23"></script>
+  <script src="lang-pt.js?v=0159b2ee23"></script>
+  <script src="lang-ru.js?v=0159b2ee23"></script>
+  <script src="logic.js?v=0159b2ee23"></script>
+  <script src="app.js?v=0159b2ee23"></script>
 </body>
 </html>
