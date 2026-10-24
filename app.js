@@ -1620,11 +1620,28 @@ function onStrengthSexChange() {
   renderStrength();
 }
 
+// A measurement's name for the screen. The older ones with no side say so, next to the new left and right ones.
+function measureLabel(name) {
+  const label = t(`measure.${name}`);
+  return Logic.UNSIDED_MEASUREMENTS.includes(name) ? t("measure.noSide", { name: label }) : label;
+}
+
+// "Latest readings: the right side is 0.5 in bigger than the left." for a left or right measurement
+// whose other side also has a reading; empty otherwise.
+function leftRightText(name) {
+  const gap = Logic.leftRightGap(state.measurements, name);
+  if (!gap) return "";
+  const size = Logic.formatLength(gap.cm, state.unit);
+  if (gap.bigger === "same" || Number(size) === 0) return t("measure.compareSame");
+  return t(gap.bigger === "right" ? "measure.compareRight" : "measure.compareLeft", { size, unit: Logic.lengthUnitFor(state.unit) });
+}
+
 function renderMeasurementChart() {
   const select = $("measure-name");
   const previous = select.value;
-  select.replaceChildren(...Logic.MEASUREMENTS.map((name) => option(name, t(`measure.${name}`))));
-  if (Logic.MEASUREMENTS.includes(previous)) select.value = previous;
+  const choices = Logic.measurementChoices(state.measurements);
+  select.replaceChildren(...choices.map((name) => option(name, measureLabel(name))));
+  if (choices.includes(previous)) select.value = previous;
   const unit = Logic.lengthUnitFor(state.unit);
   $("measure-value").placeholder = t("measure.placeholder", { unit });
   const series = Logic.measurementSeries(state.measurements, select.value).map((point) => ({
@@ -1632,8 +1649,9 @@ function renderMeasurementChart() {
     value: Number(Logic.formatLength(point.value, state.unit)),
   }));
   $("measure-chart").replaceChildren(
-    series.length === 0 ? el("p", "empty", t("measure.none", { name: t(`measure.${select.value}`) })) : lineChart(series, unit),
+    series.length === 0 ? el("p", "empty", t("measure.none", { name: measureLabel(select.value) })) : lineChart(series, unit),
   );
+  $("measure-compare").textContent = leftRightText(select.value);
 }
 
 function onMeasurementSubmit(event) {
@@ -1647,7 +1665,7 @@ function onMeasurementSubmit(event) {
   saveState();
   $("measure-value").value = "";
   renderMeasurementChart();
-  showToast(t("toast.measurementSaved", { name: t(`measure.${name}`) }));
+  showToast(t("toast.measurementSaved", { name: measureLabel(name) }));
 }
 
 function lineChart(series, unit = state.unit) {

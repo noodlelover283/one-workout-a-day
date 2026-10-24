@@ -606,6 +606,37 @@ test("weekly volume follows where the week starts, and an empty log gives no gro
   assertEqual(Logic.weeklyVolume([], muscleOf, "2026-10-14", 1).groups, []);
 });
 
+// ---------- Left and right measurements ----------
+
+test("the old Upper arm and Thigh measurements are only offered while they have readings", () => {
+  const none = Logic.measurementChoices([{ date: "2026-10-01", name: "Waist", cm: 80 }]);
+  assertEqual([none.includes("Arm"), none.includes("Thigh"), none.includes("LeftArm"), none.includes("RightCalf"), none.includes("Shoulders")], [false, false, true, true, true]);
+  const kept = Logic.measurementChoices([{ date: "2026-10-01", name: "Arm", cm: 33 }]);
+  assertEqual([kept.includes("Arm"), kept.includes("Thigh")], [true, false]);
+});
+
+test("left and right readings are compared using each side's latest reading", () => {
+  const readings = [
+    { date: "2026-09-01", name: "LeftArm", cm: 30 }, { date: "2026-10-01", name: "LeftArm", cm: 33 },
+    { date: "2026-10-02", name: "RightArm", cm: 34.5 },
+  ];
+  assertEqual(Logic.leftRightGap(readings, "LeftArm"), { bigger: "right", cm: 1.5 });
+  assertEqual(Logic.leftRightGap(readings, "RightArm"), { bigger: "right", cm: 1.5 });
+  assertEqual(Logic.leftRightGap([...readings, { date: "2026-10-03", name: "RightArm", cm: 32 }], "LeftArm"), { bigger: "left", cm: 1 });
+  assertEqual(Logic.leftRightGap([{ date: "2026-10-03", name: "LeftCalf", cm: 38 }, { date: "2026-10-03", name: "RightCalf", cm: 38 }], "RightCalf"), { bigger: "same", cm: 0 });
+});
+
+test("there is no left and right comparison until both sides have a reading, or for a measurement with no sides", () => {
+  assertEqual(Logic.leftRightGap([{ date: "2026-10-01", name: "LeftArm", cm: 33 }], "LeftArm"), null);
+  assertEqual(Logic.leftRightGap([{ date: "2026-10-01", name: "Waist", cm: 80 }], "Waist"), null);
+  assertEqual(Logic.leftRightGap([{ date: "2026-10-01", name: "Arm", cm: 33 }], "Arm"), null);
+});
+
+test("saved readings for the new measurements are kept, and unknown names are dropped", () => {
+  const saved = [{ date: "2026-10-01", name: "RightThigh", cm: 60 }, { date: "2026-10-01", name: "Elbow", cm: 30 }, { date: "2026-10-01", name: "Arm", cm: 33 }];
+  assertEqual(Logic.sanitizeMeasurements(saved).map((m) => m.name), ["RightThigh", "Arm"]);
+});
+
 // ---------- Swapping a routine exercise for one day ----------
 
 const pushRoutine = { id: "r1", exercises: ["Bench Press", "Overhead Press", "Bench Press"] };
@@ -1314,6 +1345,31 @@ test("Repeat adds the set to the day shown, and copies the most recent set of th
     app.doc.querySelector("#today-list .repeat-set").click();
     const onThatDay = JSON.parse(localStorage.getItem(app.storage)).entries.filter((entry) => entry.date === "2020-01-02" && entry.exercise === "Squat");
     assertEqual(onThatDay.map((entry) => `${entry.weight}x${entry.reps}`), ["200x5", "210x4", "210x4"]);
+  } finally {
+    closeApp(app);
+  }
+});
+
+test("measuring the left and right sides shows how they compare", async () => {
+  const app = await openApp();
+  try {
+    const tab = showTab(app, "progress");
+    const doc = app.doc;
+    const picker = doc.getElementById("measure-name");
+    if ([...picker.options].some((option) => option.value === "Arm")) throw new Error("the old Upper arm should not be offered without readings");
+    const add = (name, value) => {
+      picker.value = name;
+      picker.dispatchEvent(new Event("change", { bubbles: true }));
+      doc.getElementById("measure-value").value = value;
+      doc.getElementById("measure-form").dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
+    };
+    add("LeftArm", "13");
+    if (doc.getElementById("measure-compare").textContent !== "") throw new Error("one side alone should not show a comparison");
+    add("RightArm", "13.5");
+    const text = doc.getElementById("measure-compare").textContent;
+    if (!text.includes("right side is 0.5 in bigger")) throw new Error(`the comparison reads "${text}"`);
+    if (!tab.querySelector("#measure-chart")) throw new Error("the chart is missing");
+    if (app.errors.length) throw new Error(app.errors.join("; "));
   } finally {
     closeApp(app);
   }

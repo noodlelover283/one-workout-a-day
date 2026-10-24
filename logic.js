@@ -803,7 +803,14 @@ const Logic = (() => {
   }
 
   // Body measurements are stored in centimetres: [{ date, name, cm }], one per day and name.
-  const MEASUREMENTS = ["Neck", "Chest", "Waist", "Hips", "Arm", "Thigh"];
+  const MEASUREMENTS = [
+    "Neck", "Shoulders", "Chest", "Waist", "Hips",
+    "LeftArm", "RightArm", "LeftForearm", "RightForearm", "LeftThigh", "RightThigh", "LeftCalf", "RightCalf",
+    "Arm", "Thigh",
+  ];
+  // "Arm" and "Thigh" are the first versions of these, from before they had a left and a right side. They
+  // stay so that old readings keep their history, but are only offered while they have readings.
+  const UNSIDED_MEASUREMENTS = ["Arm", "Thigh"];
   const CM_PER_INCH = 2.54;
   const MAX_MEASUREMENT_CM = 300;
 
@@ -824,6 +831,33 @@ const Logic = (() => {
   // A copy of the measurements with this one added, replacing any for the same day and name.
   function setMeasurement(measurements, { date, name, cm }) {
     return [...measurements.filter((m) => !(m.date === date && m.name === name)), { date, name, cm }];
+  }
+
+  // The measurements to offer in the list: all of them, except an unsided one nobody has a reading for.
+  function measurementChoices(measurements) {
+    return MEASUREMENTS.filter((name) => !UNSIDED_MEASUREMENTS.includes(name) || measurements.some((m) => m.name === name));
+  }
+
+  // The other side of a "LeftArm" or "RightArm" style measurement, or null for one with no sides.
+  function otherSide(name) {
+    if (name.startsWith("Left")) return `Right${name.slice(4)}`;
+    if (name.startsWith("Right")) return `Left${name.slice(5)}`;
+    return null;
+  }
+
+  // How the latest left and right readings of a pair compare, in cm: { bigger: "left" | "right" | "same",
+  // cm }. Null if the measurement has no sides or either side has no reading yet.
+  function leftRightGap(measurements, name) {
+    const other = otherSide(name);
+    if (!other || !MEASUREMENTS.includes(other)) return null;
+    const latest = (side) => measurementSeries(measurements, side).pop();
+    const mine = latest(name);
+    const theirs = latest(other);
+    if (!mine || !theirs) return null;
+    const left = name.startsWith("Left") ? mine.value : theirs.value;
+    const right = name.startsWith("Left") ? theirs.value : mine.value;
+    const cm = Math.abs(right - left);
+    return { bigger: cm === 0 ? "same" : right > left ? "right" : "left", cm };
   }
 
   // One measurement over time, oldest first.
@@ -915,6 +949,9 @@ const Logic = (() => {
     strengthLevel,
     latestBodyweight,
     MEASUREMENTS,
+    UNSIDED_MEASUREMENTS,
+    measurementChoices,
+    leftRightGap,
     lengthUnitFor,
     lengthToCm,
     formatLength,
