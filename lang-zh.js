@@ -104,6 +104,7 @@ I18n.register("zh", {
     "history.heading": "历史",
     "history.empty": "还没有训练记录。去“记录”页记录第一次吧。",
     "history.loadSample": "加载示例数据来体验",
+    "log.sampleHint": "只是随便看看？用示例训练来体验一下。",
 
     "progress.plateauHeading": "瓶颈检查",
     "progress.plateauHint": "按最近一次刷新重量纪录的时间来查看各肌群。",

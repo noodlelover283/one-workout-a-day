@@ -105,6 +105,7 @@ I18n.register("fr", {
     "history.heading": "Historique",
     "history.empty": "Aucune séance pour l'instant. Enregistrez la première dans l'onglet Journal.",
     "history.loadSample": "Charger des données d'exemple",
+    "log.sampleHint": "Vous voulez juste découvrir ? Essayez l'appli avec des séances d'exemple.",
 
     "progress.plateauHeading": "Suivi des plateaux",
     "progress.plateauHint": "Groupes musculaires, selon la date de votre dernier record de poids.",

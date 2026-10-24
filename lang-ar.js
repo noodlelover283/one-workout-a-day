@@ -110,6 +110,7 @@ I18n.register("ar", {
     "history.heading": "السجل",
     "history.empty": "لا توجد تمارين بعد. سجّل أول تمرين لك في تبويب التسجيل.",
     "history.loadSample": "تحميل بيانات تجريبية للاستكشاف",
+    "log.sampleHint": "مجرد استكشاف؟ جرّب التطبيق بتمارين تجريبية.",
 
     "progress.plateauHeading": "فحص الجمود",
     "progress.plateauHint": "المجموعات العضلية، بحسب مدى حداثة آخر رقم قياسي للوزن.",

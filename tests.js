@@ -1369,6 +1369,25 @@ function logSetInApp(app, exercise, weight, reps) {
   app.doc.getElementById("log-form").requestSubmit();
 }
 
+test("a brand-new app offers sample data on the Log tab, and the offer goes away once there is data", async () => {
+  const app = await openApp();
+  try {
+    const offer = app.doc.getElementById("log-sample");
+    if (!offer.classList.contains("hidden")) throw new Error("an app with workouts in it should not offer sample data");
+    // Empty the app the way a first visit looks, then redraw the Log tab.
+    app.win.eval("state.entries = []; state.notes = {}; renderToday();");
+    if (offer.classList.contains("hidden")) throw new Error("an empty app should offer sample data on the Log tab");
+    const button = app.doc.getElementById("load-sample-log");
+    if (button.getBoundingClientRect().width === 0 || button.textContent.trim() === "") throw new Error("the sample data button should be visible and labelled");
+    button.click();
+    if (!offer.classList.contains("hidden")) throw new Error("the offer should go away after the sample data is loaded");
+    if (JSON.parse(app.win.localStorage.getItem(app.storage)).entries.length === 0) throw new Error("loading should save sample workouts");
+    if (app.errors.length) throw new Error(app.errors.join("; "));
+  } finally {
+    closeApp(app);
+  }
+});
+
 test("the rest timer is one slim row, with Adjust hiding the time buttons, and Skip ends it", async () => {
   const app = await openApp();
   try {

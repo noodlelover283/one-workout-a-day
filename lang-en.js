@@ -105,6 +105,7 @@ I18n.register("en", {
     "history.heading": "History",
     "history.empty": "No workouts yet. Log your first one on the Log tab.",
     "history.loadSample": "Load sample data to explore",
+    "log.sampleHint": "Just looking? Try the app with example workouts.",
 
     "progress.plateauHeading": "Plateau check",
     "progress.plateauHint": "Muscle groups, by how recently you set a new weight record.",

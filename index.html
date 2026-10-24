@@ -12,7 +12,7 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="theme-color" content="#f5f6f8" media="(prefers-color-scheme: light)">
   <meta name="theme-color" content="#12161c" media="(prefers-color-scheme: dark)">
-  <link rel="stylesheet" href="style.css?v=937795bbb1">
+  <link rel="stylesheet" href="style.css?v=227ec0d2d0">
 </head>
 <body>
   <p id="offline-banner" class="offline-banner hidden" role="status" data-i18n="offline.notice">You're offline. Everything still works, and your data is saved on this device.</p>
@@ -152,6 +152,10 @@
 
       <h3 data-i18n="log.todayHeading">Today's workout</h3>
       <ul id="today-list" class="entry-list"></ul>
+      <div id="log-sample" class="log-sample hidden">
+        <p class="hint" data-i18n="log.sampleHint">Just looking? Try the app with example workouts.</p>
+        <button id="load-sample-log" type="button" class="secondary" data-i18n="history.loadSample">Load sample data to explore</button>
+      </div>
       <label for="workout-note" data-i18n="note.label">Note for this day</label>
       <textarea id="workout-note" rows="3" data-i18n-placeholder="note.placeholder" placeholder="e.g. Slept badly, shoulder felt tight"></textarea>
       <p class="hint" data-i18n="note.hint">Saved automatically when you tap away.</p>
@@ -316,16 +320,16 @@
     <button id="nav-progress" data-tab="progress" data-i18n="tab.progress">Progress</button>
   </nav>
 
-  <script src="i18n.js?v=937795bbb1"></script>
-  <script src="lang-en.js?v=937795bbb1"></script>
-  <script src="lang-es.js?v=937795bbb1"></script>
-  <script src="lang-zh.js?v=937795bbb1"></script>
-  <script src="lang-hi.js?v=937795bbb1"></script>
-  <script src="lang-ar.js?v=937795bbb1"></script>
-  <script src="lang-fr.js?v=937795bbb1"></script>
-  <script src="lang-pt.js?v=937795bbb1"></script>
-  <script src="lang-ru.js?v=937795bbb1"></script>
-  <script src="logic.js?v=937795bbb1"></script>
-  <script src="app.js?v=937795bbb1"></script>
+  <script src="i18n.js?v=227ec0d2d0"></script>
+  <script src="lang-en.js?v=227ec0d2d0"></script>
+  <script src="lang-es.js?v=227ec0d2d0"></script>
+  <script src="lang-zh.js?v=227ec0d2d0"></script>
+  <script src="lang-hi.js?v=227ec0d2d0"></script>
+  <script src="lang-ar.js?v=227ec0d2d0"></script>
+  <script src="lang-fr.js?v=227ec0d2d0"></script>
+  <script src="lang-pt.js?v=227ec0d2d0"></script>
+  <script src="lang-ru.js?v=227ec0d2d0"></script>
+  <script src="logic.js?v=227ec0d2d0"></script>
+  <script src="app.js?v=227ec0d2d0"></script>
 </body>
 </html>

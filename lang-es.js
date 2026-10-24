@@ -105,6 +105,7 @@ I18n.register("es", {
     "history.heading": "Historial",
     "history.empty": "Aún no hay entrenamientos. Registra el primero en la pestaña Registro.",
     "history.loadSample": "Cargar datos de ejemplo para explorar",
+    "log.sampleHint": "¿Solo estás mirando? Prueba la app con entrenamientos de ejemplo.",
 
     "progress.plateauHeading": "Control de estancamiento",
     "progress.plateauHint": "Grupos musculares, según lo reciente que fue tu último récord de peso.",

@@ -322,6 +322,7 @@ function renderToday() {
   const date = $("date").value || today();
   const list = $("today-list");
   const entries = state.entries.filter((e) => e.date === date);
+  $("log-sample").classList.toggle("hidden", !isAppEmpty());
   renderRoutineChecklist(Logic.workingSets(entries));
   renderWarmup();
   const note = $("workout-note");
@@ -1327,11 +1328,14 @@ function historyDay(date) {
   return day;
 }
 
+// True until something has been logged or noted, so a newcomer can be offered the sample data.
+const isAppEmpty = () => state.entries.length === 0 && Object.keys(state.notes).length === 0;
+
 function renderHistory() {
   renderCalendar();
   const container = $("history");
   const sample = $("load-sample");
-  if (state.entries.length === 0 && Object.keys(state.notes).length === 0) {
+  if (isAppEmpty()) {
     container.replaceChildren(el("p", "empty", t("history.empty")));
     sample.classList.remove("hidden");
     return;
@@ -1355,7 +1359,7 @@ function onLoadSample() {
   state.entries.push(...sample.entries);
   state.bodyweights.push(...sample.bodyweights);
   saveState();
-  renderHistory();
+  renderSetLists();
   showToast(t("toast.sample"));
 }
 
@@ -1972,6 +1976,7 @@ function init() {
   $("progress-exercise").addEventListener("change", renderExerciseChart);
   $("progress-metric").addEventListener("change", renderExerciseChart);
   $("load-sample").addEventListener("click", onLoadSample);
+  $("load-sample-log").addEventListener("click", onLoadSample);
   $("calendar-prev").addEventListener("click", () => showCalendarMonth(-1));
   $("calendar-next").addEventListener("click", () => showCalendarMonth(1));
   $("backup-download").addEventListener("click", onBackupDownload);
