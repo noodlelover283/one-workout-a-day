@@ -12,13 +12,17 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="theme-color" content="#f5f6f8" media="(prefers-color-scheme: light)">
   <meta name="theme-color" content="#12161c" media="(prefers-color-scheme: dark)">
-  <link rel="stylesheet" href="style.css?v=65db84d207">
+  <link rel="stylesheet" href="style.css?v=a5968b4ce6">
 </head>
 <body>
   <p id="offline-banner" class="offline-banner hidden" role="status" data-i18n="offline.notice">You're offline. Everything still works, and your data is saved on this device.</p>
   <header class="app-header">
     <div class="title-row">
-      <h1 data-i18n="app.title">One Workout a Day</h1>
+      <h1 class="sr-only" data-i18n="app.title">One Workout a Day</h1>
+      <div class="section-switch" role="group" data-i18n-aria="section.label" aria-label="Section">
+        <button type="button" data-section="workout" aria-pressed="true" data-i18n="section.workout">Workout</button>
+        <button type="button" data-section="diet" aria-pressed="false" data-i18n="section.diet">Diet</button>
+      </div>
       <div class="unit-toggle" role="group" data-i18n-aria="unit.groupLabel" aria-label="Weight unit">
         <button type="button" data-unit="lb" aria-pressed="true">lb</button>
         <button type="button" data-unit="kg" aria-pressed="false">kg</button>
@@ -318,28 +322,75 @@
         <div id="measure-custom-list"></div>
       </details>
     </section>
+
+    <section id="tab-plan" class="tab hidden" aria-labelledby="nav-plan">
+      <h2 data-i18n="plan.heading">Your plan</h2>
+      <p class="hint" data-i18n="plan.hint">Your daily calories and protein, worked out from your details and your goal. Saved only on this device.</p>
+      <label for="plan-sex" data-i18n="plan.sex">Sex (used by the calorie formula)</label>
+      <select id="plan-sex"></select>
+      <div class="row">
+        <div>
+          <label for="plan-age" data-i18n="plan.age">Age</label>
+          <input id="plan-age" type="number" inputmode="numeric" min="14" max="100" step="1">
+        </div>
+        <div>
+          <label for="plan-feet" id="plan-height-label">Height</label>
+          <div id="plan-height-imperial" class="row feet-inches">
+            <input id="plan-feet" type="number" inputmode="numeric" min="0" max="8" step="1" placeholder="ft" data-i18n-aria="plan.feet" aria-label="Feet">
+            <input id="plan-inches" type="number" inputmode="decimal" min="0" max="11.9" step="any" placeholder="in" data-i18n-aria="plan.inches" aria-label="Inches">
+          </div>
+          <input id="plan-height" type="number" inputmode="decimal" min="0" step="any" class="hidden" aria-label="Height">
+        </div>
+      </div>
+      <label for="plan-activity" data-i18n="plan.activity">How active are you?</label>
+      <select id="plan-activity"></select>
+      <label for="plan-goal" data-i18n="plan.goal">Your goal</label>
+      <select id="plan-goal"></select>
+      <div id="plan-pace-row">
+        <label for="plan-pace" data-i18n="plan.pace">How fast?</label>
+        <select id="plan-pace"></select>
+      </div>
+      <p id="plan-error" class="error" role="alert"></p>
+      <div id="plan-result"></div>
+      <p class="hint" data-i18n="plan.disclaimer">These are estimates from a standard formula, not medical advice. Check with a doctor or dietitian before a big change to how you eat.</p>
+    </section>
+
+    <section id="tab-weight" class="tab hidden" aria-labelledby="nav-weight">
+      <h2 data-i18n="progress.bodyweightHeading">Bodyweight</h2>
+      <p class="hint" data-i18n="weight.hint">The same bodyweight log as on the Progress tab: a weight added in either place shows in both. Adding again on the same day replaces it.</p>
+      <form id="diet-weight-form" class="row inline" novalidate>
+        <input id="diet-weight" type="number" inputmode="decimal" min="0" step="any" data-i18n-aria="progress.bodyweightLabel" aria-label="Bodyweight">
+        <button type="submit" class="primary" data-i18n="progress.add">Add</button>
+      </form>
+      <p id="diet-weight-error" class="error" role="alert"></p>
+      <div id="diet-weight-chart" class="chart"></div>
+      <h2 data-i18n="check.heading">Weekly check</h2>
+      <div id="diet-check"></div>
+    </section>
   </main>
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
   <nav class="tabbar" data-i18n-aria="tab.nav" aria-label="Main">
-    <button id="nav-log" data-tab="log" class="active" data-i18n="tab.log">Log</button>
-    <button id="nav-routines" data-tab="routines" data-i18n="tab.routines">Routines</button>
-    <button id="nav-history" data-tab="history" data-i18n="tab.history">History</button>
-    <button id="nav-progress" data-tab="progress" data-i18n="tab.progress">Progress</button>
+    <button id="nav-log" data-tab="log" data-section="workout" class="active" data-i18n="tab.log">Log</button>
+    <button id="nav-routines" data-tab="routines" data-section="workout" data-i18n="tab.routines">Routines</button>
+    <button id="nav-history" data-tab="history" data-section="workout" data-i18n="tab.history">History</button>
+    <button id="nav-progress" data-tab="progress" data-section="workout" data-i18n="tab.progress">Progress</button>
+    <button id="nav-plan" data-tab="plan" data-section="diet" class="hidden" data-i18n="tab.plan">Plan</button>
+    <button id="nav-weight" data-tab="weight" data-section="diet" class="hidden" data-i18n="tab.weight">Weight</button>
   </nav>
 
-  <script src="i18n.js?v=65db84d207"></script>
-  <script src="lang-en.js?v=65db84d207"></script>
-  <script src="lang-es.js?v=65db84d207"></script>
-  <script src="lang-zh.js?v=65db84d207"></script>
-  <script src="lang-hi.js?v=65db84d207"></script>
-  <script src="lang-ar.js?v=65db84d207"></script>
-  <script src="lang-fr.js?v=65db84d207"></script>
-  <script src="lang-pt.js?v=65db84d207"></script>
-  <script src="lang-ru.js?v=65db84d207"></script>
-  <script src="strength-data.js?v=65db84d207"></script>
-  <script src="logic.js?v=65db84d207"></script>
-  <script src="app.js?v=65db84d207"></script>
+  <script src="i18n.js?v=a5968b4ce6"></script>
+  <script src="lang-en.js?v=a5968b4ce6"></script>
+  <script src="lang-es.js?v=a5968b4ce6"></script>
+  <script src="lang-zh.js?v=a5968b4ce6"></script>
+  <script src="lang-hi.js?v=a5968b4ce6"></script>
+  <script src="lang-ar.js?v=a5968b4ce6"></script>
+  <script src="lang-fr.js?v=a5968b4ce6"></script>
+  <script src="lang-pt.js?v=a5968b4ce6"></script>
+  <script src="lang-ru.js?v=a5968b4ce6"></script>
+  <script src="strength-data.js?v=a5968b4ce6"></script>
+  <script src="logic.js?v=a5968b4ce6"></script>
+  <script src="app.js?v=a5968b4ce6"></script>
 </body>
 </html>

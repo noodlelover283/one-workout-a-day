@@ -33,6 +33,8 @@ function loadState() {
     routineSwaps: {},
     customMeasurements: [],
     measurements: [],
+    diet: { ...Logic.DEFAULT_DIET },
+    section: "workout",
     rest: { ...DEFAULT_REST },
     progression: { repGoal: Logic.DEFAULT_REP_GOAL, jumps: { lb: {}, kg: {} } },
     appearance: { ...Logic.DEFAULT_APPEARANCE },
@@ -52,7 +54,9 @@ function normalizeState(saved) {
   loaded.routineSwaps = Logic.sanitizeRoutineSwaps(saved.routineSwaps);
   loaded.customMeasurements = Logic.sanitizeCustomMeasurements(saved.customMeasurements);
   loaded.measurements = Logic.sanitizeMeasurements(saved.measurements, loaded.customMeasurements);
-  loaded.routines = loaded.routines.map((routine) =>
+  loaded.diet = Logic.sanitizeDiet(saved.diet);
+  loaded.section = saved.section === "diet" ? "diet" : "workout";
+  loaded.routines =loaded.routines.map((routine) =>
     routine && Array.isArray(routine.exercises) ? { ...routine, targets: Logic.sanitizeTargets(routine.targets, routine.exercises) } : routine
   );
   loaded.entries = Logic.migrateEntries(loaded.entries);
@@ -134,10 +138,25 @@ function showToast(message, { celebrate = false } = {}) {
 
 // ---------- Tabs ----------
 
+// The app has two sections, Workout and Diet, each with its own tabs along the bottom.
+const TAB_SECTION = { log: "workout", routines: "workout", history: "workout", progress: "workout", plan: "diet", weight: "diet" };
+// The tab each section was last on, so switching back lands where you left off.
+const lastTabOf = { workout: "log", diet: "plan" };
+
 function showTab(name) {
+  const section = TAB_SECTION[name];
+  lastTabOf[section] = name;
+  if (state.section !== section) {
+    state.section = section;
+    saveState();
+  }
   for (const tab of document.querySelectorAll(".tab")) tab.classList.toggle("hidden", tab.id !== `tab-${name}`);
   for (const button of document.querySelectorAll(".tabbar button")) {
+    button.classList.toggle("hidden", button.dataset.section !== section);
     button.classList.toggle("active", button.dataset.tab === name);
+  }
+  for (const button of document.querySelectorAll(".section-switch button")) {
+    button.setAttribute("aria-pressed", String(button.dataset.section === section));
   }
   if (name === "log") {
     renderRoutinePicker();
@@ -146,6 +165,12 @@ function showTab(name) {
   if (name === "routines") renderRoutines();
   if (name === "history") renderHistory();
   if (name === "progress") renderProgress();
+  if (name === "plan") renderPlan();
+  if (name === "weight") renderWeight();
+}
+
+function showSection(section) {
+  showTab(lastTabOf[section]);
 }
 
 // ---------- Log tab ----------
@@ -1874,20 +1899,221 @@ function lineChart(series, unit = state.unit) {
   return svg;
 }
 
-function onBodyweightSubmit(event) {
-  event.preventDefault();
-  const weight = parseFloat($("bodyweight").value);
+// Saves today's bodyweight from a box (replacing one already saved today). Both the Progress tab and the
+// Diet section's Weight tab use it, since they share one bodyweight log.
+function saveBodyweightFrom(input, errorNode) {
+  const weight = parseFloat(input.value);
   const error = weight > 0 && weight < 700 ? "" : "error.bodyweight";
-  $("bodyweight-error").textContent = errorText(error);
+  errorNode.textContent = errorText(error);
   if (error) return;
   const date = today();
   state.bodyweights = state.bodyweights.filter((b) => b.date !== date);
   state.bodyweights.push({ date, weight: Logic.toLb(weight, state.unit) });
   saveState();
-  $("bodyweight").value = "";
+  input.value = "";
   renderBodyweightChart();
   renderStrength();
+  renderWeight();
+  renderPlan();
   showToast(t("toast.bodyweight"));
+}
+
+function onBodyweightSubmit(event) {
+  event.preventDefault();
+  saveBodyweightFrom($("bodyweight"), $("bodyweight-error"));
+}
+
+function onDietWeightSubmit(event) {
+  event.preventDefault();
+  saveBodyweightFrom($("diet-weight"), $("diet-weight-error"));
+}
+
+// ---------- Diet: Plan tab ----------
+
+// A weight in the chosen unit as text for a rate, with up to two decimals: 0.25 lb stays "0.25".
+function rateText(lbPerWeek) {
+  return Logic.fromLb(Math.abs(lbPerWeek), state.unit).toLocaleString(I18n.locale(), { maximumFractionDigits: 2 });
+}
+
+const signed = (value, text) => `${value < 0 ? "−" : "+"}${text}`;
+
+// Fills a select with options and keeps its value if it is still one of them.
+function setOptions(select, options, value) {
+  select.replaceChildren(...options.map(([optionValue, text]) => option(optionValue, text)));
+  select.value = value;
+}
+
+function renderPlan() {
+  const diet = state.diet;
+  const unit = state.unit;
+  setOptions($("plan-sex"), [["", t("strength.sexChoose")], ["male", t("plan.male")], ["female", t("plan.female")]], state.sex);
+  setOptions($("plan-activity"), Object.keys(Logic.ACTIVITY_LEVELS).map((key) => [key, t(`plan.activity.${key}`)]), diet.activity);
+  setOptions($("plan-goal"), Logic.DIET_GOALS.map((goal) => [goal, t(`plan.goal.${goal}`)]), diet.goal);
+  renderPlanOptions();
+  // Pounds go with feet and inches; kilograms with centimetres.
+  const imperial = unit === "lb";
+  $("plan-height-label").textContent = imperial ? t("plan.heightFeetInches") : t("plan.height", { unit: "cm" });
+  $("plan-height-label").htmlFor = imperial ? "plan-feet" : "plan-height";
+  $("plan-height-imperial").classList.toggle("hidden", !imperial);
+  $("plan-height").classList.toggle("hidden", imperial);
+  const age = $("plan-age");
+  if (document.activeElement !== age) age.value = diet.age === null ? "" : diet.age;
+  const known = diet.heightCm !== null;
+  const shown = known ? Logic.cmToFeetInches(diet.heightCm) : null;
+  const fields = [
+    ["plan-feet", known ? shown.feet : ""],
+    ["plan-inches", known ? shown.inches : ""],
+    ["plan-height", known ? Logic.formatLength(diet.heightCm, "kg") : ""],
+  ];
+  for (const [id, value] of fields) if (document.activeElement !== $(id)) $(id).value = value;
+  renderPlanResult();
+}
+
+function renderPlanResult() {
+  const diet = state.diet;
+  const unit = state.unit;
+  const weightLb = Logic.latestBodyweight(state.bodyweights);
+  const plan = Logic.calorieTarget(diet, state.sex, weightLb);
+  const box = $("plan-result");
+  if (!plan) {
+    const missing = [
+      !state.sex && t("plan.item.sex"),
+      !diet.age && t("plan.item.age"),
+      !diet.heightCm && t("plan.item.height"),
+      weightLb === null && t("plan.item.weight"),
+    ].filter(Boolean);
+    box.replaceChildren(el("p", "empty", t("plan.missing", { items: missing.join(", ") })));
+    return;
+  }
+  const rate = rateText(Logic.goalRate(diet));
+  const goalLine =
+    diet.goal === "maintain"
+      ? t("plan.goalLine.maintain")
+      : t(`plan.goalLine.${diet.goal}`, { calories: Math.abs(plan.goalChange), rate, unit });
+  const card = el("div", "card plan-card");
+  card.append(
+    el("p", "plan-target", t("plan.target", { calories: plan.target.toLocaleString(I18n.locale()) })),
+    el("p", "plan-protein", t("plan.protein", { grams: plan.protein })),
+    el("p", "hint", t("plan.maintenance", { calories: plan.maintenance.toLocaleString(I18n.locale()) })),
+    el("p", "hint", goalLine)
+  );
+  if (plan.adjust !== 0) {
+    card.append(el("p", "hint", t("plan.adjusted", { change: signed(plan.adjust, Math.abs(plan.adjust)) })));
+    const reset = el("button", "secondary", t("plan.resetAdjust"));
+    reset.type = "button";
+    reset.addEventListener("click", onResetAdjustment);
+    card.append(reset);
+  }
+  if (plan.belowFloor) card.append(el("p", "error", t("plan.belowFloor", { floor: plan.floor.toLocaleString(I18n.locale()) })));
+  box.replaceChildren(card);
+}
+
+// Reads the Plan tab's boxes into the saved details and redraws the result.
+function onPlanChange() {
+  const diet = { ...state.diet };
+  state.sex = $("plan-sex").value;
+  diet.activity = $("plan-activity").value;
+  const goalChanged = $("plan-goal").value !== diet.goal;
+  diet.goal = $("plan-goal").value;
+  diet.pace = goalChanged ? 1 : Math.min(Number($("plan-pace").value), Logic.PACE_LB_PER_WEEK[diet.goal].length - 1);
+  if (diet.goal === "maintain") diet.pace = 0;
+  let error = "";
+  const ageText = $("plan-age").value.trim();
+  const imperial = state.unit === "lb";
+  const feetText = $("plan-feet").value.trim();
+  const inchesText = $("plan-inches").value.trim();
+  const heightText = imperial ? `${feetText}${inchesText}` : $("plan-height").value.trim();
+  if (ageText === "") {
+    diet.age = null;
+  } else if (Logic.validateAge(Number(ageText)) === "") {
+    diet.age = Number(ageText);
+  } else {
+    error = "error.age";
+  }
+  if (heightText === "") {
+    diet.heightCm = null;
+  } else {
+    const cm = imperial ? Logic.feetInchesToCm(parseFloat(feetText), parseFloat(inchesText)) : parseFloat($("plan-height").value);
+    if (Logic.validateHeight(cm) === "") diet.heightCm = cm;
+    else error = error || "error.height";
+  }
+  $("plan-error").textContent = errorText(error);
+  state.diet = diet;
+  saveState();
+  renderPlanResult();
+  renderPlanOptions();
+}
+
+// The goal decides which paces are on offer, so the pace list is redrawn after the goal changes.
+function renderPlanOptions() {
+  const paces = Logic.PACE_LB_PER_WEEK[state.diet.goal];
+  $("plan-pace-row").classList.toggle("hidden", state.diet.goal === "maintain");
+  setOptions(
+    $("plan-pace"),
+    paces.map((lb, index) => [String(index), t("plan.paceOption", { name: t(`plan.pace.${index}`), rate: rateText(lb), unit: state.unit })]),
+    String(Math.min(state.diet.pace, paces.length - 1))
+  );
+}
+
+function onResetAdjustment() {
+  state.diet = { ...state.diet, adjust: 0 };
+  saveState();
+  renderPlanResult();
+  showToast(t("toast.adjustReset"));
+}
+
+// ---------- Diet: Weight tab ----------
+
+function renderWeight() {
+  const chart = $("diet-weight-chart");
+  const series = [...state.bodyweights].sort((a, b) => a.date.localeCompare(b.date)).map((b) => ({ date: b.date, value: b.weight }));
+  chart.replaceChildren(series.length === 0 ? el("p", "empty", t("progress.noBodyweight")) : lineChart(inDisplayUnit(series)));
+  $("diet-weight").placeholder = t("progress.bodyweightPlaceholder", { unit: state.unit });
+  renderWeeklyCheck();
+}
+
+function renderWeeklyCheck() {
+  const unit = state.unit;
+  const trend = Logic.weightTrend(state.bodyweights, today());
+  const box = $("diet-check");
+  if (!trend) {
+    const recent = state.bodyweights.filter((b) => Logic.daysBetween(b.date, today()) >= 0 && Logic.daysBetween(b.date, today()) <= 21).length;
+    box.replaceChildren(el("p", "empty", t("check.needMore", { count: recent })));
+    return;
+  }
+  const goalPerWeek = Logic.goalRate(state.diet);
+  const goalText = goalPerWeek === 0 ? t("check.goal.maintain") : t(goalPerWeek > 0 ? "check.goal.bulk" : "check.goal.cut", { rate: rateText(goalPerWeek), unit });
+  const card = el("div", "card plan-card");
+  card.append(
+    el("p", "", t("check.trend", { days: trend.days, count: trend.count, change: signed(trend.perWeek, rateText(trend.perWeek)), unit })),
+    el("p", "hint", t("check.goal", { goal: goalText }))
+  );
+  const suggestion = Logic.adjustmentSuggestion(goalPerWeek, trend.perWeek);
+  if (suggestion.status === "onTrack") {
+    card.append(el("p", "plan-protein", t("check.onTrack")));
+  } else {
+    const calories = Math.abs(suggestion.change);
+    card.append(el("p", "plan-protein", t(suggestion.change > 0 ? "check.eatMore" : "check.eatLess", { calories })));
+    if (Logic.calorieTarget(state.diet, state.sex, Logic.latestBodyweight(state.bodyweights))) {
+      const apply = el("button", "primary", t("check.apply", { change: signed(suggestion.change, calories) }));
+      apply.type = "button";
+      apply.addEventListener("click", () => onApplyAdjustment(suggestion.change));
+      card.append(apply);
+    } else {
+      card.append(el("p", "hint", t("check.fillPlan")));
+    }
+  }
+  card.append(el("p", "hint", t("check.patience")));
+  box.replaceChildren(card);
+}
+
+function onApplyAdjustment(change) {
+  const adjust = Math.max(-2 * Logic.MAX_ADJUSTMENT, Math.min(2 * Logic.MAX_ADJUSTMENT, state.diet.adjust + change));
+  state.diet = { ...state.diet, adjust };
+  saveState();
+  renderWeeklyCheck();
+  renderPlanResult();
+  showToast(t("toast.adjustApplied", { change: signed(change, Math.abs(change)) }));
 }
 
 function renderProgress() {
@@ -1958,6 +2184,8 @@ function applyLanguage() {
   renderRoutines();
   renderHistory();
   renderProgress();
+  renderPlan();
+  renderWeight();
 }
 
 function onLanguageChange() {
@@ -1989,6 +2217,8 @@ function setUnit(unit) {
   renderToday();
   renderHistory();
   renderProgress();
+  renderPlan();
+  renderWeight();
   showToast(t("toast.unit", { unit }));
 }
 
@@ -2065,6 +2295,13 @@ function init() {
   });
   $("use-suggestion").addEventListener("click", onUseSuggestion);
   $("measure-custom-form").addEventListener("submit", onCustomMeasureSubmit);
+  for (const button of document.querySelectorAll(".section-switch button")) {
+    button.addEventListener("click", () => showSection(button.dataset.section));
+  }
+  for (const id of ["plan-sex", "plan-age", "plan-feet", "plan-inches", "plan-height", "plan-activity", "plan-goal", "plan-pace"]) {
+    $(id).addEventListener("change", onPlanChange);
+  }
+  $("diet-weight-form").addEventListener("submit", onDietWeightSubmit);
   $("backup-merge-go").addEventListener("click", onBackupMerge);
   $("backup-replace-go").addEventListener("click", onBackupReplace);
   $("backup-merge-cancel").addEventListener("click", closeBackupChoice);
@@ -2107,7 +2344,7 @@ function init() {
     button.addEventListener("click", () => setUnit(button.dataset.unit));
   }
   applyLanguage();
-  showTab("log");
+  showSection(state.section);
   window.addEventListener("online", updateOfflineNotice);
   window.addEventListener("offline", updateOfflineNotice);
   updateOfflineNotice();

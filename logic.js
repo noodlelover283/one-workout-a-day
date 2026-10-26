@@ -947,6 +947,122 @@ const Logic = (() => {
     return notes;
   }
 
+  // ---------- Diet: a calorie target from your details and goal, checked against your bodyweight trend ----------
+
+  // How much more than your resting needs you burn in a day, by how active you are.
+  const ACTIVITY_LEVELS = { sedentary: 1.2, light: 1.375, active: 1.55, veryActive: 1.725 };
+  const DIET_GOALS = ["bulk", "cut", "maintain"];
+  // The three paces to choose from (slow, steady, fast), in pounds of bodyweight per week.
+  const PACE_LB_PER_WEEK = { bulk: [0.25, 0.5, 1], cut: [0.5, 1, 1.5], maintain: [0] };
+  // About 3,500 calories is a pound of bodyweight change, a common rule of thumb.
+  const KCAL_PER_LB = 3500;
+  // The least a target is allowed to be before the app warns about it.
+  const MIN_TARGET_CALORIES = { male: 1500, female: 1200 };
+  // Protein per pound of bodyweight: a middle value of the usual 0.7 to 1 g range for lifters.
+  const PROTEIN_G_PER_LB = 0.8;
+  const MIN_AGE = 14;
+  const MAX_AGE = 100;
+  const MIN_HEIGHT_CM = 100;
+  const MAX_HEIGHT_CM = 250;
+  // The most one weekly check may suggest changing the target by.
+  const MAX_ADJUSTMENT = 500;
+  // How far back the bodyweight trend looks, and the least it needs to say anything.
+  const TREND_DAYS = 21;
+  const TREND_MIN_ENTRIES = 3;
+  const TREND_MIN_SPAN_DAYS = 10;
+
+  const DEFAULT_DIET = { age: null, heightCm: null, activity: "light", goal: "maintain", pace: 1, adjust: 0 };
+
+  // Keeps only valid saved diet details, filling in the defaults for anything missing or wrong.
+  function sanitizeDiet(saved) {
+    const diet = { ...DEFAULT_DIET };
+    if (!saved || typeof saved !== "object") return diet;
+    if (Number.isInteger(saved.age) && saved.age >= MIN_AGE && saved.age <= MAX_AGE) diet.age = saved.age;
+    if (typeof saved.heightCm === "number" && saved.heightCm >= MIN_HEIGHT_CM && saved.heightCm <= MAX_HEIGHT_CM) diet.heightCm = saved.heightCm;
+    if (Object.prototype.hasOwnProperty.call(ACTIVITY_LEVELS, saved.activity)) diet.activity = saved.activity;
+    if (DIET_GOALS.includes(saved.goal)) diet.goal = saved.goal;
+    if (Number.isInteger(saved.pace) && saved.pace >= 0 && saved.pace < PACE_LB_PER_WEEK[diet.goal].length) diet.pace = saved.pace;
+    if (typeof saved.adjust === "number" && Math.abs(saved.adjust) <= 2 * MAX_ADJUSTMENT) diet.adjust = Math.round(saved.adjust);
+    return diet;
+  }
+
+  // The error key for an age as typed (whole years), or "" if it is fine.
+  function validateAge(age) {
+    return Number.isInteger(age) && age >= MIN_AGE && age <= MAX_AGE ? "" : "error.age";
+  }
+
+  // A height in centimetres as whole feet and inches (inches to one decimal): 177.8 cm is 5 ft 10 in.
+  function cmToFeetInches(cm) {
+    const totalInches = Math.round((cm / CM_PER_INCH) * 10) / 10;
+    let feet = Math.floor(totalInches / 12);
+    let inches = Math.round((totalInches - feet * 12) * 10) / 10;
+    if (inches >= 12) {
+      feet += 1;
+      inches = 0;
+    }
+    return { feet, inches };
+  }
+
+  // Feet and inches as centimetres. Inches may be left out; a height given only in inches also works.
+  function feetInchesToCm(feet, inches) {
+    return ((feet || 0) * 12 + (inches || 0)) * CM_PER_INCH;
+  }
+
+  // The error key for a height in centimetres, or "" if it is fine.
+  function validateHeight(cm) {
+    return cm >= MIN_HEIGHT_CM && cm <= MAX_HEIGHT_CM ? "" : "error.height";
+  }
+
+  // Calories a day you need just to stay alive (Mifflin-St Jeor): from weight in kg, height in cm and age.
+  function restingCalories(sex, weightKg, heightCm, age) {
+    return 10 * weightKg + 6.25 * heightCm - 5 * age + (sex === "male" ? 5 : -161);
+  }
+
+  // Pounds of bodyweight per week the goal aims for: positive to gain, negative to lose, 0 to stay the same.
+  function goalRate(diet) {
+    const rate = PACE_LB_PER_WEEK[diet.goal][diet.pace] || 0;
+    return diet.goal === "cut" ? -rate : rate;
+  }
+
+  const roundTo = (value, step) => Math.round(value / step) * step;
+
+  // The daily plan for these details and the latest bodyweight (pounds): maintenance calories, what the goal
+  // adds or takes away, any adjustment applied from a weekly check, the resulting target and the protein.
+  // Returns null until the sex, age and height are filled in and there is a bodyweight.
+  function calorieTarget(diet, sex, weightLb) {
+    if (!(sex === "male" || sex === "female") || !diet.age || !diet.heightCm || !(weightLb > 0)) return null;
+    const maintenance = roundTo(restingCalories(sex, weightLb / LB_PER_KG, diet.heightCm, diet.age) * ACTIVITY_LEVELS[diet.activity], 10);
+    const goalChange = roundTo((goalRate(diet) * KCAL_PER_LB) / 7, 10);
+    const target = roundTo(maintenance + goalChange + diet.adjust, 10);
+    const floor = MIN_TARGET_CALORIES[sex];
+    return { maintenance, goalChange, adjust: diet.adjust, target, protein: Math.round(weightLb * PROTEIN_G_PER_LB), floor, belowFloor: target < floor };
+  }
+
+  // How fast bodyweight has been changing over the last few weeks: { perWeek, count, days } in pounds per
+  // week, from a straight line fitted through the readings. Null when there are too few readings spread over
+  // too few days to say anything.
+  function weightTrend(bodyweights, today) {
+    const recent = bodyweights.filter((b) => daysBetween(b.date, today) >= 0 && daysBetween(b.date, today) <= TREND_DAYS).sort((a, b) => a.date.localeCompare(b.date));
+    if (recent.length < TREND_MIN_ENTRIES) return null;
+    const first = recent[0].date;
+    const span = daysBetween(first, recent[recent.length - 1].date);
+    if (span < TREND_MIN_SPAN_DAYS) return null;
+    const xs = recent.map((b) => daysBetween(first, b.date));
+    const meanX = xs.reduce((sum, x) => sum + x, 0) / xs.length;
+    const meanY = recent.reduce((sum, b) => sum + b.weight, 0) / recent.length;
+    const slope = xs.reduce((sum, x, i) => sum + (x - meanX) * (recent[i].weight - meanY), 0) / xs.reduce((sum, x) => sum + (x - meanX) ** 2, 0);
+    return { perWeek: slope * 7, count: recent.length, days: span };
+  }
+
+  // Compares the real weekly change with the goal's. Returns { status: "onTrack" } or { status: "adjust",
+  // change } where change is calories a day to add (positive) or take away (negative), in steps of 50 and
+  // never more than MAX_ADJUSTMENT. Within 100 calories a day of the goal counts as on track.
+  function adjustmentSuggestion(goalPerWeek, actualPerWeek) {
+    const wanted = ((goalPerWeek - actualPerWeek) * KCAL_PER_LB) / 7;
+    if (Math.abs(wanted) < 100) return { status: "onTrack" };
+    return { status: "adjust", change: Math.max(-MAX_ADJUSTMENT, Math.min(MAX_ADJUSTMENT, roundTo(wanted, 50))) };
+  }
+
   const BACKUP_APP = "one-workout-a-day";
   const BACKUP_VERSION = 1;
   const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
@@ -1060,6 +1176,21 @@ const Logic = (() => {
   }
 
   return {
+    ACTIVITY_LEVELS,
+    DIET_GOALS,
+    PACE_LB_PER_WEEK,
+    MAX_ADJUSTMENT,
+    DEFAULT_DIET,
+    sanitizeDiet,
+    validateAge,
+    validateHeight,
+    cmToFeetInches,
+    feetInchesToCm,
+    restingCalories,
+    goalRate,
+    calorieTarget,
+    weightTrend,
+    adjustmentSuggestion,
     mergeBackup,
     offlineStatus,
     BARBELL_EXERCISES,

@@ -804,6 +804,73 @@ test("saved swaps that are not well formed are dropped", () => {
   assertEqual(Logic.sanitizeRoutineSwaps(null), {});
 });
 
+// ---------- Diet: calorie target and weekly check ----------
+
+const manPlan = { age: 30, heightCm: 180, activity: "light", goal: "maintain", pace: 1, adjust: 0 };
+
+test("resting calories follow the Mifflin-St Jeor formula for men and women", () => {
+  assertEqual(Logic.restingCalories("male", 80, 180, 30), 1780); // 800 + 1125 - 150 + 5
+  assertEqual(Logic.restingCalories("female", 80, 180, 30), 1614); // the same, minus 161 instead of plus 5
+});
+
+test("the calorie target is maintenance plus or minus what the goal asks, with protein from bodyweight", () => {
+  const weightLb = 80 * 2.20462262;
+  const maintain = Logic.calorieTarget(manPlan, "male", weightLb);
+  assertEqual([maintain.maintenance, maintain.goalChange, maintain.target, maintain.protein], [2450, 0, 2450, 141]);
+  // Bulking at the steady pace of 0.5 lb a week is 250 more calories a day; cutting at 1 lb is 500 fewer.
+  assertEqual(Logic.calorieTarget({ ...manPlan, goal: "bulk", pace: 1 }, "male", weightLb).target, 2700);
+  assertEqual(Logic.calorieTarget({ ...manPlan, goal: "cut", pace: 1 }, "male", weightLb).target, 1950);
+  assertEqual(Logic.calorieTarget({ ...manPlan, adjust: -100 }, "male", weightLb).target, 2350);
+});
+
+test("a target under the safety floor is flagged, and there is no target until everything is filled in", () => {
+  const small = { age: 40, heightCm: 150, activity: "sedentary", goal: "cut", pace: 2, adjust: 0 };
+  const result = Logic.calorieTarget(small, "female", 100);
+  assertEqual([result.belowFloor, result.floor], [true, 1200]);
+  assertEqual(Logic.calorieTarget(manPlan, "male", 180).belowFloor, false);
+  for (const missing of [[{ ...manPlan, age: null }, "male", 180], [{ ...manPlan, heightCm: null }, "male", 180], [manPlan, "", 180], [manPlan, "male", 0]]) {
+    assertEqual(Logic.calorieTarget(...missing), null);
+  }
+});
+
+test("saved diet details that are wrong fall back to the defaults, and good ones are kept", () => {
+  assertEqual(Logic.sanitizeDiet(null), Logic.DEFAULT_DIET);
+  assertEqual(Logic.sanitizeDiet({ age: 5, heightCm: 20, activity: "extreme", goal: "feast", pace: 9, adjust: 9999 }), Logic.DEFAULT_DIET);
+  const good = { age: 25, heightCm: 178, activity: "active", goal: "bulk", pace: 2, adjust: -150 };
+  assertEqual(Logic.sanitizeDiet(good), good);
+});
+
+test("age and height are checked", () => {
+  assertEqual([Logic.validateAge(30), Logic.validateAge(13), Logic.validateAge(101), Logic.validateAge(30.5), Logic.validateAge(NaN)], ["", "error.age", "error.age", "error.age", "error.age"]);
+  assertEqual([Logic.validateHeight(180), Logic.validateHeight(99), Logic.validateHeight(251), Logic.validateHeight(NaN)], ["", "error.height", "error.height", "error.height"]);
+});
+
+test("a height in centimetres converts to feet and inches and back, carrying whole feet", () => {
+  assertEqual(Logic.cmToFeetInches(177.8), { feet: 5, inches: 10 });
+  assertEqual(Logic.cmToFeetInches(182.88), { feet: 6, inches: 0 });
+  assertEqual(Logic.cmToFeetInches(182.85), { feet: 6, inches: 0 }); // 71.99 in rounds up to the next foot
+  assertEqual(Logic.cmToFeetInches(175), { feet: 5, inches: 8.9 });
+  assertEqual(Math.round(Logic.feetInchesToCm(5, 10) * 10) / 10, 177.8);
+  assertEqual(Math.round(Logic.feetInchesToCm(5, undefined) * 10) / 10, 152.4);
+  assertEqual(Math.round(Logic.feetInchesToCm(undefined, 70) * 10) / 10, 177.8);
+});
+
+test("the weight trend is the weekly change over the last three weeks, and needs enough readings", () => {
+  const weights = [{ date: "2026-10-01", weight: 180 }, { date: "2026-10-08", weight: 180.5 }, { date: "2026-10-15", weight: 181 }, { date: "2026-10-22", weight: 181.5 }];
+  const trend = Logic.weightTrend([{ date: "2026-08-01", weight: 150 }, ...weights], "2026-10-22");
+  assertEqual([Math.round(trend.perWeek * 100) / 100, trend.count, trend.days], [0.5, 4, 21]);
+  assertEqual(Logic.weightTrend(weights.slice(0, 2), "2026-10-22"), null); // two readings are not a trend
+  assertEqual(Logic.weightTrend([{ date: "2026-10-18", weight: 180 }, { date: "2026-10-20", weight: 181 }, { date: "2026-10-22", weight: 182 }], "2026-10-22"), null); // too close together
+});
+
+test("the weekly check suggests more or fewer calories, in steps of 50, and calls a close match on track", () => {
+  assertEqual(Logic.adjustmentSuggestion(0.5, 1.2), { status: "adjust", change: -350 }); // gaining too fast: eat less
+  assertEqual(Logic.adjustmentSuggestion(-1, -0.4), { status: "adjust", change: -300 }); // cutting too slowly: eat less
+  assertEqual(Logic.adjustmentSuggestion(0.5, -0.4), { status: "adjust", change: 450 }); // not gaining: eat more
+  assertEqual(Logic.adjustmentSuggestion(0.5, 0.45), { status: "onTrack" });
+  assertEqual(Logic.adjustmentSuggestion(1, -2).change, Logic.MAX_ADJUSTMENT); // never more than the cap
+});
+
 // ---------- Warm-up sets ----------
 
 test("warm-up sets ramp up to the working weight with fewer reps, using weights the plates can make", () => {
@@ -1140,7 +1207,7 @@ test("the worker leaves other websites and non-GET requests to the browser", asy
 // name (see STORAGE_KEY in app.js), so the tests never touch real workouts.
 
 let screenRuns = 0; // each screen test gets its own storage name, so tests running together cannot clash
-const TAB_NAMES = ["log", "routines", "history", "progress"];
+const TAB_NAMES = ["log", "routines", "history", "progress", "plan", "weight"];
 
 // Throwaway data with something on every screen: sets, bodyweights, a routine with targets, a note,
 // two waist measurements, and a comparison group chosen.
@@ -1157,6 +1224,7 @@ function screenTestData() {
       { date: "2026-10-01", name: "Waist", cm: 80 },
     ],
     sex: "male",
+    diet: { age: 30, heightCm: 178, activity: "active", goal: "bulk", pace: 1, adjust: 0 },
     language: "en",
   };
 }
@@ -1198,6 +1266,8 @@ test("every tab draws its screen, with no errors", async () => {
       routines: ["#routine-list .routine-card", "#routine-form", "#my-exercises"],
       history: ["#calendar-grid .day-cell", "#history .day", "#backup-download"],
       progress: ["#plateau-cards", "#exercise-chart svg", "#strength-results .strength-card", "#bodyweight-chart svg", "#measure-chart svg"],
+      plan: ["#plan-sex", "#plan-result .plan-card"],
+      weight: ["#diet-weight-chart svg", "#diet-check"],
     };
     for (const name of TAB_NAMES) {
       const tab = showTab(app, name);
@@ -1765,6 +1835,162 @@ test("a file that is not a backup is refused with a message and changes nothing"
       if (!app.doc.getElementById("backup-merge").classList.contains("hidden")) throw new Error("no panel should show for a bad file");
       assertEqual(JSON.stringify(savedData(app)), before, `"${text}":`);
     }
+  } finally {
+    closeApp(app);
+  }
+});
+
+// ---------- The Diet section ----------
+
+// The number in a line such as "2,975 calories a day".
+const caloriesIn = (text) => Number(text.replace(/[^\d]/g, ""));
+
+function setPlanFields(app, fields) {
+  for (const [id, value] of Object.entries(fields)) {
+    const box = app.doc.getElementById(id);
+    box.value = value;
+    fireEvent(box, "change");
+  }
+}
+
+test("the Workout and Diet switch changes the tabs along the bottom, and the app opens on the section you left", async () => {
+  const app = await openApp();
+  let again;
+  try {
+    const doc = app.doc;
+    const shown = (id) => !doc.getElementById(id).classList.contains("hidden");
+    assertEqual(["nav-log", "nav-plan"].map(shown), [true, false]);
+    doc.querySelector('.section-switch button[data-section="diet"]').click();
+    assertEqual(["nav-log", "nav-progress", "nav-plan", "nav-weight"].map(shown), [false, false, true, true]);
+    if (!shown("tab-plan") || shown("tab-log")) throw new Error("Diet should open the Plan tab");
+    assertEqual(doc.querySelector('.section-switch button[data-section="diet"]').getAttribute("aria-pressed"), "true");
+    doc.getElementById("nav-weight").click();
+    doc.querySelector('.section-switch button[data-section="workout"]').click();
+    if (!shown("tab-log")) throw new Error("Workout should open the Log tab again");
+    doc.querySelector('.section-switch button[data-section="diet"]').click();
+    if (!shown("tab-weight")) throw new Error("switching back to Diet should return to the Weight tab, where you left it");
+    assertEqual(savedData(app).section, "diet");
+    again = await reopenApp(app);
+    if (again.doc.getElementById("tab-plan").classList.contains("hidden") && again.doc.getElementById("tab-weight").classList.contains("hidden")) throw new Error("reopening should land in the Diet section");
+    if (app.errors.length) throw new Error(app.errors.join("; "));
+  } finally {
+    if (again) again.frame.remove();
+    closeApp(app);
+  }
+});
+
+test("the header stays one slim row with the switch in it", async () => {
+  const app = await openApp();
+  try {
+    const row = app.doc.querySelector(".title-row").getBoundingClientRect();
+    if (row.height > 60) throw new Error(`the header row is ${Math.round(row.height)}px tall, so something wrapped onto a second line`);
+  } finally {
+    closeApp(app);
+  }
+});
+
+test("the Plan tab turns your details and goal into a calorie and protein target", async () => {
+  const app = await openApp();
+  try {
+    const doc = app.doc;
+    showTab(app, "plan");
+    const target = () => caloriesIn(doc.querySelector("#plan-result .plan-target").textContent);
+    const bulk = target();
+    if (!/Protein: about \d+ g/.test(doc.getElementById("plan-result").textContent)) throw new Error("the plan should show a protein target");
+    setPlanFields(app, { "plan-goal": "maintain" });
+    const maintain = target();
+    setPlanFields(app, { "plan-goal": "cut" });
+    const cut = target();
+    if (!(bulk > maintain && maintain > cut)) throw new Error(`bulk ${bulk}, maintain ${maintain} and cut ${cut} should go down in that order`);
+    if (!doc.getElementById("plan-result").textContent.includes("fewer calories")) throw new Error("a cut should say how many fewer calories");
+    // A faster pace takes more off.
+    const steady = target();
+    setPlanFields(app, { "plan-pace": "2" });
+    if (!(target() < steady)) throw new Error("a faster cut should have a lower target");
+    // In pounds mode height is typed as feet and inches, and saved in centimetres.
+    setPlanFields(app, { "plan-feet": "5", "plan-inches": "10" });
+    if (Math.abs(savedData(app).diet.heightCm - 177.8) > 0.1) throw new Error("5 ft 10 in should be saved as about 177.8 cm");
+    assertEqual([doc.getElementById("plan-feet").value, doc.getElementById("plan-inches").value], ["5", "10"]);
+    if (doc.getElementById("plan-height").offsetParent !== null) throw new Error("the centimetre box should be hidden in pounds mode");
+    // In kilograms mode it is one box in centimetres, filled in with the same height.
+    doc.querySelector('.unit-toggle button[data-unit="kg"]').click();
+    if (doc.getElementById("plan-feet").offsetParent !== null) throw new Error("the feet box should be hidden in kilograms mode");
+    assertEqual(doc.getElementById("plan-height").value, "177.8");
+    setPlanFields(app, { "plan-height": "180" });
+    assertEqual(savedData(app).diet.heightCm, 180);
+    // A height that is not realistic is refused.
+    doc.querySelector('.unit-toggle button[data-unit="lb"]').click();
+    setPlanFields(app, { "plan-feet": "1", "plan-inches": "0" });
+    if (!doc.getElementById("plan-error").textContent) throw new Error("1 ft should be refused as a height");
+    assertEqual(savedData(app).diet.heightCm, 180);
+    if (app.errors.length) throw new Error(app.errors.join("; "));
+  } finally {
+    closeApp(app);
+  }
+});
+
+test("the Plan tab says what is missing, refuses a bad age, and keeps what you enter", async () => {
+  const app = await openApp();
+  let again;
+  try {
+    const doc = app.doc;
+    showTab(app, "plan");
+    setPlanFields(app, { "plan-age": "" });
+    if (!doc.getElementById("plan-result").textContent.includes("age")) throw new Error("it should say that the age is missing");
+    setPlanFields(app, { "plan-age": "7" });
+    if (!doc.getElementById("plan-error").textContent) throw new Error("an age of 7 should be refused with a message");
+    assertEqual(savedData(app).diet.age, null);
+    setPlanFields(app, { "plan-age": "28", "plan-sex": "female" });
+    assertEqual([doc.getElementById("plan-error").textContent, savedData(app).diet.age, savedData(app).sex], ["", 28, "female"]);
+    again = await reopenApp(app);
+    assertEqual(again.doc.getElementById("plan-age").value, "28");
+    app.win.eval("state.bodyweights = []; renderPlan();");
+    if (!doc.getElementById("plan-result").textContent.includes("bodyweight")) throw new Error("with no bodyweight logged it should ask for one");
+  } finally {
+    if (again) again.frame.remove();
+    closeApp(app);
+  }
+});
+
+test("the Weight tab adds a bodyweight that shows on both sides, and its weekly check can adjust the target", async () => {
+  const app = await openApp();
+  try {
+    const doc = app.doc;
+    // Three weeks of readings gaining a pound a week; the goal (bulk, steady) is half a pound.
+    app.win.eval(`state.bodyweights = [21, 14, 7, 1].map((daysAgo, i) => ({ date: Logic.toDateString(new Date(Date.now() - daysAgo * 86400000)), weight: 180 + i })); renderWeight();`);
+    showTab(app, "weight");
+    const check = doc.getElementById("diet-check");
+    if (!check.textContent.includes("fewer calories") || !check.textContent.includes("250")) throw new Error(`the weekly check reads "${check.textContent}"`);
+    showTab(app, "plan");
+    const before = caloriesIn(doc.querySelector("#plan-result .plan-target").textContent);
+    showTab(app, "weight");
+    doc.querySelector("#diet-check button.primary").click();
+    assertEqual(savedData(app).diet.adjust, -250);
+    showTab(app, "plan");
+    assertEqual(caloriesIn(doc.querySelector("#plan-result .plan-target").textContent), before - 250);
+    if (!doc.getElementById("plan-result").textContent.includes("Adjusted by")) throw new Error("the plan should say it has been adjusted");
+    [...doc.querySelectorAll("#plan-result button")].find((button) => button.textContent.includes("Reset")).click();
+    assertEqual([savedData(app).diet.adjust, caloriesIn(doc.querySelector("#plan-result .plan-target").textContent)], [0, before]);
+    // Adding today's weight here also puts it in the Progress tab's log.
+    showTab(app, "weight");
+    doc.getElementById("diet-weight").value = "185";
+    fireEvent(doc.getElementById("diet-weight-form"), "submit");
+    const todayString = Logic.toDateString(new Date());
+    assertEqual(savedData(app).bodyweights.filter((b) => b.date === todayString).map((b) => b.weight), [185]);
+    if (app.errors.length) throw new Error(app.errors.join("; "));
+  } finally {
+    closeApp(app);
+  }
+});
+
+test("with too few weigh-ins the weekly check says what is needed instead of guessing", async () => {
+  const app = await openApp();
+  try {
+    app.win.eval(`state.bodyweights = [{ date: Logic.toDateString(new Date()), weight: 180 }]; renderWeight();`);
+    showTab(app, "weight");
+    const text = app.doc.getElementById("diet-check").textContent;
+    if (!text.includes("at least 3 times")) throw new Error(`the weekly check reads "${text}"`);
+    if (app.doc.querySelector("#diet-check button")) throw new Error("there is nothing to apply yet");
   } finally {
     closeApp(app);
   }
