@@ -19,6 +19,7 @@ const APP_FILES = [
   "lang-fr.js",
   "lang-pt.js",
   "lang-ru.js",
+  "strength-data.js",
   "logic.js",
   "app.js",
 ];

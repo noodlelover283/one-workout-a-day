@@ -40,6 +40,7 @@ It copies only the app files, so the private course files are never published. T
 
 - `sw.js`: the service worker that lets the app open with no connection (it saves the app's files on the device)
 - `manifest.webmanifest` and the icon `.png` files: what lets a phone install the app on its home screen; `make_icons.py` redraws the icons
+- `strength-data.js`: the gym strength tables behind the Strength levels card (FitnessVolt Strength Standards, CC BY 4.0, shown as a credit in the card); `make_strength_data.py` downloads fresh tables and rewrites it
 - `serve.py`: the local test server (it stops your browser keeping old copies of the files)
 - `publish.py`: copies the app files to the public hosting copy (see Hosting)
 - `app.js`: connects the page to the data

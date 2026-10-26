@@ -326,7 +326,9 @@ I18n.register("en", {
     "toast.measureDeleted": "{name} deleted.",
 
     "strength.heading": "Strength levels",
-    "strength.hint": "A rough guide to how your best lifts compare with other gym-goers of your sex and bodyweight. It uses your estimated one-rep max and typical strength-to-bodyweight ratios, so treat it as an estimate, not a ranking.",
+    "strength.hint": "A guide to how your best lifts compare with other gym lifters of your sex and bodyweight, using your estimated one-rep max. Intermediate is the typical lifter, Advanced is the top quarter and Elite is the top 10%. Treat it as an estimate, not a ranking.",
+    "strength.credit": "Level data:",
+    "strength.creditEnd": "(CC BY 4.0), based on lifts reported by gym-goers to Symmetric Strength.",
     "strength.sexLabel": "Compare me with",
     "strength.sexChoose": "Choose…",
     "strength.male": "Men",

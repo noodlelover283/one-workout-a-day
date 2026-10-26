@@ -326,7 +326,9 @@ I18n.register("es", {
     "toast.measureDeleted": "{name} eliminada.",
 
     "strength.heading": "Niveles de fuerza",
-    "strength.hint": "Una guía aproximada de cómo se comparan tus mejores levantamientos con los de otras personas que entrenan, de tu sexo y peso corporal. Usa tu 1RM estimado y proporciones típicas de fuerza respecto al peso corporal, así que tómalo como una estimación, no como un ranking.",
+    "strength.hint": "Una guía de cómo se comparan tus mejores levantamientos con los de otras personas que entrenan en gimnasio, de tu sexo y peso corporal, usando tu 1RM estimado. Intermedio es el levantador típico, Avanzado el cuarto superior y Élite el 10 % superior. Tómalo como una estimación, no como un ranking.",
+    "strength.credit": "Datos de los niveles:",
+    "strength.creditEnd": "(CC BY 4.0), basados en levantamientos que personas de gimnasio reportaron a Symmetric Strength.",
     "strength.sexLabel": "Compararme con",
     "strength.sexChoose": "Elegir…",
     "strength.male": "Hombres",

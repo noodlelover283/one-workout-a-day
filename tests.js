@@ -459,36 +459,62 @@ test("saved bar choices that are not real bars fall back to the usual bar", () =
 
 // ---------- Strength levels ----------
 
-test("every lift has five rising level thresholds, and women's are lower than men's", () => {
-  for (const lift of Logic.STRENGTH_LIFTS) {
-    for (const sex of Logic.STRENGTH_SEXES) {
-      const thresholds = Logic.STRENGTH_STANDARDS[sex][lift];
-      assertEqual(thresholds.length, Logic.STRENGTH_LEVELS.length, `${sex} ${lift}:`);
-      if (!thresholds.every((value, i) => i === 0 || value > thresholds[i - 1])) throw new Error(`${sex} ${lift} does not rise`);
+const kgToLb = (kg) => kg * 2.20462262;
+
+test("the strength tables cover every lift for both sexes, with five rising levels in each bodyweight class", () => {
+  assertEqual(Logic.STRENGTH_LIFTS, ["Bench Press", "Squat", "Deadlift", "Overhead Press"]);
+  assertEqual(Logic.STRENGTH_SEXES, ["male", "female"]);
+  for (const sex of Logic.STRENGTH_SEXES) {
+    const centres = STRENGTH_DATA.bodyweightKg[sex];
+    if (!centres.every((kg, i) => i === 0 || kg > centres[i - 1])) throw new Error(`${sex} class middles do not rise`);
+    for (const lift of Logic.STRENGTH_LIFTS) {
+      const rows = STRENGTH_DATA.lifts[lift][sex];
+      assertEqual(rows.length, centres.length, `${sex} ${lift} classes:`);
+      for (const row of rows) {
+        assertEqual(row.length, Logic.STRENGTH_LEVELS.length, `${sex} ${lift} levels:`);
+        if (!row.every((value, i) => value > 0 && (i === 0 || value > row[i - 1]))) throw new Error(`${sex} ${lift} does not rise: ${row}`);
+      }
     }
-    Logic.STRENGTH_STANDARDS.male[lift].forEach((value, i) => {
-      if (Logic.STRENGTH_STANDARDS.female[lift][i] >= value) throw new Error(`female ${lift} level ${i} is not lower`);
+  }
+});
+
+test("women's level weights are lower than men's at the same bodyweight, for every lift and level", () => {
+  for (const lift of Logic.STRENGTH_LIFTS) {
+    const men = Logic.strengthThresholds("male", lift, kgToLb(65));
+    const women = Logic.strengthThresholds("female", lift, kgToLb(65));
+    men.forEach((value, i) => {
+      if (women[i] >= value) throw new Error(`${lift} level ${i}: women ${women[i]} is not below men ${value}`);
     });
   }
 });
 
-test("a lift is placed at the highest level whose ratio it reaches, with the next target", () => {
-  // Male bench: Intermediate needs 1.1x, Advanced 1.35x. An 80 lb bodyweight and an 88 lb max is 1.1x.
-  const result = Logic.strengthLevel("male", "Bench Press", 88, 80);
-  assertEqual([result.level, result.next.level, Math.round(result.next.weight)], ["Intermediate", "Advanced", 108]);
+test("level weights come straight from the table at the middle of a class, are blended between classes, and stop at the ends", () => {
+  const at = (kg) => Logic.strengthThresholds("male", "Bench Press", kgToLb(kg)).map((value) => Math.round(value * 10) / 10);
+  assertEqual(at(78.5), [147, 174.9, 204.2, 235.2, 263.5]); // middle of the 83 kg class
+  // 74 kg is 4 of the 8.5 kg between the middles of the 74 and 83 kg classes, so the median blends 181.5 and 204.2.
+  assertEqual(at(74)[2], Math.round((181.5 + (204.2 - 181.5) * (4 / 8.5)) * 10) / 10);
+  assertEqual(at(40), STRENGTH_DATA.lifts["Bench Press"].male[0]); // lighter than the lightest class
+  assertEqual(at(200), STRENGTH_DATA.lifts["Bench Press"].male[7]); // heavier than the heaviest class
+});
+
+test("a lift is placed at the highest level whose weight it reaches, with the next target", () => {
+  // Male bench at the middle of the 83 kg class: the median is 204.2 lb and the 75th percentile 235.2 lb.
+  const result = Logic.strengthLevel("male", "Bench Press", 210, kgToLb(78.5));
+  assertEqual([result.level, result.next.level, Math.round(result.next.weight * 10) / 10], ["Intermediate", "Advanced", 235.2]);
 });
 
 test("below the first level, at exactly a level, and at the top", () => {
-  assertEqual(Logic.strengthLevel("male", "Squat", 30, 100).level, null);
-  assertEqual(Logic.strengthLevel("male", "Squat", 30, 100).next.level, "Beginner");
-  assertEqual(Logic.strengthLevel("female", "Deadlift", 130, 100).level, "Intermediate");
-  const top = Logic.strengthLevel("male", "Deadlift", 300, 100);
+  const bodyweight = kgToLb(78.5);
+  assertEqual(Logic.strengthLevel("male", "Bench Press", 100, bodyweight).level, null);
+  assertEqual(Logic.strengthLevel("male", "Bench Press", 100, bodyweight).next.level, "Beginner");
+  assertEqual(Logic.strengthLevel("male", "Bench Press", 204.2, bodyweight).level, "Intermediate");
+  const top = Logic.strengthLevel("male", "Bench Press", 400, bodyweight);
   assertEqual([top.level, top.next], ["Elite", null]);
 });
 
 test("no comparison without a sex, a known lift or a bodyweight", () => {
-  assertEqual(Logic.strengthLevel("", "Squat", 200, 80), null);
-  assertEqual(Logic.strengthLevel("male", "Bicep Curl", 50, 80), null);
+  assertEqual(Logic.strengthLevel("", "Squat", 200, 180), null);
+  assertEqual(Logic.strengthLevel("male", "Bicep Curl", 50, 180), null);
   assertEqual(Logic.strengthLevel("male", "Squat", 200, 0), null);
 });
 

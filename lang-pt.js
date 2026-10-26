@@ -326,7 +326,9 @@ I18n.register("pt", {
     "toast.measureDeleted": "{name} excluída.",
 
     "strength.heading": "Níveis de força",
-    "strength.hint": "Um guia aproximado de como seus melhores levantamentos se comparam aos de outras pessoas que treinam, do seu sexo e peso corporal. Usa seu 1RM estimado e proporções típicas de força em relação ao peso corporal, então encare como uma estimativa, não um ranking.",
+    "strength.hint": "Um guia de como seus melhores levantamentos se comparam aos de outras pessoas que treinam, do seu sexo e peso corporal, usando seu 1RM estimado. Intermediário é o praticante típico, Avançado é o quarto superior e Elite são os 10% melhores. Encare como uma estimativa, não um ranking.",
+    "strength.credit": "Dados dos níveis:",
+    "strength.creditEnd": "(CC BY 4.0), com base em levantamentos informados por frequentadores de academia ao Symmetric Strength.",
     "strength.sexLabel": "Comparar-me com",
     "strength.sexChoose": "Escolher…",
     "strength.male": "Homens",

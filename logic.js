@@ -761,39 +761,40 @@ const Logic = (() => {
     return bars;
   }
 
-  // Rough strength levels from the best estimated one-rep max divided by bodyweight. The ratios are
-  // our own rounded approximations (not a copy of any published table), set to sit near the typical
-  // ratios in public gym-goer data for a 75 kg man and a 65 kg woman. Heavier and lighter lifters
-  // are compared less accurately, so the app calls this a rough guide. Thresholds for Beginner,
-  // Novice, Intermediate, Advanced and Elite, in that order.
+  // Strength levels compare the best estimated one-rep max with gym lifters of the same sex and
+  // bodyweight, using the tables in strength-data.js (FitnessVolt Strength Standards, CC BY 4.0, from
+  // lifts reported to Symmetric Strength). The five levels sit at the weights that 10, 25, 50, 75 and
+  // 90 percent of those lifters reach: Beginner is stronger than the weakest tenth, Novice the weakest
+  // quarter, Intermediate the typical lifter (the median), Advanced the top quarter, Elite the top tenth.
   const STRENGTH_LEVELS = ["Beginner", "Novice", "Intermediate", "Advanced", "Elite"];
-  const STRENGTH_STANDARDS = {
-    male: {
-      "Bench Press": [0.65, 0.9, 1.1, 1.35, 1.8],
-      "Squat": [0.7, 1.1, 1.4, 1.7, 2.25],
-      "Deadlift": [0.9, 1.4, 1.8, 2.2, 2.7],
-      "Overhead Press": [0.4, 0.55, 0.7, 0.8, 1.0],
-    },
-    female: {
-      "Bench Press": [0.35, 0.5, 0.65, 0.85, 1.2],
-      "Squat": [0.4, 0.75, 1.05, 1.35, 1.9],
-      "Deadlift": [0.6, 1.0, 1.3, 1.65, 2.15],
-      "Overhead Press": [0.25, 0.35, 0.45, 0.55, 0.7],
-    },
-  };
-  const STRENGTH_LIFTS = Object.keys(STRENGTH_STANDARDS.male);
-  const STRENGTH_SEXES = Object.keys(STRENGTH_STANDARDS);
+  const STRENGTH_LIFTS = Object.keys(STRENGTH_DATA.lifts);
+  const STRENGTH_SEXES = Object.keys(STRENGTH_DATA.bodyweightKg);
+
+  // The five level weights (pounds) for a lift at a bodyweight (pounds). The tables are for bodyweight
+  // classes, so between the middles of two neighbouring classes the weights are blended, which avoids a
+  // jump at a class edge; below the lightest and above the heaviest class the end class is used.
+  // Returns null when there is no table for this sex and lift, or no bodyweight.
+  function strengthThresholds(sex, exercise, bodyweightLb) {
+    const rows = STRENGTH_DATA.lifts[exercise] && STRENGTH_DATA.lifts[exercise][sex];
+    if (!rows || !(bodyweightLb > 0)) return null;
+    const centres = STRENGTH_DATA.bodyweightKg[sex];
+    const kg = bodyweightLb / LB_PER_KG;
+    if (kg <= centres[0]) return [...rows[0]];
+    if (kg >= centres[centres.length - 1]) return [...rows[rows.length - 1]];
+    const upper = centres.findIndex((centre) => centre >= kg);
+    const share = (kg - centres[upper - 1]) / (centres[upper] - centres[upper - 1]);
+    return rows[upper].map((value, level) => rows[upper - 1][level] + (value - rows[upper - 1][level]) * share);
+  }
 
   // How a lift compares: the ratio to bodyweight, the highest level reached (an index into
   // STRENGTH_LEVELS, or -1 if below Beginner) and the next level with the weight needed to reach it.
-  // Returns null when there is no standard for this sex and lift, or no bodyweight.
+  // Returns null when there is no table for this sex and lift, or no bodyweight.
   function strengthLevel(sex, exercise, oneRepMax, bodyweight) {
-    const thresholds = STRENGTH_STANDARDS[sex] && STRENGTH_STANDARDS[sex][exercise];
-    if (!thresholds || !(bodyweight > 0)) return null;
-    const ratio = oneRepMax / bodyweight;
-    const reached = thresholds.filter((minimum) => ratio >= minimum).length - 1;
-    const next = reached + 1 < thresholds.length ? { level: STRENGTH_LEVELS[reached + 1], weight: thresholds[reached + 1] * bodyweight } : null;
-    return { ratio, reached, level: reached >= 0 ? STRENGTH_LEVELS[reached] : null, next };
+    const thresholds = strengthThresholds(sex, exercise, bodyweight);
+    if (!thresholds) return null;
+    const reached = thresholds.filter((minimum) => oneRepMax >= minimum).length - 1;
+    const next = reached + 1 < thresholds.length ? { level: STRENGTH_LEVELS[reached + 1], weight: thresholds[reached + 1] } : null;
+    return { ratio: oneRepMax / bodyweight, reached, level: reached >= 0 ? STRENGTH_LEVELS[reached] : null, next };
   }
 
   // The most recent bodyweight in pounds, or null if none was logged.
@@ -1077,7 +1078,7 @@ const Logic = (() => {
     STRENGTH_LEVELS,
     STRENGTH_LIFTS,
     STRENGTH_SEXES,
-    STRENGTH_STANDARDS,
+    strengthThresholds,
     strengthLevel,
     latestBodyweight,
     MEASUREMENTS,

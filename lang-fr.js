@@ -326,7 +326,9 @@ I18n.register("fr", {
     "toast.measureDeleted": "{name} supprimée.",
 
     "strength.heading": "Niveaux de force",
-    "strength.hint": "Un repère approximatif pour situer vos meilleures charges par rapport aux autres pratiquants de votre sexe et de votre poids. Il s'appuie sur votre 1RM estimé et sur des ratios force/poids de corps typiques : voyez-y une estimation, pas un classement.",
+    "strength.hint": "Un repère pour situer vos meilleures charges par rapport aux autres pratiquants de votre sexe et de votre poids, d'après votre 1RM estimé. Intermédiaire correspond au pratiquant typique, Avancé au quart supérieur et Élite aux 10 % supérieurs. Voyez-y une estimation, pas un classement.",
+    "strength.credit": "Données des niveaux :",
+    "strength.creditEnd": "(CC BY 4.0), d'après les charges déclarées par des pratiquants de salle à Symmetric Strength.",
     "strength.sexLabel": "Me comparer avec",
     "strength.sexChoose": "Choisir…",
     "strength.male": "Hommes",

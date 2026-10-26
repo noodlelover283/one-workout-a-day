@@ -324,7 +324,9 @@ I18n.register("zh", {
     "toast.measureDeleted": "已删除{name}。",
 
     "strength.heading": "力量水平",
-    "strength.hint": "大致对比你的最佳举重成绩与同性别、同体重的其他健身者。它基于你的预估一次最大重量和典型的力量体重比，请把它当作估算而不是排名。",
+    "strength.hint": "大致对比你的最佳举重成绩与同性别、同体重的其他健身者，依据你的预估一次最大重量。中级是典型的健身者，高级是前四分之一，精英是前 10%。请把它当作估算而不是排名。",
+    "strength.credit": "等级数据：",
+    "strength.creditEnd": "（CC BY 4.0），基于健身者向 Symmetric Strength 报告的成绩。",
     "strength.sexLabel": "与以下人群比较",
     "strength.sexChoose": "请选择…",
     "strength.male": "男性",
