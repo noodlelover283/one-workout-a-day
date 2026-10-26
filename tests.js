@@ -1529,6 +1529,247 @@ test("Repeat adds the set to the day shown, and copies the most recent set of th
   }
 });
 
+// ---------- Everyday use, as a person would do it ----------
+
+// Helpers for the tests below. They use a day long before the sample data (which is dated back from today),
+// so the only sets on it are the ones the test logs itself.
+const QUIET_DAY = "2020-03-04";
+const fireEvent = (node, type) => node.dispatchEvent(new Event(type, { bubbles: true, cancelable: true }));
+const savedData = (app) => JSON.parse(app.win.localStorage.getItem(app.storage));
+const setsOnQuietDay = (app) => savedData(app).entries.filter((entry) => entry.date === QUIET_DAY);
+
+function chooseDay(app, date) {
+  const box = app.doc.getElementById("date");
+  box.value = date;
+  fireEvent(box, "change");
+}
+
+// Picks a file in the backup chooser and waits until the app has answered: either the panel with the
+// choices, or an error message. Reading a file takes a moment, so this waits for the answer instead of
+// guessing how long it takes.
+async function chooseBackupFile(app, text) {
+  const files = new app.win.DataTransfer();
+  files.items.add(new app.win.File([text], "backup.json", { type: "application/json" }));
+  const input = app.doc.getElementById("backup-file");
+  const error = app.doc.getElementById("backup-error");
+  const panel = app.doc.getElementById("backup-merge");
+  error.textContent = "";
+  input.files = files.files;
+  fireEvent(input, "change");
+  for (let waited = 0; waited < 3000 && !error.textContent && panel.classList.contains("hidden"); waited += 50) {
+    await new Promise((resolve) => setTimeout(resolve, 50));
+  }
+}
+
+// A second copy of the app on the same saved data, like closing the page and opening it again.
+function reopenApp(app) {
+  return new Promise((resolve) => {
+    const frame = document.createElement("iframe");
+    frame.style.cssText = "position: absolute; left: -9999px; width: 375px; height: 812px; border: 0;";
+    frame.src = `index.html?storage=${app.storage}`;
+    frame.addEventListener("load", () => resolve({ frame, doc: frame.contentDocument, win: frame.contentWindow }));
+    document.body.append(frame);
+  });
+}
+
+test("logging a set saves it, lists it, and keeps the weight and reps for the next set", async () => {
+  const app = await openApp();
+  try {
+    chooseDay(app, QUIET_DAY);
+    logSetInApp(app, "Squat", 225, 5);
+    const list = app.doc.getElementById("today-list");
+    if (!list.textContent.includes("Set 1") || !list.textContent.includes("225 lb × 5 reps")) throw new Error(`the list reads "${list.textContent}"`);
+    assertEqual(setsOnQuietDay(app).map((e) => [e.exercise, e.weight, e.reps]), [["Squat", 225, 5]]);
+    assertEqual([app.doc.getElementById("weight").value, app.doc.getElementById("reps").value], ["225", "5"]);
+    logSetInApp(app, "Squat", 225, 4);
+    if (!list.textContent.includes("Set 2")) throw new Error("the second set should be numbered Set 2");
+    if (!app.doc.getElementById("toast").textContent.includes("Squat")) throw new Error("saving should show a message naming the exercise");
+    if (app.errors.length) throw new Error(app.errors.join("; "));
+  } finally {
+    closeApp(app);
+  }
+});
+
+test("a set with missing or wrong details is refused with a message and nothing is saved", async () => {
+  const app = await openApp();
+  try {
+    chooseDay(app, QUIET_DAY);
+    const error = () => app.doc.getElementById("form-error").textContent;
+    for (const [exercise, weight, reps] of [["", 100, 5], ["Squat", 100, 0], ["Squat", 100, "abc"], ["Squat", -5, 5], ["Squat", 100, 101]]) {
+      logSetInApp(app, exercise, weight, reps);
+      if (!error()) throw new Error(`"${exercise}" ${weight} x ${reps} should have shown an error`);
+      assertEqual(setsOnQuietDay(app).length, 0, `${exercise} ${weight} x ${reps}:`);
+    }
+    logSetInApp(app, "Squat", 100, 5);
+    assertEqual([error(), setsOnQuietDay(app).length], ["", 1]);
+  } finally {
+    closeApp(app);
+  }
+});
+
+test("a set heavier than the best so far gets a New record message, and a lighter one does not", async () => {
+  const app = await openApp();
+  try {
+    chooseDay(app, QUIET_DAY);
+    const toast = app.doc.getElementById("toast");
+    logSetInApp(app, "Bench Press", 500, 1);
+    if (!toast.classList.contains("record") || !toast.textContent.includes("New record")) throw new Error(`a 500 lb bench should be a record, but the message reads "${toast.textContent}"`);
+    logSetInApp(app, "Bench Press", 100, 8);
+    if (toast.classList.contains("record")) throw new Error("a lighter set must not give a record message");
+  } finally {
+    closeApp(app);
+  }
+});
+
+test("editing a set changes it, a bad value is refused, and Escape leaves it as it was", async () => {
+  const app = await openApp();
+  try {
+    chooseDay(app, QUIET_DAY);
+    logSetInApp(app, "Squat", 225, 5);
+    const doc = app.doc;
+    const editButton = () => [...doc.querySelectorAll("#today-list .entry button.link")].find((button) => button.textContent === "Edit");
+    editButton().click();
+    const [weight, reps] = doc.querySelectorAll("#today-list .entry.editing input[type=number]");
+    const form = doc.querySelector("#today-list .entry.editing form");
+    reps.value = "0";
+    fireEvent(form, "submit");
+    if (!doc.querySelector("#today-list .entry.editing .error").textContent) throw new Error("0 reps should be refused with a message");
+    assertEqual(setsOnQuietDay(app)[0].reps, 5);
+    weight.value = "230";
+    reps.value = "6";
+    fireEvent(form, "submit");
+    if (!doc.getElementById("today-list").textContent.includes("230 lb × 6 reps")) throw new Error("the list should show the edited set");
+    assertEqual(setsOnQuietDay(app).map((e) => [e.weight, e.reps]), [[230, 6]]);
+    // Escape closes the editor without saving what was typed.
+    editButton().click();
+    const typed = doc.querySelectorAll("#today-list .entry.editing input[type=number]")[0];
+    typed.value = "999";
+    typed.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+    if (doc.querySelector("#today-list .entry.editing")) throw new Error("Escape should close the editor");
+    assertEqual(setsOnQuietDay(app)[0].weight, 230);
+    if (app.errors.length) throw new Error(app.errors.join("; "));
+  } finally {
+    closeApp(app);
+  }
+});
+
+test("deleting a set removes it from the list and from the saved data", async () => {
+  const app = await openApp();
+  try {
+    chooseDay(app, QUIET_DAY);
+    logSetInApp(app, "Squat", 225, 5);
+    logSetInApp(app, "Squat", 215, 5);
+    const deleteButtons = () => [...app.doc.querySelectorAll("#today-list .entry button.link")].filter((button) => button.textContent === "Delete");
+    deleteButtons()[0].click();
+    assertEqual(setsOnQuietDay(app).map((e) => e.weight), [215]);
+    deleteButtons()[0].click();
+    assertEqual(setsOnQuietDay(app).length, 0);
+    if (!app.doc.getElementById("today-list").textContent.includes("Nothing logged")) throw new Error("an empty day should say nothing is logged");
+  } finally {
+    closeApp(app);
+  }
+});
+
+test("logged sets are still there after the app is closed and opened again", async () => {
+  const app = await openApp();
+  let again;
+  try {
+    chooseDay(app, QUIET_DAY);
+    logSetInApp(app, "Squat", 225, 5);
+    again = await reopenApp(app);
+    const date = again.doc.getElementById("date");
+    date.value = QUIET_DAY;
+    fireEvent(date, "change");
+    if (!again.doc.getElementById("today-list").textContent.includes("225 lb × 5 reps")) throw new Error("the set should still be listed after reopening");
+  } finally {
+    if (again) again.frame.remove();
+    closeApp(app);
+  }
+});
+
+test("a routine can be built, started on the Log tab, and deleted", async () => {
+  const app = await openApp();
+  try {
+    const doc = app.doc;
+    showTab(app, "routines");
+    const name = doc.getElementById("routine-name");
+    fireEvent(doc.getElementById("routine-form"), "submit");
+    if (!doc.getElementById("routine-error").textContent) throw new Error("a routine with no name or exercises should be refused");
+    name.value = "Leg Day";
+    for (const exercise of ["Squat", "Romanian Deadlift"]) {
+      doc.getElementById("routine-exercise-select").value = exercise;
+      doc.getElementById("routine-add-exercise").click();
+    }
+    fireEvent(doc.getElementById("routine-form"), "submit");
+    const made = savedData(app).routines.find((routine) => routine.name === "Leg Day");
+    if (!made) throw new Error("the routine should be saved");
+    assertEqual(made.exercises, ["Squat", "Romanian Deadlift"]);
+    // Start it on the Log tab: its exercises appear as chips.
+    showTab(app, "log");
+    const picker = doc.getElementById("routine-select");
+    picker.value = made.id;
+    fireEvent(picker, "change");
+    assertEqual([...doc.querySelectorAll("#routine-checklist .chip")].map((chip) => chip.textContent), ["Squat", "Romanian Deadlift"]);
+    // Delete it.
+    showTab(app, "routines");
+    const card = [...doc.querySelectorAll("#routine-list .routine-card")].find((candidate) => candidate.textContent.includes("Leg Day"));
+    [...card.querySelectorAll("button.link")].find((button) => button.textContent === "Delete").click();
+    if (savedData(app).routines.some((routine) => routine.name === "Leg Day")) throw new Error("the routine should be gone");
+    if (app.errors.length) throw new Error(app.errors.join("; "));
+  } finally {
+    closeApp(app);
+  }
+});
+
+test("a downloaded backup holds everything, and Replace everything puts that back, undoing later changes", async () => {
+  const app = await openApp();
+  try {
+    const doc = app.doc;
+    // Catch the file the app offers for download instead of really downloading it.
+    let downloaded = null;
+    app.win.URL.createObjectURL = (file) => {
+      downloaded = file;
+      return "blob:test";
+    };
+    app.win.HTMLAnchorElement.prototype.click = () => {};
+    const before = savedData(app);
+    doc.getElementById("backup-download").click();
+    if (!downloaded) throw new Error("Download backup should offer a file");
+    const text = await downloaded.text();
+    assertEqual(Logic.parseBackup(text).data.entries.length, before.entries.length);
+    // Change things, then restore.
+    chooseDay(app, QUIET_DAY);
+    logSetInApp(app, "Squat", 225, 5);
+    assertEqual(savedData(app).entries.length, before.entries.length + 1);
+    await chooseBackupFile(app, text);
+    app.win.confirm = () => false;
+    doc.getElementById("backup-replace-go").click();
+    assertEqual(savedData(app).entries.length, before.entries.length + 1, "declining the warning:");
+    app.win.confirm = () => true;
+    doc.getElementById("backup-replace-go").click();
+    assertEqual(savedData(app).entries.length, before.entries.length, "after replacing:");
+    if (!doc.getElementById("backup-merge").classList.contains("hidden")) throw new Error("the panel should close after replacing");
+    if (app.errors.length) throw new Error(app.errors.join("; "));
+  } finally {
+    closeApp(app);
+  }
+});
+
+test("a file that is not a backup is refused with a message and changes nothing", async () => {
+  const app = await openApp();
+  try {
+    const before = JSON.stringify(savedData(app));
+    for (const text of ["hello", "{}", JSON.stringify({ app: "something-else", data: {} })]) {
+      await chooseBackupFile(app, text);
+      if (!app.doc.getElementById("backup-error").textContent) throw new Error(`"${text}" should show an error`);
+      if (!app.doc.getElementById("backup-merge").classList.contains("hidden")) throw new Error("no panel should show for a bad file");
+      assertEqual(JSON.stringify(savedData(app)), before, `"${text}":`);
+    }
+  } finally {
+    closeApp(app);
+  }
+});
+
 test("choosing a backup file offers Merge, which adds only what is new and does nothing the second time", async () => {
   const app = await openApp();
   try {
