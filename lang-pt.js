@@ -170,6 +170,14 @@ I18n.register("pt", {
     "log.sampleHint": "Só dando uma olhada? Experimente o app com treinos de exemplo.",
 
     "progress.plateauHeading": "Verificação de platô",
+
+    "progress.back": "Voltar ao Progresso",
+
+    "routines.back": "Voltar às Rotinas",
+
+    "routines.count": "Exercícios: {count}",
+
+    "routines.startOnLog": "Começar na aba Registro",
     "progress.plateauHint": "Grupos musculares, conforme o quão recente foi o seu último recorde de peso.",
     "progress.plateauEmpty": "Registre alguns treinos e seus grupos musculares aparecerão aqui.",
     "volume.heading": "Volume semanal",

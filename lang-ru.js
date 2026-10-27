@@ -172,6 +172,14 @@ I18n.register("ru", {
     "log.sampleHint": "Просто смотрите? Попробуйте приложение на примерах тренировок.",
 
     "progress.plateauHeading": "Проверка плато",
+
+    "progress.back": "Назад к прогрессу",
+
+    "routines.back": "Назад к тренировкам",
+
+    "routines.count": "Упражнений: {count}",
+
+    "routines.startOnLog": "Начать на вкладке «Журнал»",
     "progress.plateauHint": "Группы мышц — по тому, как давно вы ставили новый рекорд веса.",
     "progress.plateauEmpty": "Запишите несколько тренировок, и здесь появятся ваши группы мышц.",
     "volume.heading": "Недельный объём",

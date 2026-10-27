@@ -143,7 +143,7 @@ textarea { min-height: 80px; resize: vertical; }
 .volume-bar { position: relative; flex: 1; min-height: 2px; background: var(--accent); opacity: 0.55; border-radius: 3px 3px 0 0; }
 .volume-bar.current { opacity: 1; }
 :root[data-theme="contrast"] .strength-card,
-:root[data-theme="contrast"] .section-fold { border-width: 2px; }
+:root[data-theme="contrast"] .dash-card { border-width: 2px; }
 .draft-item { flex-wrap: wrap; }
 .target-row { flex-basis: 100%; display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 6px; }
 .target-row label { margin: 0; font-size: 0.85rem; font-weight: 600; }
@@ -315,12 +315,24 @@ summary::-webkit-details-marker { display: none; }
 summary::after { content: ""; flex-shrink: 0; width: 9px; height: 9px; margin-inline-start: auto; margin-inline-end: 4px; border-right: 3px solid var(--accent); border-bottom: 3px solid var(--accent); transform: translateY(-2px) rotate(45deg); transition: transform 0.15s; }
 details[open] > summary::after { transform: translateY(2px) rotate(-135deg); }
 
-/* The folded sections on the Progress tab. */
-.section-fold { margin-top: 16px; padding: 0 12px; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; }
-.section-fold[open] { padding-bottom: 12px; }
-.section-fold > summary { display: flex; align-items: center; min-height: 52px; }
-.section-fold > summary h2 { margin: 0; }
-.section-fold > .hint:first-of-type { margin-top: 0; }
+/* The Progress tab is a dashboard of cards; each card opens its own panel with a Back link. */
+.dash-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-top: 20px; }
+.dash-card { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; min-height: 112px; margin: 0; padding: 12px; text-align: start; border: 1px solid var(--border); border-radius: 14px; background: var(--surface); }
+.dash-card strong { font-size: 1rem; line-height: 1.2; }
+.dash-stat { color: var(--muted); font-size: 0.85rem; overflow-wrap: anywhere; }
+.dash-stat:empty { display: none; }
+.dash-grid .empty { grid-column: 1 / -1; }
+.dash-grid + .dash-grid { margin-top: 10px; }
+.detail-panel { margin-top: 8px; }
+.panel-back { display: flex; align-items: center; padding-inline-start: 0; text-decoration: none; font-weight: 600; }
+.panel-back::before { content: "\2190"; margin-inline-end: 8px; }
+:root[dir="rtl"] .panel-back::before { content: "\2192"; }
+.panel-title { display: flex; align-items: center; margin-top: 4px; }
+.panel-title h2 { margin: 0; }
+.panel-title .fold-icon { margin-inline-end: 10px; }
+.fold-icon { display: flex; align-items: center; justify-content: center; flex-shrink: 0; width: 36px; height: 36px; border-radius: 50%; background: var(--bg); font-size: 1.1rem; }
+.dash-card:active .fold-icon { animation: icon-bounce 0.5s ease-out; }
+@keyframes icon-bounce { 40% { transform: scale(1.25) rotate(-8deg); } 70% { transform: scale(0.95) rotate(4deg); } }
 
 .tabbar button { flex: 1; min-height: 60px; padding: 0 2px; font-size: min(0.9rem, 4.2vw); border: none; border-radius: 0; background: none; font-weight: 600; color: var(--muted); }
 .tabbar button.active { color: var(--accent); border-top: 3px solid var(--accent); }

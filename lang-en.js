@@ -170,6 +170,14 @@ I18n.register("en", {
     "log.sampleHint": "Just looking? Try the app with example workouts.",
 
     "progress.plateauHeading": "Plateau check",
+
+    "progress.back": "Back to Progress",
+
+    "routines.back": "Back to Routines",
+
+    "routines.count": "Exercises: {count}",
+
+    "routines.startOnLog": "Start on the Log tab",
     "progress.plateauHint": "Muscle groups, by how recently you set a new weight record.",
     "progress.plateauEmpty": "Log a few workouts and your muscle groups will show up here.",
     "volume.heading": "Weekly volume",

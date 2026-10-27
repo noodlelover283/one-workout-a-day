@@ -170,6 +170,14 @@ I18n.register("fr", {
     "log.sampleHint": "Vous voulez juste découvrir ? Essayez l'appli avec des séances d'exemple.",
 
     "progress.plateauHeading": "Suivi des plateaux",
+
+    "progress.back": "Retour à Progrès",
+
+    "routines.back": "Retour à Routines",
+
+    "routines.count": "Exercices : {count}",
+
+    "routines.startOnLog": "Commencer dans l'onglet Journal",
     "progress.plateauHint": "Groupes musculaires, selon la date de votre dernier record de poids.",
     "progress.plateauEmpty": "Enregistrez quelques séances et vos groupes musculaires apparaîtront ici.",
     "volume.heading": "Volume hebdomadaire",

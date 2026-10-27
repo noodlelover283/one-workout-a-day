@@ -175,6 +175,14 @@ I18n.register("ar", {
     "log.sampleHint": "مجرد استكشاف؟ جرّب التطبيق بتمارين تجريبية.",
 
     "progress.plateauHeading": "فحص الجمود",
+
+    "progress.back": "العودة إلى التقدم",
+
+    "routines.back": "العودة إلى الروتينات",
+
+    "routines.count": "التمارين: {count}",
+
+    "routines.startOnLog": "ابدأ من تبويب التسجيل",
     "progress.plateauHint": "المجموعات العضلية، بحسب مدى حداثة آخر رقم قياسي للوزن.",
     "progress.plateauEmpty": "سجّل بعض التمارين وستظهر مجموعاتك العضلية هنا.",
     "volume.heading": "الحجم الأسبوعي",

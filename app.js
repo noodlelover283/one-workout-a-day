@@ -162,9 +162,15 @@ function showTab(name) {
     renderRoutinePicker();
     renderToday();
   }
-  if (name === "routines") renderRoutines();
+  if (name === "routines") {
+    showPanel("routines", null);
+    renderRoutines();
+  }
   if (name === "history") renderHistory();
-  if (name === "progress") renderProgress();
+  if (name === "progress") {
+    showProgressPanel(null);
+    renderProgress();
+  }
   if (name === "plan") renderPlan();
   if (name === "weight") renderWeight();
 }
@@ -977,30 +983,47 @@ function renderRoutines() {
   } else {
     list.replaceChildren(
       ...state.routines.map((routine) => {
-        const card = el("div", "routine-card");
-        const header = el("div", "entry-header");
-        header.append(el("strong", "", routine.name));
-        const actions = el("div", "routine-actions");
-        const edit = el("button", "link", t("routines.edit"));
-        edit.type = "button";
-        edit.setAttribute("aria-label", t("routines.editAria", { name: routine.name }));
-        edit.addEventListener("click", () => startEditingRoutine(routine));
-        const remove = el("button", "link", t("routines.delete"));
-        remove.type = "button";
-        remove.setAttribute("aria-label", t("routines.deleteAria", { name: routine.name }));
-        remove.addEventListener("click", () => deleteRoutine(routine));
-        actions.append(edit, remove);
-        header.append(actions);
-        const targetOf = (exercise) => (routine.targets && routine.targets[exercise] ? ` ${routine.targets[exercise].sets}×${routine.targets[exercise].reps}` : "");
-        card.append(header, el("p", "", routine.exercises.map((exercise) => `${exerciseLabel(exercise)}${targetOf(exercise)}`).join(" · ")));
+        const card = el("button", "dash-card");
+        card.type = "button";
+        const icon = el("span", "fold-icon", "🏋️");
+        icon.setAttribute("aria-hidden", "true");
+        card.append(icon, el("strong", "", routine.name), el("span", "dash-stat", t("routines.count", { count: routine.exercises.length })));
+        card.addEventListener("click", () => openRoutine(routine));
         return card;
       })
     );
   }
+  $("dash-stat-myex").textContent = t("routines.count", { count: Object.keys(state.customExercises).length });
   $("routine-exercise-select").replaceChildren(...allExerciseNames().map((name) => option(name, exerciseLabel(name))));
   renderRoutineFormText();
   renderRoutineDraft();
   renderMyExercises();
+}
+
+// The New routine card starts a blank form, unless a routine is half-edited (then Back and return keeps it).
+function onRoutinesCard(panel) {
+  if (panel === "routine-form" && editingRoutineId) resetRoutineForm();
+  showPanel("routines", panel);
+}
+
+// One routine's panel: its exercises with targets, and what you can do with it.
+function openRoutine(routine) {
+  $("routine-view-title").textContent = routine.name;
+  const targetOf = (exercise) => (routine.targets && routine.targets[exercise] ? ` ${routine.targets[exercise].sets}×${routine.targets[exercise].reps}` : "");
+  $("routine-view-exercises").replaceChildren(
+    ...routine.exercises.map((exercise, index) => el("li", "entry", `${index + 1}. ${exerciseLabel(exercise)}${targetOf(exercise)}`))
+  );
+  $("routine-view-start").onclick = () => {
+    showTab("log");
+    $("routine-select").value = routine.id;
+    $("routine-select").dispatchEvent(new Event("change", { bubbles: true }));
+  };
+  $("routine-view-edit").onclick = () => {
+    startEditingRoutine(routine);
+    showPanel("routines", "routine-form");
+  };
+  $("routine-view-delete").onclick = () => deleteRoutine(routine);
+  showPanel("routines", "routine-view");
 }
 
 // ---------- My exercises (edit or delete the ones added on the Log tab) ----------
@@ -1220,7 +1243,7 @@ function deleteRoutine(routine) {
   state.routines = state.routines.filter((r) => r.id !== routine.id);
   if (editingRoutineId === routine.id) resetRoutineForm();
   saveState();
-  renderRoutines();
+  closePanel("routines");
   showToast(t("toast.routineDeleted", { name: routine.name }));
 }
 
@@ -1240,7 +1263,7 @@ function onRoutineSubmit(event) {
   saveState();
   showToast(t("toast.routineSaved", { name: routine.name }));
   resetRoutineForm();
-  renderRoutines();
+  closePanel("routines");
 }
 
 // ---------- History tab ----------
@@ -2116,7 +2139,63 @@ function onApplyAdjustment(change) {
   showToast(t("toast.adjustApplied", { change: signed(change, Math.abs(change)) }));
 }
 
+// ---------- Progress dashboard ----------
+
+// One short line on each card, so the Progress tab shows how you are doing before you open anything.
+function dashboardStats() {
+  const unit = state.unit;
+  const stats = {};
+  const records = Logic.personalRecords(workingEntries());
+  if (records.length > 0) stats.records = `${exerciseLabel(records[0].exercise)} · ${Logic.formatWeight(records[0].weight, unit)} ${unit}`;
+  const { groups } = Logic.weeklyVolume(workingEntries(), muscleOf, today(), weekStartDay());
+  const setsThisWeek = groups.reduce((sum, g) => sum + g.counts[g.counts.length - 1], 0);
+  if (groups.length > 0) stats.volume = t("volume.thisWeek", { sets: setsCountText(setsThisWeek) });
+  const bodyweight = Logic.latestBodyweight(state.bodyweights);
+  if (bodyweight !== null) stats.body = `${Logic.formatWeight(bodyweight, unit)} ${unit}`;
+  if (state.sex && bodyweight !== null) {
+    const levels = Logic.STRENGTH_LIFTS.map((lift) => {
+      const best = Logic.bestOneRepMax(workingEntries(), lift);
+      return { lift, result: best && Logic.strengthLevel(state.sex, lift, best.value, bodyweight) };
+    }).filter((item) => item.result);
+    if (levels.length > 0) {
+      const top = levels.reduce((a, b) => (b.result.reached > a.result.reached ? b : a));
+      stats.strength = `${exerciseLabel(top.lift)}: ${top.result.level ? t(`strength.level.${top.result.level}`) : t("strength.level.start")}`;
+    }
+  }
+  return stats;
+}
+
+function renderDashboardCards() {
+  const stats = dashboardStats();
+  for (const card of document.querySelectorAll("#progress-home .dash-card")) {
+    $(`dash-stat-${card.dataset.panel}`).textContent = stats[card.dataset.panel] || "";
+  }
+}
+
+// A tab built from cards is either its home (the cards) or one detail panel opened from a card.
+// Passing null shows the home. Each home is `${tab}-home` and each panel is `panel-${name}`.
+function showPanel(tab, name) {
+  $(`${tab}-home`).classList.toggle("hidden", name !== null);
+  for (const panel of $(`tab-${tab}`).querySelectorAll(".detail-panel")) panel.classList.toggle("hidden", panel.id !== `panel-${name}`);
+  window.scrollTo(0, 0);
+}
+
+function showProgressPanel(name) {
+  showPanel("progress", name);
+  if (name === null) renderDashboardCards();
+}
+
+// Back from any panel returns to its tab's cards, freshly drawn.
+function closePanel(tab) {
+  if (tab === "progress") showProgressPanel(null);
+  else {
+    showPanel(tab, null);
+    if (tab === "routines") renderRoutines();
+  }
+}
+
 function renderProgress() {
+  renderDashboardCards();
   renderPlateaus();
   renderVolume();
   renderRecords();
@@ -2310,7 +2389,10 @@ function init() {
   $("rep-goal").addEventListener("change", onRepGoalChange);
   $("routine-form").addEventListener("submit", onRoutineSubmit);
   $("routine-add-exercise").addEventListener("click", addDraftExercise);
-  $("routine-cancel").addEventListener("click", resetRoutineForm);
+  $("routine-cancel").addEventListener("click", () => {
+    resetRoutineForm();
+    closePanel("routines");
+  });
   $("routine-select").addEventListener("change", () => {
     renderToday();
     renderSuggestion();
@@ -2325,6 +2407,9 @@ function init() {
   }
   document.addEventListener("visibilitychange", updateRest);
   renderRestSettings();
+  for (const card of document.querySelectorAll("#progress-home .dash-card")) card.addEventListener("click", () => showProgressPanel(card.dataset.panel));
+  for (const card of document.querySelectorAll("#routines-home .dash-card[data-panel]")) card.addEventListener("click", () => onRoutinesCard(card.dataset.panel));
+  for (const back of document.querySelectorAll(".panel-back")) back.addEventListener("click", () => closePanel(back.closest(".tab").id.replace("tab-", "")));
   $("bodyweight-form").addEventListener("submit", onBodyweightSubmit);
   $("strength-sex").addEventListener("change", onStrengthSexChange);
   $("measure-form").addEventListener("submit", onMeasurementSubmit);

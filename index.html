@@ -12,7 +12,7 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="theme-color" content="#f5f6f8" media="(prefers-color-scheme: light)">
   <meta name="theme-color" content="#12161c" media="(prefers-color-scheme: dark)">
-  <link rel="stylesheet" href="style.css?v=a5968b4ce6">
+  <link rel="stylesheet" href="style.css?v=582da38458">
 </head>
 <body>
   <p id="offline-banner" class="offline-banner hidden" role="status" data-i18n="offline.notice">You're offline. Everything still works, and your data is saved on this device.</p>
@@ -183,31 +183,59 @@
     </section>
 
     <section id="tab-routines" class="tab hidden" aria-labelledby="nav-routines">
-      <h2 data-i18n="routines.heading">Routines</h2>
-      <div id="routine-list"></div>
-
-      <h3 id="routine-form-title">New routine</h3>
-      <form id="routine-form" novalidate>
-        <label for="routine-name" data-i18n="routines.name">Name</label>
-        <input id="routine-name" data-i18n-placeholder="routines.namePlaceholder" placeholder="e.g. Push Day" autocomplete="off">
-
-        <label for="routine-exercise-select" data-i18n="routines.addExercise">Add an exercise</label>
-        <div class="row inline">
-          <select id="routine-exercise-select"></select>
-          <button type="button" id="routine-add-exercise" data-i18n="routines.add">Add</button>
+      <div id="routines-home">
+        <h2 data-i18n="routines.heading">Routines</h2>
+        <div id="routine-list" class="dash-grid"></div>
+        <div class="dash-grid">
+          <button type="button" class="dash-card" data-panel="routine-form" aria-controls="panel-routine-form">
+            <span class="fold-icon" aria-hidden="true">➕</span>
+            <strong data-i18n="routines.newTitle">New routine</strong>
+          </button>
+          <button type="button" class="dash-card" data-panel="myex" aria-controls="panel-myex">
+            <span class="fold-icon" aria-hidden="true">🛠️</span>
+            <strong data-i18n="myex.heading">My exercises</strong>
+            <span class="dash-stat" id="dash-stat-myex"></span>
+          </button>
         </div>
-        <p class="hint" data-i18n="routines.notListed">Need one that isn't listed? Log it once on the Log tab and it will appear here.</p>
-        <p class="hint" data-i18n="routines.targetHint">Optional: give an exercise a target such as 3 sets of 8 reps. Starting the routine then shows your progress.</p>
-        <ol id="routine-draft" class="entry-list"></ol>
+      </div>
 
-        <p id="routine-error" class="error" role="alert"></p>
-        <button type="submit" id="routine-save" class="primary">Save routine</button>
-        <button type="button" id="routine-cancel" class="secondary hidden" data-i18n="routines.cancel">Cancel editing</button>
-      </form>
+      <section id="panel-routine-view" class="detail-panel hidden" aria-labelledby="routine-view-title">
+        <button type="button" class="link panel-back" data-i18n="routines.back">Back to Routines</button>
+        <div class="panel-title"><span class="fold-icon" aria-hidden="true">🏋️</span><h2 id="routine-view-title"></h2></div>
+        <ol id="routine-view-exercises" class="entry-list"></ol>
+        <button type="button" id="routine-view-start" class="primary" data-i18n="routines.startOnLog">Start on the Log tab</button>
+        <button type="button" id="routine-view-edit" class="secondary" data-i18n="routines.edit">Edit</button>
+        <button type="button" id="routine-view-delete" class="secondary" data-i18n="routines.delete">Delete</button>
+      </section>
 
-      <h3 data-i18n="myex.heading">My exercises</h3>
-      <p class="hint" data-i18n="myex.hint">Exercises you added yourself. Rename one to fix a typo, and its logged sets and routines follow.</p>
-      <div id="my-exercises"></div>
+      <section id="panel-routine-form" class="detail-panel hidden" aria-labelledby="routine-form-title">
+        <button type="button" class="link panel-back" data-i18n="routines.back">Back to Routines</button>
+        <div class="panel-title"><span class="fold-icon" aria-hidden="true">➕</span><h2 id="routine-form-title">New routine</h2></div>
+        <form id="routine-form" novalidate>
+          <label for="routine-name" data-i18n="routines.name">Name</label>
+          <input id="routine-name" data-i18n-placeholder="routines.namePlaceholder" placeholder="e.g. Push Day" autocomplete="off">
+
+          <label for="routine-exercise-select" data-i18n="routines.addExercise">Add an exercise</label>
+          <div class="row inline">
+            <select id="routine-exercise-select"></select>
+            <button type="button" id="routine-add-exercise" data-i18n="routines.add">Add</button>
+          </div>
+          <p class="hint" data-i18n="routines.notListed">Need one that isn't listed? Log it once on the Log tab and it will appear here.</p>
+          <p class="hint" data-i18n="routines.targetHint">Optional: give an exercise a target such as 3 sets of 8 reps. Starting the routine then shows your progress.</p>
+          <ol id="routine-draft" class="entry-list"></ol>
+
+          <p id="routine-error" class="error" role="alert"></p>
+          <button type="submit" id="routine-save" class="primary">Save routine</button>
+          <button type="button" id="routine-cancel" class="secondary hidden" data-i18n="routines.cancel">Cancel editing</button>
+        </form>
+      </section>
+
+      <section id="panel-myex" class="detail-panel hidden" aria-labelledby="panel-myex-title">
+        <button type="button" class="link panel-back" data-i18n="routines.back">Back to Routines</button>
+        <div class="panel-title"><span class="fold-icon" aria-hidden="true">🛠️</span><h2 id="panel-myex-title" data-i18n="myex.heading">My exercises</h2></div>
+        <p class="hint" data-i18n="myex.hint">Exercises you added yourself. Rename one to fix a typo, and its logged sets and routines follow.</p>
+        <div id="my-exercises"></div>
+      </section>
     </section>
 
     <section id="tab-history" class="tab hidden" aria-labelledby="nav-history">
@@ -243,28 +271,10 @@
     </section>
 
     <section id="tab-progress" class="tab hidden" aria-labelledby="nav-progress">
+      <div id="progress-home">
       <h2 data-i18n="progress.plateauHeading">Plateau check</h2>
       <p class="hint" data-i18n="progress.plateauHint">Muscle groups, by how recently you set a new weight record.</p>
       <div id="plateau-cards"></div>
-
-      <details class="section-fold">
-        <summary><h2 data-i18n="volume.heading">Weekly volume</h2></summary>
-        <p id="volume-hint" class="hint"></p>
-        <div id="volume-groups"></div>
-      </details>
-
-      <details class="section-fold">
-        <summary><h2 data-i18n="records.heading">Personal records</h2></summary>
-        <p class="hint" data-i18n="records.hint">Your heaviest weight for each exercise, newest records first. The date is the first time you lifted that weight.</p>
-        <div id="records-list"></div>
-      </details>
-
-      <details class="section-fold">
-        <summary><h2 data-i18n="progress.settingsHeading">Plateau settings</h2></summary>
-        <p class="hint" data-i18n="progress.settingsHint">Days without a new weight record before a muscle group counts as stalled. Some groups are slower to progress, so set each one.</p>
-        <div id="stall-settings"></div>
-        <p id="stall-error" class="error" role="alert"></p>
-      </details>
 
       <h2 data-i18n="progress.exerciseHeading">Exercise progress</h2>
       <label for="progress-exercise" data-i18n="log.exercise">Exercise</label>
@@ -281,27 +291,78 @@
         <p id="one-rep-max-hint" class="hint"></p>
       </details>
 
-      <details class="section-fold">
-        <summary><h2 data-i18n="strength.heading">Strength levels</h2></summary>
+      <div class="dash-grid">
+        <button type="button" class="dash-card" data-panel="strength" aria-controls="panel-strength">
+          <span class="fold-icon" aria-hidden="true">💪</span>
+          <strong data-i18n="strength.heading">Strength levels</strong>
+          <span class="dash-stat" id="dash-stat-strength"></span>
+        </button>
+        <button type="button" class="dash-card" data-panel="records" aria-controls="panel-records">
+          <span class="fold-icon" aria-hidden="true">🏆</span>
+          <strong data-i18n="records.heading">Personal records</strong>
+          <span class="dash-stat" id="dash-stat-records"></span>
+        </button>
+        <button type="button" class="dash-card" data-panel="volume" aria-controls="panel-volume">
+          <span class="fold-icon" aria-hidden="true">📊</span>
+          <strong data-i18n="volume.heading">Weekly volume</strong>
+          <span class="dash-stat" id="dash-stat-volume"></span>
+        </button>
+        <button type="button" class="dash-card" data-panel="body" aria-controls="panel-body">
+          <span class="fold-icon" aria-hidden="true">⚖️</span>
+          <strong data-i18n="progress.bodyweightHeading">Bodyweight</strong>
+          <span class="dash-stat" id="dash-stat-body"></span>
+        </button>
+        <button type="button" class="dash-card" data-panel="measure" aria-controls="panel-measure">
+          <span class="fold-icon" aria-hidden="true">📏</span>
+          <strong data-i18n="measure.heading">Body measurements</strong>
+          <span class="dash-stat" id="dash-stat-measure"></span>
+        </button>
+        <button type="button" class="dash-card" data-panel="settings" aria-controls="panel-settings">
+          <span class="fold-icon" aria-hidden="true">⚙️</span>
+          <strong data-i18n="progress.settingsHeading">Plateau settings</strong>
+          <span class="dash-stat" id="dash-stat-settings"></span>
+        </button>
+      </div>
+      </div>
+
+      <section id="panel-strength" class="detail-panel fold-strength hidden" aria-labelledby="panel-strength-title">
+        <button type="button" class="link panel-back" data-i18n="progress.back">Back to Progress</button>
+        <div class="panel-title"><span class="fold-icon" aria-hidden="true">💪</span><h2 id="panel-strength-title" data-i18n="strength.heading">Strength levels</h2></div>
         <p class="hint" data-i18n="strength.hint">A rough guide to how your best lifts compare with other gym-goers of your sex and bodyweight. It uses your estimated one-rep max and typical strength-to-bodyweight ratios, so treat it as an estimate, not a ranking.</p>
         <label for="strength-sex" data-i18n="strength.sexLabel">Compare me with</label>
         <select id="strength-sex"></select>
         <div id="strength-results"></div>
         <p class="hint strength-credit"><span data-i18n="strength.credit">Level data:</span> <a href="https://fitnessvolt.com/strength-standards/" target="_blank" rel="noopener noreferrer">FitnessVolt Strength Standards</a> <span data-i18n="strength.creditEnd">(CC BY 4.0), based on lifts reported by gym-goers to Symmetric Strength.</span></p>
-      </details>
+      </section>
 
-      <details class="section-fold">
-        <summary><h2 data-i18n="progress.bodyweightHeading">Bodyweight</h2></summary>
+      <section id="panel-records" class="detail-panel fold-records hidden" aria-labelledby="panel-records-title">
+        <button type="button" class="link panel-back" data-i18n="progress.back">Back to Progress</button>
+        <div class="panel-title"><span class="fold-icon" aria-hidden="true">🏆</span><h2 id="panel-records-title" data-i18n="records.heading">Personal records</h2></div>
+        <p class="hint" data-i18n="records.hint">Your heaviest weight for each exercise, newest records first. The date is the first time you lifted that weight.</p>
+        <div id="records-list"></div>
+      </section>
+
+      <section id="panel-volume" class="detail-panel fold-volume hidden" aria-labelledby="panel-volume-title">
+        <button type="button" class="link panel-back" data-i18n="progress.back">Back to Progress</button>
+        <div class="panel-title"><span class="fold-icon" aria-hidden="true">📊</span><h2 id="panel-volume-title" data-i18n="volume.heading">Weekly volume</h2></div>
+        <p id="volume-hint" class="hint"></p>
+        <div id="volume-groups"></div>
+      </section>
+
+      <section id="panel-body" class="detail-panel fold-body hidden" aria-labelledby="panel-body-title">
+        <button type="button" class="link panel-back" data-i18n="progress.back">Back to Progress</button>
+        <div class="panel-title"><span class="fold-icon" aria-hidden="true">⚖️</span><h2 id="panel-body-title" data-i18n="progress.bodyweightHeading">Bodyweight</h2></div>
         <form id="bodyweight-form" class="row inline" novalidate>
           <input id="bodyweight" type="number" inputmode="decimal" min="0" step="any" data-i18n-aria="progress.bodyweightLabel" aria-label="Bodyweight">
           <button type="submit" class="primary" data-i18n="progress.add">Add</button>
         </form>
         <p id="bodyweight-error" class="error" role="alert"></p>
         <div id="bodyweight-chart" class="chart"></div>
-      </details>
+      </section>
 
-      <details class="section-fold">
-        <summary><h2 data-i18n="measure.heading">Body measurements</h2></summary>
+      <section id="panel-measure" class="detail-panel fold-measure hidden" aria-labelledby="panel-measure-title">
+        <button type="button" class="link panel-back" data-i18n="progress.back">Back to Progress</button>
+        <div class="panel-title"><span class="fold-icon" aria-hidden="true">📏</span><h2 id="panel-measure-title" data-i18n="measure.heading">Body measurements</h2></div>
         <p class="hint" data-i18n="measure.hint">Measure the same spot each time, for example your waist at the navel. Adding one again on the same day replaces it.</p>
         <label for="measure-name" data-i18n="measure.which">Measurement</label>
         <select id="measure-name"></select>
@@ -320,7 +381,15 @@
         </form>
         <p id="measure-custom-error" class="error" role="alert"></p>
         <div id="measure-custom-list"></div>
-      </details>
+      </section>
+
+      <section id="panel-settings" class="detail-panel fold-settings hidden" aria-labelledby="panel-settings-title">
+        <button type="button" class="link panel-back" data-i18n="progress.back">Back to Progress</button>
+        <div class="panel-title"><span class="fold-icon" aria-hidden="true">⚙️</span><h2 id="panel-settings-title" data-i18n="progress.settingsHeading">Plateau settings</h2></div>
+        <p class="hint" data-i18n="progress.settingsHint">Days without a new weight record before a muscle group counts as stalled. Some groups are slower to progress, so set each one.</p>
+        <div id="stall-settings"></div>
+        <p id="stall-error" class="error" role="alert"></p>
+      </section>
     </section>
 
     <section id="tab-plan" class="tab hidden" aria-labelledby="nav-plan">
@@ -380,17 +449,17 @@
     <button id="nav-weight" data-tab="weight" data-section="diet" class="hidden" data-i18n="tab.weight">Weight</button>
   </nav>
 
-  <script src="i18n.js?v=a5968b4ce6"></script>
-  <script src="lang-en.js?v=a5968b4ce6"></script>
-  <script src="lang-es.js?v=a5968b4ce6"></script>
-  <script src="lang-zh.js?v=a5968b4ce6"></script>
-  <script src="lang-hi.js?v=a5968b4ce6"></script>
-  <script src="lang-ar.js?v=a5968b4ce6"></script>
-  <script src="lang-fr.js?v=a5968b4ce6"></script>
-  <script src="lang-pt.js?v=a5968b4ce6"></script>
-  <script src="lang-ru.js?v=a5968b4ce6"></script>
-  <script src="strength-data.js?v=a5968b4ce6"></script>
-  <script src="logic.js?v=a5968b4ce6"></script>
-  <script src="app.js?v=a5968b4ce6"></script>
+  <script src="i18n.js?v=582da38458"></script>
+  <script src="lang-en.js?v=582da38458"></script>
+  <script src="lang-es.js?v=582da38458"></script>
+  <script src="lang-zh.js?v=582da38458"></script>
+  <script src="lang-hi.js?v=582da38458"></script>
+  <script src="lang-ar.js?v=582da38458"></script>
+  <script src="lang-fr.js?v=582da38458"></script>
+  <script src="lang-pt.js?v=582da38458"></script>
+  <script src="lang-ru.js?v=582da38458"></script>
+  <script src="strength-data.js?v=582da38458"></script>
+  <script src="logic.js?v=582da38458"></script>
+  <script src="app.js?v=582da38458"></script>
 </body>
 </html>

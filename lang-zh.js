@@ -169,6 +169,14 @@ I18n.register("zh", {
     "log.sampleHint": "只是随便看看？用示例训练来体验一下。",
 
     "progress.plateauHeading": "瓶颈检查",
+
+    "progress.back": "返回进度",
+
+    "routines.back": "返回训练计划",
+
+    "routines.count": "动作：{count}",
+
+    "routines.startOnLog": "在记录页开始",
     "progress.plateauHint": "按最近一次刷新重量纪录的时间来查看各肌群。",
     "progress.plateauEmpty": "记录几次训练后，你的肌群会显示在这里。",
     "volume.heading": "每周训练量",

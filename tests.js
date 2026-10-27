@@ -1263,7 +1263,7 @@ test("every tab draws its screen, with no errors", async () => {
   try {
     const expected = {
       log: ["#log-form", "#today-list", "#routine-select", "#workout-note"],
-      routines: ["#routine-list .routine-card", "#routine-form", "#my-exercises"],
+      routines: ["#routine-list .dash-card", "#routine-form", "#my-exercises"],
       history: ["#calendar-grid .day-cell", "#history .day", "#backup-download"],
       progress: ["#plateau-cards", "#exercise-chart svg", "#strength-results .strength-card", "#bodyweight-chart svg", "#measure-chart svg"],
       plan: ["#plan-sex", "#plan-result .plan-card"],
@@ -1387,21 +1387,27 @@ test("Personal records lists each lifted exercise with its heaviest weight and d
   }
 });
 
-test("Progress opens with the plateau check and exercise chart, and the other sections are folded", async () => {
+test("Progress opens as a dashboard: plateau check, exercise chart and cards that each open a panel with a Back link", async () => {
   const app = await openApp();
   try {
     const tab = showTab(app, "progress");
-    const folds = [...tab.querySelectorAll("details.section-fold")];
-    if (folds.length !== 6) throw new Error(`expected 6 folded sections, found ${folds.length}`);
-    if (folds.some((fold) => fold.open)) throw new Error("the folded sections should start closed");
+    const cards = [...tab.querySelectorAll(".dash-card")];
+    if (cards.length !== 6) throw new Error(`expected 6 dashboard cards, found ${cards.length}`);
+    if ([...tab.querySelectorAll(".detail-panel")].some((panel) => panel.getClientRects().length > 0)) throw new Error("no panel should show until its card is tapped");
+    const stat = (name) => app.doc.getElementById(`dash-stat-${name}`).textContent;
+    if (!/lb/.test(stat("body"))) throw new Error(`the Bodyweight card should show the latest weight, but reads "${stat("body")}"`);
+    if (!/this week/i.test(stat("volume"))) throw new Error(`the Weekly volume card should show this week's sets, but reads "${stat("volume")}"`);
     const chart = tab.querySelector("#exercise-chart svg").getBoundingClientRect();
     if (chart.bottom > 812 * 1.5) throw new Error(`the exercise chart ends ${Math.round(chart.bottom)}px down; it should be near the top`);
     const screens = app.doc.documentElement.scrollHeight / 812;
     if (screens > 2.2) throw new Error(`Progress is ${screens.toFixed(1)} screens tall; it used to be about 3.3`);
-    // Opening Bodyweight shows its form and chart.
-    const bodyweight = folds.find((fold) => fold.querySelector("#bodyweight-form"));
-    bodyweight.querySelector("summary").click();
-    if (!bodyweight.open || bodyweight.querySelector("#bodyweight").getBoundingClientRect().width === 0) throw new Error("tapping Bodyweight should open its form");
+    // Tapping Bodyweight shows its form and chart in place of the dashboard, and Back returns.
+    cards.find((card) => card.dataset.panel === "body").click();
+    const panel = app.doc.getElementById("panel-body");
+    if (panel.querySelector("#bodyweight").getBoundingClientRect().width === 0) throw new Error("tapping Bodyweight should open its form");
+    if (app.doc.getElementById("progress-home").getClientRects().length > 0) throw new Error("the dashboard should hide while a panel is open");
+    panel.querySelector(".panel-back").click();
+    if (panel.getClientRects().length > 0 || app.doc.getElementById("progress-home").getClientRects().length === 0) throw new Error("Back should return to the dashboard");
     if (app.errors.length) throw new Error(`the app raised errors: ${app.errors.join("; ")}`);
   } finally {
     closeApp(app);
@@ -1433,10 +1439,10 @@ test("every tap-to-open heading shows an arrow that flips when it opens", async 
     const noAnimation = app.doc.createElement("style");
     noAnimation.textContent = "summary::after { transition: none !important; }";
     app.doc.head.append(noAnimation);
-    const fold = showTab(app, "progress").querySelector("details.section-fold");
-    const closedArrow = style(fold.querySelector("summary")).transform;
-    fold.open = true;
-    if (style(fold.querySelector("summary")).transform === closedArrow) throw new Error("the arrow should flip when the heading opens");
+    const fold = showTab(app, "progress").querySelector("details > summary");
+    const closedArrow = style(fold).transform;
+    fold.parentNode.open = true;
+    if (style(fold).transform === closedArrow) throw new Error("the arrow should flip when the heading opens");
   } finally {
     closeApp(app);
   }
@@ -1465,7 +1471,7 @@ test("a tab fades in, a chart line draws in, and an opened section eases open", 
     const line = progress.querySelector("#exercise-chart path.line");
     if (!line || line.getAttribute("pathLength") !== "1") throw new Error("the chart line should be a path with pathLength 1, so it can draw in");
     assertEqual(animationOf(line), "draw-line");
-    const fold = progress.querySelector("details.section-fold");
+    const fold = progress.querySelector("details");
     fold.open = true;
     assertEqual(animationOf(fold.querySelector(":scope > :not(summary)")), "fold-in");
   } finally {
@@ -1774,17 +1780,22 @@ test("a routine can be built, started on the Log tab, and deleted", async () => 
     const made = savedData(app).routines.find((routine) => routine.name === "Leg Day");
     if (!made) throw new Error("the routine should be saved");
     assertEqual(made.exercises, ["Squat", "Romanian Deadlift"]);
-    // Start it on the Log tab: its exercises appear as chips.
-    showTab(app, "log");
-    const picker = doc.getElementById("routine-select");
-    picker.value = made.id;
-    fireEvent(picker, "change");
+    // Saving returns to the cards, and the new routine has one.
+    if (doc.getElementById("routines-home").getClientRects().length === 0) throw new Error("saving should return to the routine cards");
+    const cardFor = () => [...doc.querySelectorAll("#routine-list .dash-card")].find((candidate) => candidate.textContent.includes("Leg Day"));
+    if (!cardFor().textContent.includes("Exercises: 2")) throw new Error(`the card reads "${cardFor().textContent}"`);
+    // Tapping the card opens its panel; Start on the Log tab fills the exercises in as chips.
+    cardFor().click();
+    if (!doc.getElementById("panel-routine-view").getClientRects().length) throw new Error("tapping the card should open the routine's panel");
+    assertEqual(doc.getElementById("routine-view-exercises").textContent.includes("Romanian Deadlift"), true);
+    doc.getElementById("routine-view-start").click();
     assertEqual([...doc.querySelectorAll("#routine-checklist .chip")].map((chip) => chip.textContent), ["Squat", "Romanian Deadlift"]);
-    // Delete it.
+    // Delete it from its panel.
     showTab(app, "routines");
-    const card = [...doc.querySelectorAll("#routine-list .routine-card")].find((candidate) => candidate.textContent.includes("Leg Day"));
-    [...card.querySelectorAll("button.link")].find((button) => button.textContent === "Delete").click();
+    cardFor().click();
+    doc.getElementById("routine-view-delete").click();
     if (savedData(app).routines.some((routine) => routine.name === "Leg Day")) throw new Error("the routine should be gone");
+    if (cardFor()) throw new Error("the card should be gone");
     if (app.errors.length) throw new Error(app.errors.join("; "));
   } finally {
     closeApp(app);
@@ -2325,7 +2336,8 @@ test("no text key shows through on any tab in any language", async () => {
     app.doc.getElementById("display-panel").classList.remove("hidden"); // so its text is read too
     // Open a routine for editing, so its target boxes and their labels are on screen too.
     showTab(app, "routines");
-    app.doc.querySelector("#routine-list .routine-card button.link").click();
+    app.doc.querySelector("#routine-list .dash-card").click();
+    app.doc.getElementById("routine-view-edit").click();
     for (const code of Object.keys(registeredLanguages)) {
       select.value = code;
       select.dispatchEvent(new Event("change", { bubbles: true }));

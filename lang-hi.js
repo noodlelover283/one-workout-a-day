@@ -170,6 +170,14 @@ I18n.register("hi", {
     "log.sampleHint": "बस देख रहे हैं? उदाहरण वर्कआउट के साथ ऐप आज़माएँ।",
 
     "progress.plateauHeading": "ठहराव की जाँच",
+
+    "progress.back": "प्रगति पर वापस",
+
+    "routines.back": "रूटीन पर वापस",
+
+    "routines.count": "व्यायाम: {count}",
+
+    "routines.startOnLog": "लॉग टैब में शुरू करें",
     "progress.plateauHint": "मांसपेशी समूह, इस आधार पर कि आपने वज़न का नया रिकॉर्ड कब बनाया था।",
     "progress.plateauEmpty": "कुछ वर्कआउट दर्ज करें, फिर आपके मांसपेशी समूह यहाँ दिखेंगे।",
     "volume.heading": "साप्ताहिक वॉल्यूम",
