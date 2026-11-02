@@ -1116,6 +1116,8 @@ const Logic = (() => {
     const newBodyweights = addedBy(mine.bodyweights, theirs.bodyweights, (a, b) => a.date === b.date);
     const newMeasurements = addedBy(mine.measurements, theirs.measurements, (a, b) => a.date === b.date && a.name === b.name);
     const newRoutines = addedBy(mine.routines, theirs.routines, (a, b) => a.id === b.id);
+    const newMeals = addedBy(mine.meals || [], theirs.meals || [], (a, b) => a.id === b.id);
+    const foodLibrary = (theirs.foodLibrary || []).reduce((library, food) => (library.some((known) => known.name.toLowerCase() === food.name.toLowerCase()) ? library : [...library, food]), mine.foodLibrary || []);
 
     const notes = { ...mine.notes };
     let notesChanged = 0;
@@ -1157,6 +1159,8 @@ const Logic = (() => {
         bodyweights: [...mine.bodyweights, ...newBodyweights],
         measurements: [...mine.measurements, ...newMeasurements],
         routines: [...mine.routines, ...newRoutines],
+        meals: [...(mine.meals || []), ...newMeals],
+        foodLibrary,
         notes,
         customExercises,
         customMeasurements,
@@ -1169,10 +1173,75 @@ const Logic = (() => {
         bodyweights: newBodyweights.length,
         measurements: newMeasurements.length,
         routines: newRoutines.length,
+        meals: newMeals.length,
         notes: notesChanged,
         exercises: newExercises.length,
       },
     };
+  }
+
+  // ---------- Diet: meals, each made of foods with a category and carbs in grams ----------
+
+  const MEAL_TYPES = ["breakfast", "lunch", "dinner", "snack"];
+  const FOOD_CATEGORIES = ["protein", "carb", "vegetable", "fat", "other"];
+  const FOOD_NAME_MAX_LENGTH = 60;
+  const MAX_FOOD_CARBS = 1000;
+
+  // Checks one food typed into a meal. carbs is grams, or null when left blank (counted as 0).
+  function validateFood({ name, carbs }) {
+    const clean = normalizeName(name);
+    if (!clean) return "error.foodName";
+    if (clean.length > FOOD_NAME_MAX_LENGTH) return "error.foodNameLong";
+    if (carbs !== null && !(carbs >= 0 && carbs <= MAX_FOOD_CARBS)) return "error.foodCarbs";
+    return "";
+  }
+
+  const isValidFood = (food) =>
+    Boolean(food) &&
+    typeof food.name === "string" &&
+    validateFood({ name: food.name, carbs: food.carbs }) === "" &&
+    typeof food.carbs === "number" &&
+    FOOD_CATEGORIES.includes(food.category);
+
+  const roundToTenth = (value) => Math.round(value * 10) / 10;
+
+  function mealCarbs(meal) {
+    return roundToTenth(meal.foods.reduce((sum, food) => sum + food.carbs, 0));
+  }
+
+  function dayCarbs(meals, date) {
+    return roundToTenth(meals.filter((meal) => meal.date === date).reduce((sum, meal) => sum + mealCarbs(meal), 0));
+  }
+
+  // The remembered foods with this one added, replacing an earlier one with the same name (any capitals),
+  // so the next meal starts from the latest category and carbs typed for it.
+  function rememberFood(foodLibrary, food) {
+    const name = normalizeName(food.name);
+    const others = foodLibrary.filter((known) => known.name.toLowerCase() !== name.toLowerCase());
+    return [...others, { name, category: food.category, carbs: food.carbs }];
+  }
+
+  // Keeps only valid remembered foods, one per name.
+  function sanitizeFoodLibrary(saved) {
+    if (!Array.isArray(saved)) return [];
+    return saved.filter(isValidFood).reduce((library, food) => rememberFood(library, food), []);
+  }
+
+  // Keeps only valid saved meals: a known type, a real date, and at least one valid food.
+  function sanitizeMeals(saved) {
+    if (!Array.isArray(saved)) return [];
+    return saved
+      .filter(
+        (meal) =>
+          meal &&
+          typeof meal.id === "string" &&
+          DATE_PATTERN.test(meal.date) &&
+          MEAL_TYPES.includes(meal.type) &&
+          Array.isArray(meal.foods) &&
+          meal.foods.length > 0 &&
+          meal.foods.every(isValidFood)
+      )
+      .map((meal) => ({ id: meal.id, date: meal.date, type: meal.type, foods: meal.foods.map(({ name, category, carbs }) => ({ name: normalizeName(name), category, carbs })) }));
   }
 
   return {
@@ -1182,6 +1251,14 @@ const Logic = (() => {
     MAX_ADJUSTMENT,
     DEFAULT_DIET,
     sanitizeDiet,
+    MEAL_TYPES,
+    FOOD_CATEGORIES,
+    validateFood,
+    mealCarbs,
+    dayCarbs,
+    rememberFood,
+    sanitizeFoodLibrary,
+    sanitizeMeals,
     validateAge,
     validateHeight,
     cmToFeetInches,

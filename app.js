@@ -33,6 +33,8 @@ function loadState() {
     routineSwaps: {},
     customMeasurements: [],
     measurements: [],
+    meals: [],
+    foodLibrary: [],
     diet: { ...Logic.DEFAULT_DIET },
     section: "workout",
     rest: { ...DEFAULT_REST },
@@ -54,6 +56,8 @@ function normalizeState(saved) {
   loaded.routineSwaps = Logic.sanitizeRoutineSwaps(saved.routineSwaps);
   loaded.customMeasurements = Logic.sanitizeCustomMeasurements(saved.customMeasurements);
   loaded.measurements = Logic.sanitizeMeasurements(saved.measurements, loaded.customMeasurements);
+  loaded.meals = Logic.sanitizeMeals(saved.meals);
+  loaded.foodLibrary = Logic.sanitizeFoodLibrary(saved.foodLibrary);
   loaded.diet = Logic.sanitizeDiet(saved.diet);
   loaded.section = saved.section === "diet" ? "diet" : "workout";
   loaded.routines =loaded.routines.map((routine) =>
@@ -139,7 +143,7 @@ function showToast(message, { celebrate = false } = {}) {
 // ---------- Tabs ----------
 
 // The app has two sections, Workout and Diet, each with its own tabs along the bottom.
-const TAB_SECTION = { log: "workout", routines: "workout", history: "workout", progress: "workout", plan: "diet", weight: "diet" };
+const TAB_SECTION = { log: "workout", routines: "workout", history: "workout", progress: "workout", plan: "diet", weight: "diet", meals: "diet" };
 // The tab each section was last on, so switching back lands where you left off.
 const lastTabOf = { workout: "log", diet: "plan" };
 
@@ -173,6 +177,7 @@ function showTab(name) {
   }
   if (name === "plan") renderPlan();
   if (name === "weight") renderWeight();
+  if (name === "meals") renderMeals();
 }
 
 function showSection(section) {
@@ -1444,7 +1449,7 @@ async function onBackupFileChosen(event) {
 // The backup that was just chosen, waiting for Merge, Replace everything or Cancel.
 let pendingBackup = null;
 
-const BACKUP_COUNT_ORDER = ["sets", "bodyweights", "measurements", "routines", "notes", "exercises"];
+const BACKUP_COUNT_ORDER = ["sets", "bodyweights", "measurements", "routines", "meals", "notes", "exercises"];
 
 // Shows what the chosen backup would add to this browser, with the three choices.
 function renderBackupChoice() {
@@ -2085,6 +2090,117 @@ function onResetAdjustment() {
   showToast(t("toast.adjustReset"));
 }
 
+// ---------- Diet: Meals tab ----------
+
+// The foods added to the meal that has not been saved yet.
+let mealDraft = [];
+
+const mealDate = () => $("meal-date").value || today();
+
+function foodLine(food) {
+  return t("meals.foodLine", { name: food.name, category: t(`meals.category.${food.category}`), grams: food.carbs });
+}
+
+function renderMeals() {
+  if (!$("meal-date").value) $("meal-date").value = today();
+  setOptions($("meal-type"), Logic.MEAL_TYPES.map((type) => [type, t(`meals.type.${type}`)]), $("meal-type").value || Logic.MEAL_TYPES[0]);
+  setOptions(
+    $("meal-food-category"),
+    Logic.FOOD_CATEGORIES.map((category) => [category, t(`meals.category.${category}`)]),
+    $("meal-food-category").value || Logic.FOOD_CATEGORIES[0]
+  );
+  const names = state.foodLibrary.map((food) => food.name).sort((a, b) => a.localeCompare(b, I18n.locale()));
+  $("meal-food-options").replaceChildren(...names.map((name) => Object.assign(el("option"), { value: name })));
+
+  $("meal-draft").replaceChildren(...mealDraft.map(mealDraftRow));
+  const meals = state.meals.filter((meal) => meal.date === mealDate());
+  $("meal-day-total").textContent = t("meals.total", { grams: Logic.dayCarbs(state.meals, mealDate()) });
+  $("meal-list").replaceChildren(...(meals.length === 0 ? [el("li", "empty", t("meals.empty"))] : meals.map(mealCard)));
+}
+
+function mealDraftRow(food, index) {
+  const remove = el("button", "secondary", "×");
+  remove.type = "button";
+  remove.setAttribute("aria-label", t("meals.removeFood", { food: food.name }));
+  remove.addEventListener("click", () => {
+    mealDraft.splice(index, 1);
+    renderMeals();
+  });
+  const row = el("li", "meal-food");
+  row.append(el("span", "", foodLine(food)), remove);
+  return row;
+}
+
+function mealCard(meal) {
+  const label = t(`meals.type.${meal.type}`);
+  const remove = el("button", "secondary", t("meals.delete"));
+  remove.type = "button";
+  remove.setAttribute("aria-label", t("meals.deleteAria", { meal: label }));
+  remove.addEventListener("click", () => onMealDelete(meal.id));
+  const head = el("div", "meal-head");
+  head.append(el("strong", "", `${label} · ${t("meals.mealCarbs", { grams: Logic.mealCarbs(meal) })}`), remove);
+  const foods = el("ul", "meal-foods");
+  foods.append(...meal.foods.map((food) => el("li", "meal-food", foodLine(food))));
+  const card = el("li", "meal");
+  card.append(head, foods);
+  return card;
+}
+
+// Typing a food you have used before fills in its category and carbs.
+function onMealFoodNameInput() {
+  const typed = Logic.normalizeName($("meal-food-name").value).toLowerCase();
+  const known = state.foodLibrary.find((food) => food.name.toLowerCase() === typed);
+  if (!known) return;
+  $("meal-food-category").value = known.category;
+  $("meal-food-carbs").value = known.carbs;
+}
+
+// Adds the food in the fields to the meal being built. Returns true when it was added.
+function addFoodToMeal() {
+  const carbsText = $("meal-food-carbs").value.trim();
+  const food = {
+    name: Logic.normalizeName($("meal-food-name").value),
+    category: $("meal-food-category").value,
+    carbs: carbsText === "" ? null : Number(carbsText),
+  };
+  const error = Logic.validateFood(food);
+  $("meal-error").textContent = errorText(error);
+  if (error) return false;
+  mealDraft.push({ ...food, carbs: food.carbs === null ? 0 : food.carbs });
+  $("meal-food-name").value = "";
+  $("meal-food-carbs").value = "";
+  renderMeals();
+  $("meal-food-name").focus();
+  return true;
+}
+
+function onMealAddFood(event) {
+  event.preventDefault();
+  addFoodToMeal();
+}
+
+function onMealSave() {
+  // A food typed but not yet added still counts, so nothing typed is lost.
+  if ($("meal-food-name").value.trim() !== "" && !addFoodToMeal()) return;
+  const error = mealDraft.length === 0 ? "error.mealEmpty" : "";
+  $("meal-error").textContent = errorText(error);
+  if (error) return;
+  state.meals = [...state.meals, { id: String(Date.now()), date: mealDate(), type: $("meal-type").value, foods: mealDraft }];
+  for (const food of mealDraft) state.foodLibrary = Logic.rememberFood(state.foodLibrary, food);
+  mealDraft = [];
+  saveState();
+  renderMeals();
+  showToast(t("meals.saved"));
+}
+
+function onMealDelete(id) {
+  if (!window.confirm(t("meals.deleteConfirm"))) return;
+  state.meals = state.meals.filter((meal) => meal.id !== id);
+  saveState();
+  renderMeals();
+  showToast(t("meals.deleted"));
+}
+
 // ---------- Diet: Weight tab ----------
 
 function renderWeight() {
@@ -2265,6 +2381,7 @@ function applyLanguage() {
   renderProgress();
   renderPlan();
   renderWeight();
+  renderMeals();
 }
 
 function onLanguageChange() {
@@ -2381,6 +2498,10 @@ function init() {
     $(id).addEventListener("change", onPlanChange);
   }
   $("diet-weight-form").addEventListener("submit", onDietWeightSubmit);
+  $("meal-form").addEventListener("submit", onMealAddFood);
+  $("meal-save").addEventListener("click", onMealSave);
+  $("meal-food-name").addEventListener("input", onMealFoodNameInput);
+  $("meal-date").addEventListener("change", renderMeals);
   $("backup-merge-go").addEventListener("click", onBackupMerge);
   $("backup-replace-go").addEventListener("click", onBackupReplace);
   $("backup-merge-cancel").addEventListener("click", closeBackupChoice);

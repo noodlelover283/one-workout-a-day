@@ -12,7 +12,7 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="theme-color" content="#f5f6f8" media="(prefers-color-scheme: light)">
   <meta name="theme-color" content="#12161c" media="(prefers-color-scheme: dark)">
-  <link rel="stylesheet" href="style.css?v=582da38458">
+  <link rel="stylesheet" href="style.css?v=c81d3a54ce">
 </head>
 <body>
   <p id="offline-banner" class="offline-banner hidden" role="status" data-i18n="offline.notice">You're offline. Everything still works, and your data is saved on this device.</p>
@@ -48,6 +48,25 @@
       <select id="language-select"></select>
       <h3 data-i18n="offlineStatus.heading">Offline use</h3>
       <p id="offline-status" class="hint"></p>
+      <details id="glossary" class="note-fold">
+        <summary data-i18n="glossary.heading">Workout terms</summary>
+        <dl class="glossary">
+          <dt data-i18n="glossary.set.term">Set</dt>
+          <dd data-i18n="glossary.set.def">A group of reps done in a row without resting. For example, 8 bench presses, then a rest, is one set.</dd>
+          <dt data-i18n="glossary.rep.term">Rep</dt>
+          <dd data-i18n="glossary.rep.def">One full movement of an exercise, like one push-up or one squat.</dd>
+          <dt data-i18n="glossary.oneRepMax.term">One-rep max</dt>
+          <dd data-i18n="glossary.oneRepMax.def">The heaviest weight you could lift for a single rep. The app estimates it from your sets, so you don't have to test it.</dd>
+          <dt data-i18n="glossary.plateau.term">Plateau</dt>
+          <dd data-i18n="glossary.plateau.def">When a muscle group has stopped getting stronger: no new weight record for a while.</dd>
+          <dt data-i18n="glossary.muscleGroup.term">Muscle group</dt>
+          <dd data-i18n="glossary.muscleGroup.def">A part of the body an exercise works, like chest, back, legs or shoulders.</dd>
+          <dt data-i18n="glossary.routine.term">Routine</dt>
+          <dd data-i18n="glossary.routine.def">A saved list of exercises you do together, like a push day, so you can pick it when you log.</dd>
+          <dt data-i18n="glossary.record.term">Record</dt>
+          <dd data-i18n="glossary.record.def">Your heaviest weight so far for an exercise. Lifting more than that sets a new record.</dd>
+        </dl>
+      </details>
     </div>
   </header>
 
@@ -436,6 +455,39 @@
       <h2 data-i18n="check.heading">Weekly check</h2>
       <div id="diet-check"></div>
     </section>
+
+    <section id="tab-meals" class="tab hidden" aria-labelledby="nav-meals">
+      <div class="heading-row">
+        <h2 data-i18n="meals.heading">Meals</h2>
+        <label for="meal-date" class="sr-only" data-i18n="log.date">Date</label>
+        <input id="meal-date" type="date" required>
+      </div>
+      <p id="meal-day-total" class="meal-total"></p>
+      <p class="hint" data-i18n="meals.hint">Add each food with its category and carbs in grams, then save the meal. Foods you have used before are remembered.</p>
+      <form id="meal-form" novalidate>
+        <label for="meal-type" data-i18n="meals.type">Meal</label>
+        <select id="meal-type"></select>
+        <label for="meal-food-name" data-i18n="meals.food">Food</label>
+        <input id="meal-food-name" list="meal-food-options" maxlength="60" data-i18n-placeholder="meals.foodPlaceholder" placeholder="e.g. Chicken" autocomplete="off">
+        <datalist id="meal-food-options"></datalist>
+        <div class="row">
+          <div>
+            <label for="meal-food-category" data-i18n="meals.category">Category</label>
+            <select id="meal-food-category"></select>
+          </div>
+          <div>
+            <label for="meal-food-carbs" data-i18n="meals.carbs">Carbs (g)</label>
+            <input id="meal-food-carbs" type="number" inputmode="decimal" min="0" step="any" data-i18n-placeholder="meals.carbsPlaceholder" placeholder="optional">
+          </div>
+        </div>
+        <button type="submit" id="meal-add-food" class="secondary" data-i18n="meals.addFood">Add food</button>
+        <h3 data-i18n="meals.draftHeading">In this meal</h3>
+        <ul id="meal-draft" class="meal-foods"></ul>
+        <button type="button" id="meal-save" class="primary" data-i18n="meals.save">Save meal</button>
+        <p id="meal-error" class="error" role="alert"></p>
+      </form>
+      <ul id="meal-list" class="meal-list"></ul>
+    </section>
   </main>
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
@@ -447,19 +499,20 @@
     <button id="nav-progress" data-tab="progress" data-section="workout" data-i18n="tab.progress">Progress</button>
     <button id="nav-plan" data-tab="plan" data-section="diet" class="hidden" data-i18n="tab.plan">Plan</button>
     <button id="nav-weight" data-tab="weight" data-section="diet" class="hidden" data-i18n="tab.weight">Weight</button>
+    <button id="nav-meals" data-tab="meals" data-section="diet" class="hidden" data-i18n="tab.meals">Meals</button>
   </nav>
 
-  <script src="i18n.js?v=582da38458"></script>
-  <script src="lang-en.js?v=582da38458"></script>
-  <script src="lang-es.js?v=582da38458"></script>
-  <script src="lang-zh.js?v=582da38458"></script>
-  <script src="lang-hi.js?v=582da38458"></script>
-  <script src="lang-ar.js?v=582da38458"></script>
-  <script src="lang-fr.js?v=582da38458"></script>
-  <script src="lang-pt.js?v=582da38458"></script>
-  <script src="lang-ru.js?v=582da38458"></script>
-  <script src="strength-data.js?v=582da38458"></script>
-  <script src="logic.js?v=582da38458"></script>
-  <script src="app.js?v=582da38458"></script>
+  <script src="i18n.js?v=c81d3a54ce"></script>
+  <script src="lang-en.js?v=c81d3a54ce"></script>
+  <script src="lang-es.js?v=c81d3a54ce"></script>
+  <script src="lang-zh.js?v=c81d3a54ce"></script>
+  <script src="lang-hi.js?v=c81d3a54ce"></script>
+  <script src="lang-ar.js?v=c81d3a54ce"></script>
+  <script src="lang-fr.js?v=c81d3a54ce"></script>
+  <script src="lang-pt.js?v=c81d3a54ce"></script>
+  <script src="lang-ru.js?v=c81d3a54ce"></script>
+  <script src="strength-data.js?v=c81d3a54ce"></script>
+  <script src="logic.js?v=c81d3a54ce"></script>
+  <script src="app.js?v=c81d3a54ce"></script>
 </body>
 </html>

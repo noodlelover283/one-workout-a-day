@@ -655,11 +655,13 @@ test("merging the same backup twice changes nothing the second time", () => {
     measurements: [{ date: "2026-10-01", name: "Waist", cm: 80 }],
     routines: [{ id: "r1", name: "Push", exercises: ["Bench Press"] }],
     notes: { "2026-10-01": "Slept badly" }, customExercises: { Wrist: "Arms" }, exerciseNotes: { Squat: "Seat at 3" },
+    meals: [{ id: "m1", date: "2026-10-01", type: "lunch", foods: [{ name: "Rice", category: "carb", carbs: 45 }] }],
+    foodLibrary: [{ name: "Rice", category: "carb", carbs: 45 }],
   };
   const once = Logic.mergeBackup(mine, theirs);
-  assertEqual(once.counts, { sets: 1, bodyweights: 1, measurements: 1, routines: 1, notes: 1, exercises: 1 });
+  assertEqual(once.counts, { sets: 1, bodyweights: 1, measurements: 1, routines: 1, meals: 1, notes: 1, exercises: 1 });
   const twice = Logic.mergeBackup(once.data, theirs);
-  assertEqual(twice.counts, { sets: 0, bodyweights: 0, measurements: 0, routines: 0, notes: 0, exercises: 0 });
+  assertEqual(twice.counts, { sets: 0, bodyweights: 0, measurements: 0, routines: 0, meals: 0, notes: 0, exercises: 0 });
   assertEqual(twice.data, once.data);
 });
 
@@ -1207,7 +1209,7 @@ test("the worker leaves other websites and non-GET requests to the browser", asy
 // name (see STORAGE_KEY in app.js), so the tests never touch real workouts.
 
 let screenRuns = 0; // each screen test gets its own storage name, so tests running together cannot clash
-const TAB_NAMES = ["log", "routines", "history", "progress", "plan", "weight"];
+const TAB_NAMES = ["log", "routines", "history", "progress", "plan", "weight", "meals"];
 
 // Throwaway data with something on every screen: sets, bodyweights, a routine with targets, a note,
 // two waist measurements, and a comparison group chosen.
@@ -1268,6 +1270,7 @@ test("every tab draws its screen, with no errors", async () => {
       progress: ["#plateau-cards", "#exercise-chart svg", "#strength-results .strength-card", "#bodyweight-chart svg", "#measure-chart svg"],
       plan: ["#plan-sex", "#plan-result .plan-card"],
       weight: ["#diet-weight-chart svg", "#diet-check"],
+      meals: ["#meal-form", "#meal-day-total", "#meal-list"],
     };
     for (const name of TAB_NAMES) {
       const tab = showTab(app, name);
@@ -2376,5 +2379,97 @@ function showResults() {
     }),
   );
 }
+
+test("the settings gear has a Workout terms section that explains the jargon", async () => {
+  const app = await openApp();
+  try {
+    app.doc.getElementById("display-toggle").click();
+    const glossary = app.doc.querySelector("#display-panel #glossary");
+    if (!glossary) throw new Error("the settings panel has no #glossary section");
+    const terms = [...glossary.querySelectorAll("dt")].map((term) => term.textContent.trim());
+    for (const needed of ["Set", "Rep", "One-rep max", "Plateau", "Muscle group", "Routine"]) {
+      if (!terms.includes(needed)) throw new Error(`the glossary does not explain "${needed}"`);
+    }
+    for (const definition of glossary.querySelectorAll("dd")) {
+      if (definition.textContent.trim().length < 20) throw new Error(`a definition is too short: "${definition.textContent}"`);
+    }
+    if (/glossary\./.test(glossary.textContent)) throw new Error("a raw text key shows in the glossary");
+  } finally {
+    closeApp(app);
+  }
+});
+
+// ---------- Meal tracker ----------
+
+// Fills in the food row and adds it to the meal being built, the way a person would.
+function addFoodToDraft(app, name, category, carbs) {
+  const set = (id, value) => {
+    const field = app.doc.getElementById(id);
+    field.value = value;
+    field.dispatchEvent(new Event(field.tagName === "SELECT" ? "change" : "input", { bubbles: true }));
+  };
+  set("meal-food-name", name);
+  set("meal-food-category", category);
+  set("meal-food-carbs", carbs);
+  app.doc.getElementById("meal-add-food").click();
+}
+
+test("logging lunch with chicken, rice and broccoli shows each food's category and the day's carbs", async () => {
+  const app = await openApp();
+  try {
+    const tab = showTab(app, "meals");
+    if (tab.classList.contains("hidden")) throw new Error("the meals tab did not open");
+    app.doc.getElementById("meal-type").value = "lunch";
+    addFoodToDraft(app, "Chicken", "protein", "");
+    addFoodToDraft(app, "Rice", "carb", "45");
+    addFoodToDraft(app, "Broccoli", "vegetable", "6");
+    app.doc.getElementById("meal-save").click();
+    const meals = [...app.doc.querySelectorAll("#meal-list .meal")];
+    assertEqual(meals.length, 1, "meals listed:");
+    const text = meals[0].innerText;
+    for (const expected of ["Lunch", "Chicken", "Protein", "Rice", "Carb", "Broccoli", "Vegetable", "51"]) {
+      if (!text.includes(expected)) throw new Error(`the meal does not show "${expected}": ${text}`);
+    }
+    if (!app.doc.getElementById("meal-day-total").innerText.includes("51")) throw new Error("the day total should say 51 g of carbs");
+    if (app.errors.length) throw new Error(`the app raised errors: ${app.errors.join("; ")}`);
+  } finally {
+    closeApp(app);
+  }
+});
+
+test("foods typed into a meal are remembered, with their category and carbs, for the next meal", async () => {
+  const app = await openApp();
+  try {
+    showTab(app, "meals");
+    addFoodToDraft(app, "Rice", "carb", "45");
+    app.doc.getElementById("meal-save").click();
+    const options = [...app.doc.querySelectorAll("#meal-food-options option")].map((node) => node.value);
+    if (!options.includes("Rice")) throw new Error(`Rice is not offered again: ${options}`);
+    const name = app.doc.getElementById("meal-food-name");
+    name.value = "rice";
+    name.dispatchEvent(new Event("input", { bubbles: true }));
+    assertEqual(app.doc.getElementById("meal-food-category").value, "carb", "category filled in:");
+    assertEqual(app.doc.getElementById("meal-food-carbs").value, "45", "carbs filled in:");
+  } finally {
+    closeApp(app);
+  }
+});
+
+test("a meal with no foods, a food with no name or impossible carbs is refused with a message", async () => {
+  const app = await openApp();
+  try {
+    showTab(app, "meals");
+    app.doc.getElementById("meal-save").click();
+    if (app.doc.querySelectorAll("#meal-list .meal").length) throw new Error("an empty meal was saved");
+    if (!app.doc.getElementById("meal-error").innerText.trim()) throw new Error("no message for an empty meal");
+    addFoodToDraft(app, "", "carb", "10");
+    if (app.doc.querySelectorAll("#meal-draft li").length) throw new Error("a food with no name was added");
+    addFoodToDraft(app, "Rice", "carb", "-5");
+    if (app.doc.querySelectorAll("#meal-draft li").length) throw new Error("a food with negative carbs was added");
+    if (!app.doc.getElementById("meal-error").innerText.trim()) throw new Error("no message for bad carbs");
+  } finally {
+    closeApp(app);
+  }
+});
 
 Promise.all(unfinished).then(showResults);
