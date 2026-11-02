@@ -548,33 +548,116 @@ const Logic = (() => {
       .map((date) => ({ date, value: byDate[date] }));
   }
 
+  // Everything the sample data adds has an id starting with "sample-" (bodyweights are marked instead),
+  // so it can be told apart from real data and removed again.
+  const isSampleId = (id) => typeof id === "string" && id.startsWith("sample-");
+
+  // Eight weeks of push, pull and leg days: [exercise, sets, reps, weight in each week, oldest first].
+  // Bench keeps climbing; squat and the leg exercises stalled weeks ago, so the plateau check has something to show.
+  const SAMPLE_PROGRAM = {
+    Push: {
+      daysAgo: 6,
+      lifts: [
+        ["Bench Press", 3, 8, [115, 120, 125, 125, 130, 135, 135, 140]],
+        ["Overhead Press", 3, 8, [65, 65, 70, 70, 75, 75, 80, 80]],
+        ["Tricep Pushdown", 3, 10, [40, 40, 45, 45, 45, 50, 50, 55]],
+        ["Lateral Raise", 3, 12, [15, 15, 15, 20, 20, 20, 20, 25]],
+      ],
+    },
+    Pull: {
+      daysAgo: 4,
+      lifts: [
+        ["Deadlift", 3, 5, [225, 235, 245, 245, 255, 265, 275, 285]],
+        ["Barbell Row", 3, 8, [95, 100, 105, 105, 110, 115, 115, 120]],
+        ["Lat Pulldown", 3, 10, [100, 105, 105, 110, 115, 115, 120, 125]],
+        ["Bicep Curl", 3, 10, [25, 25, 30, 30, 30, 35, 35, 35]],
+      ],
+    },
+    Leg: {
+      daysAgo: 2,
+      lifts: [
+        ["Squat", 3, 6, [185, 195, 205, 205, 205, 205, 205, 205]],
+        ["Leg Press", 3, 10, [270, 270, 270, 270, 270, 270, 270, 270]],
+        ["Romanian Deadlift", 3, 8, [155, 155, 155, 155, 155, 155, 155, 155]],
+      ],
+    },
+  };
+
+  // Two days of meals, as [daysAgo, meal type, [food, category, carbs in grams]].
+  const SAMPLE_MEALS = [
+    [0, "breakfast", [["Oats", "carb", 54], ["Eggs", "protein", 1], ["Banana", "carb", 27]]],
+    [0, "lunch", [["Chicken", "protein", 0], ["Rice", "carb", 45], ["Broccoli", "vegetable", 6]]],
+    [0, "dinner", [["Salmon", "protein", 0], ["Sweet potato", "carb", 40], ["Spinach", "vegetable", 3], ["Olive oil", "fat", 0]]],
+    [1, "lunch", [["Turkey sandwich", "carb", 36], ["Apple", "carb", 25]]],
+    [1, "dinner", [["Beef", "protein", 0], ["Pasta", "carb", 60], ["Green beans", "vegetable", 7]]],
+    [1, "snack", [["Greek yogurt", "protein", 6], ["Almonds", "fat", 6]]],
+  ];
+
   function sampleData(today) {
-    const entries = [];
     const now = new Date(today + "T00:00:00");
     const dayString = (daysAgo) => {
       const d = new Date(now);
       d.setDate(d.getDate() - daysAgo);
       return toDateString(d);
     };
-    const add = (daysAgo, exercise, weight, sets, reps) => {
-      for (let i = 0; i < sets; i++) {
-        entries.push({ id: `sample-${entries.length}`, date: dayString(daysAgo), exercise, weight, reps });
+    const entries = [];
+    const weeks = SAMPLE_PROGRAM.Push.lifts[0][3].length;
+    for (let week = 0; week < weeks; week++) {
+      for (const { daysAgo, lifts } of Object.values(SAMPLE_PROGRAM)) {
+        for (const [exercise, sets, reps, weights] of lifts) {
+          for (let i = 0; i < sets; i++) {
+            entries.push({ id: `sample-${entries.length}`, date: dayString((weeks - 1 - week) * 7 + daysAgo), exercise, weight: weights[week], reps });
+          }
+        }
       }
-    };
-    // Bench keeps climbing; squat stalled five weeks ago.
-    [[49, 115], [42, 120], [35, 125], [28, 125], [21, 130], [14, 135], [7, 135], [2, 140]].forEach(
-      ([ago, w]) => add(ago, "Bench Press", w, 3, 8)
-    );
-    [[56, 185], [49, 195], [42, 205], [35, 205], [28, 205], [21, 205], [14, 205], [5, 205]].forEach(
-      ([ago, w]) => add(ago, "Squat", w, 3, 6)
-    );
-    [[45, 25], [31, 30], [17, 30], [3, 35]].forEach(([ago, w]) => add(ago, "Bicep Curl", w, 3, 10));
+    }
     const bodyweights = [[56, 172.0], [42, 173.5], [28, 174.2], [14, 175.8], [1, 176.5]].map(([ago, w]) => ({
       date: dayString(ago),
       weight: w,
+      sample: true,
     }));
-    return { entries, bodyweights };
+    const routines = Object.entries(SAMPLE_PROGRAM).map(([name, { lifts }]) => ({
+      id: `sample-routine-${name.toLowerCase()}`,
+      name: `${name} Day`,
+      exercises: lifts.map(([exercise]) => exercise),
+      targets: Object.fromEntries(lifts.slice(0, 2).map(([exercise, sets, reps]) => [exercise, { sets, reps }])),
+    }));
+    const meals = SAMPLE_MEALS.map(([daysAgo, type, foods], index) => ({
+      id: `sample-meal-${index}`,
+      date: dayString(daysAgo),
+      type,
+      foods: foods.map(([name, category, carbs]) => ({ name, category, carbs })),
+    }));
+    return { entries, bodyweights, routines, meals };
   }
+
+  // The state's lists with the sample added. Anything already added is skipped, so loading twice changes nothing.
+  function withSampleData(data, sample) {
+    const missing = (have, extra) => extra.filter((item) => !have.some((existing) => existing.id === item.id));
+    return {
+      entries: [...data.entries, ...missing(data.entries, sample.entries)],
+      routines: [...data.routines, ...missing(data.routines, sample.routines)],
+      meals: [...data.meals, ...missing(data.meals, sample.meals)],
+      bodyweights: [
+        ...data.bodyweights,
+        ...sample.bodyweights.filter((weight) => !data.bodyweights.some((existing) => existing.sample && existing.date === weight.date)),
+      ],
+    };
+  }
+
+  // The state's lists without any sample data. The user's own entries, routines, meals and weights stay.
+  function withoutSampleData(data) {
+    const real = (item) => !isSampleId(item.id);
+    return {
+      entries: data.entries.filter(real),
+      routines: data.routines.filter(real),
+      meals: data.meals.filter(real),
+      bodyweights: data.bodyweights.filter((weight) => !weight.sample),
+    };
+  }
+
+  const hasSampleData = (data) =>
+    [...data.entries, ...data.routines, ...data.meals].some((item) => isSampleId(item.id)) || data.bodyweights.some((weight) => weight.sample);
 
   // One well-reviewed tutorial video (a YouTube video id) for each built-in exercise.
   const DEMO_VIDEOS = {
@@ -929,6 +1012,14 @@ const Logic = (() => {
   const NOTE_MAX_LENGTH = 1000;
 
   // Notes are kept as { "2026-10-11": "text" }, one per day. An empty note removes that day's note.
+  const NOTE_EXCERPT_LENGTH = 40;
+
+  // The start of a note, for showing on a card.
+  function noteExcerpt(text) {
+    const clean = normalizeName(text);
+    return clean.length > NOTE_EXCERPT_LENGTH ? `${clean.slice(0, NOTE_EXCERPT_LENGTH)}…` : clean;
+  }
+
   function setNote(notes, date, text) {
     const clean = text.trim().slice(0, NOTE_MAX_LENGTH);
     const updated = { ...notes };
@@ -1315,6 +1406,7 @@ const Logic = (() => {
     VOLUME_WEEKS,
     NOTE_MAX_LENGTH,
     setNote,
+    noteExcerpt,
     sanitizeNotes,
     MUSCLE_GROUPS,
     DEFAULT_EXERCISES,
@@ -1370,5 +1462,8 @@ const Logic = (() => {
     oneRepMaxSeries,
     bestOneRepMax,
     sampleData,
+    withSampleData,
+    withoutSampleData,
+    hasSampleData,
   };
 })();

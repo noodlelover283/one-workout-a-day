@@ -167,7 +167,6 @@ I18n.register("es", {
     "history.heading": "Historial",
     "history.empty": "Aún no hay entrenamientos. Registra el primero en la pestaña Registro.",
     "history.loadSample": "Cargar datos de ejemplo para explorar",
-    "log.sampleHint": "¿Solo estás mirando? Prueba la app con entrenamientos de ejemplo.",
 
     "progress.plateauHeading": "Control de estancamiento",
 
@@ -487,6 +486,15 @@ I18n.register("es", {
     "glossary.routine.def": "Una lista guardada de ejercicios que haces juntos, como un día de empuje, para elegirla al registrar.",
     "glossary.record.term": "Récord",
     "glossary.record.def": "Tu peso más alto hasta ahora en un ejercicio. Levantar más que eso marca un nuevo récord.",
+
+    "sample.heading": "Datos de ejemplo",
+    "sample.hint": "Añade entrenamientos, rutinas y comidas de ejemplo para explorar la app. Tus propios datos se conservan y puedes quitar los ejemplos después.",
+    "sample.remove": "Quitar datos de ejemplo",
+    "sample.removeConfirm": "¿Quitar los entrenamientos, rutinas y comidas de ejemplo? Tus propios datos se conservan.",
+    "toast.sampleRemoved": "Datos de ejemplo eliminados.",
+
+    "log.back": "Volver a Registro",
+    "note.none": "Aún no hay nota",
 
     "tab.meals": "Comidas",
     "meals.heading": "Comidas",

@@ -166,7 +166,6 @@ I18n.register("zh", {
     "history.heading": "历史",
     "history.empty": "还没有训练记录。去“记录”页记录第一次吧。",
     "history.loadSample": "加载示例数据来体验",
-    "log.sampleHint": "只是随便看看？用示例训练来体验一下。",
 
     "progress.plateauHeading": "瓶颈检查",
 
@@ -485,6 +484,15 @@ I18n.register("zh", {
     "glossary.routine.def": "保存好的一组一起做的动作，比如推日，记录时可以直接选择。",
     "glossary.record.term": "纪录",
     "glossary.record.def": "你在某个动作上到目前为止的最大重量。举得更重就刷新纪录。",
+
+    "sample.heading": "示例数据",
+    "sample.hint": "添加示例训练、训练计划和餐食，方便你体验应用。你自己的数据会保留，之后也可以移除这些示例。",
+    "sample.remove": "移除示例数据",
+    "sample.removeConfirm": "移除示例训练、训练计划和餐食？你自己的数据会保留。",
+    "toast.sampleRemoved": "已移除示例数据。",
+
+    "log.back": "返回记录",
+    "note.none": "还没有备注",
 
     "tab.meals": "饮食记录",
     "meals.heading": "餐食",

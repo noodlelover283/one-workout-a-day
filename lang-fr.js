@@ -167,7 +167,6 @@ I18n.register("fr", {
     "history.heading": "Historique",
     "history.empty": "Aucune séance pour l'instant. Enregistrez la première dans l'onglet Journal.",
     "history.loadSample": "Charger des données d'exemple",
-    "log.sampleHint": "Vous voulez juste découvrir ? Essayez l'appli avec des séances d'exemple.",
 
     "progress.plateauHeading": "Suivi des plateaux",
 
@@ -487,6 +486,15 @@ I18n.register("fr", {
     "glossary.routine.def": "Une liste enregistrée d'exercices que vous faites ensemble, comme un jour de poussée, à choisir au moment d'enregistrer.",
     "glossary.record.term": "Record",
     "glossary.record.def": "Votre charge la plus lourde jusqu'ici pour un exercice. Soulever plus bat le record.",
+
+    "sample.heading": "Données d'exemple",
+    "sample.hint": "Ajoute des séances, routines et repas d'exemple pour explorer l'appli. Vos propres données restent, et vous pouvez retirer les exemples ensuite.",
+    "sample.remove": "Retirer les données d'exemple",
+    "sample.removeConfirm": "Retirer les séances, routines et repas d'exemple ? Vos propres données restent.",
+    "toast.sampleRemoved": "Données d'exemple retirées.",
+
+    "log.back": "Retour à Journal",
+    "note.none": "Pas encore de note",
 
     "tab.meals": "Repas",
     "meals.heading": "Repas",

@@ -1264,7 +1264,7 @@ test("every tab draws its screen, with no errors", async () => {
   const app = await openApp();
   try {
     const expected = {
-      log: ["#log-form", "#today-list", "#routine-select", "#workout-note"],
+      log: ["#log-form", "#today-list", "#routine-select", "#workout-note", "#log-home .dash-card"],
       routines: ["#routine-list .dash-card", "#routine-form", "#my-exercises"],
       history: ["#calendar-grid .day-cell", "#history .day", "#backup-download"],
       progress: ["#plateau-cards", "#exercise-chart svg", "#strength-results .strength-card", "#bodyweight-chart svg", "#measure-chart svg"],
@@ -1517,20 +1517,44 @@ function logSetInApp(app, exercise, weight, reps) {
   app.doc.getElementById("log-form").requestSubmit();
 }
 
-test("a brand-new app offers sample data on the Log tab, and the offer goes away once there is data", async () => {
+test("sample data lives in the settings gear: always offered, adds workouts, routines and meals once, and removes only itself", async () => {
   const app = await openApp();
   try {
-    const offer = app.doc.getElementById("log-sample");
-    if (!offer.classList.contains("hidden")) throw new Error("an app with workouts in it should not offer sample data");
-    // Empty the app the way a first visit looks, then redraw the Log tab.
-    app.win.eval("state.entries = []; state.notes = {}; renderToday();");
-    if (offer.classList.contains("hidden")) throw new Error("an empty app should offer sample data on the Log tab");
-    const button = app.doc.getElementById("load-sample-log");
-    if (button.getBoundingClientRect().width === 0 || button.textContent.trim() === "") throw new Error("the sample data button should be visible and labelled");
-    button.click();
-    if (!offer.classList.contains("hidden")) throw new Error("the offer should go away after the sample data is loaded");
-    if (JSON.parse(app.win.localStorage.getItem(app.storage)).entries.length === 0) throw new Error("loading should save sample workouts");
-    if (app.errors.length) throw new Error(app.errors.join("; "));
+    const doc = app.doc;
+    app.win.confirm = () => true;
+    // Start from an app with one real set, so the sample has something of Isaac's to leave alone.
+    app.win.eval(
+      'state.entries = [{ id: "mine-1", date: today(), exercise: "Bench Press", weight: 100, reps: 5 }]; state.bodyweights = []; state.routines = []; state.meals = []; renderToday();',
+    );
+    showTab(app, "log");
+    if (doc.getElementById("log-sample") || doc.getElementById("load-sample-log")) throw new Error("the Log tab should no longer carry the sample data card");
+    showTab(app, "history");
+    if (doc.getElementById("load-sample")) throw new Error("the History tab should no longer carry a sample data button");
+    doc.getElementById("display-toggle").click();
+    const load = doc.getElementById("sample-load");
+    if (!load || !isShown(load)) throw new Error("the settings gear should offer sample data even though a set is already logged");
+    if (isShown(doc.getElementById("sample-remove"))) throw new Error("Remove sample data should be hidden until sample data is loaded");
+
+    load.click();
+    let data = savedData(app);
+    const exercises = new Set(data.entries.filter((entry) => entry.id.startsWith("sample-")).map((entry) => entry.exercise));
+    if (exercises.size < 8) throw new Error(`the sample should use a variety of exercises, but only has ${[...exercises]}`);
+    if (data.routines.length < 3) throw new Error(`the sample should include routines, but has ${data.routines.length}`);
+    if (data.meals.length < 2) throw new Error(`the sample should include meals, but has ${data.meals.length}`);
+    if (!data.entries.some((entry) => entry.id === "mine-1")) throw new Error("loading the sample should keep the real set");
+
+    const counts = () => [savedData(app).entries.length, savedData(app).routines.length, savedData(app).meals.length, savedData(app).bodyweights.length];
+    const loaded = counts();
+    load.click();
+    assertEqual(counts(), loaded, "loading twice should not duplicate the sample:");
+    if (!isShown(doc.getElementById("sample-remove"))) throw new Error("Remove sample data should show once the sample is loaded");
+
+    doc.getElementById("sample-remove").click();
+    data = savedData(app);
+    assertEqual(data.entries.map((entry) => entry.id), ["mine-1"], "only the real set should remain:");
+    assertEqual([data.routines.length, data.meals.length, data.bodyweights.length], [0, 0, 0], "routines, meals and bodyweights from the sample should be gone:");
+    if (isShown(doc.getElementById("sample-remove"))) throw new Error("Remove sample data should hide again after removing");
+    if (app.errors.length) throw new Error(`the app raised errors: ${app.errors.join("; ")}`);
   } finally {
     closeApp(app);
   }
@@ -2467,6 +2491,47 @@ test("a meal with no foods, a food with no name or impossible carbs is refused w
     addFoodToDraft(app, "Rice", "carb", "-5");
     if (app.doc.querySelectorAll("#meal-draft li").length) throw new Error("a food with negative carbs was added");
     if (!app.doc.getElementById("meal-error").innerText.trim()) throw new Error("no message for bad carbs");
+  } finally {
+    closeApp(app);
+  }
+});
+
+// ---------- Log tab cards ----------
+
+const isShown = (node) => node.getClientRects().length > 0;
+
+test("the Log tab shows the day note and workout settings as cards that open their own panels", async () => {
+  const app = await openApp();
+  try {
+    const doc = app.doc;
+    const tab = showTab(app, "log");
+    const home = doc.getElementById("log-home");
+    if (!isShown(home) || !isShown(doc.getElementById("log-form")) || !isShown(doc.getElementById("today-list"))) {
+      throw new Error("Add set and Today's workout should stay on the Log tab's first screen");
+    }
+    const card = (name) => tab.querySelector(`#log-home .dash-card[data-panel="${name}"]`);
+    if (!card("daynote") || !card("workoutsettings")) throw new Error("the Log tab is missing its Day note or Workout settings card");
+    if (isShown(doc.getElementById("workout-note")) || isShown(doc.getElementById("rest-seconds"))) {
+      throw new Error("the note box and the settings should be inside their panels, not stacked under the workout");
+    }
+    // The note card opens a panel with the note box; typing a note and going back shows it on the card.
+    card("daynote").click();
+    if (isShown(home) || !isShown(doc.getElementById("panel-daynote")) || !isShown(doc.getElementById("workout-note"))) {
+      throw new Error("tapping the Day note card should open the note panel");
+    }
+    const note = doc.getElementById("workout-note");
+    note.value = "Shoulder felt tight";
+    note.dispatchEvent(new Event("change", { bubbles: true }));
+    doc.querySelector("#panel-daynote .panel-back").click();
+    if (!isShown(home) || isShown(doc.getElementById("panel-daynote"))) throw new Error("Back should return to the Log tab's cards");
+    if (!card("daynote").textContent.includes("Shoulder felt tight")) throw new Error(`the note card reads "${card("daynote").textContent}"`);
+    if (!Object.values(savedData(app).notes).includes("Shoulder felt tight")) throw new Error("the note should be saved");
+    // The settings card opens the rest timer and weight suggestion settings.
+    card("workoutsettings").click();
+    if (!isShown(doc.getElementById("rest-seconds")) || !isShown(doc.getElementById("rep-goal"))) throw new Error("the settings panel should show the rest timer and suggestion settings");
+    doc.querySelector("#panel-workoutsettings .panel-back").click();
+    if (!isShown(home)) throw new Error("Back should return to the Log tab's cards");
+    if (app.errors.length) throw new Error(`the app raised errors: ${app.errors.join("; ")}`);
   } finally {
     closeApp(app);
   }

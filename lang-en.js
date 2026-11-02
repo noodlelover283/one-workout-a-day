@@ -167,7 +167,6 @@ I18n.register("en", {
     "history.heading": "History",
     "history.empty": "No workouts yet. Log your first one on the Log tab.",
     "history.loadSample": "Load sample data to explore",
-    "log.sampleHint": "Just looking? Try the app with example workouts.",
 
     "progress.plateauHeading": "Plateau check",
 
@@ -487,6 +486,15 @@ I18n.register("en", {
     "glossary.routine.def": "A saved list of exercises you do together, like a push day, so you can pick it when you log.",
     "glossary.record.term": "Record",
     "glossary.record.def": "Your heaviest weight so far for an exercise. Lifting more than that sets a new record.",
+
+    "sample.heading": "Sample data",
+    "sample.hint": "Adds example workouts, routines and meals so you can explore the app. Your own data stays, and you can remove the examples again.",
+    "sample.remove": "Remove sample data",
+    "sample.removeConfirm": "Remove the sample workouts, routines and meals? Your own data stays.",
+    "toast.sampleRemoved": "Sample data removed.",
+
+    "log.back": "Back to Log",
+    "note.none": "No note yet",
 
     "tab.meals": "Meals",
     "meals.heading": "Meals",

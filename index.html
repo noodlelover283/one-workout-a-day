@@ -12,7 +12,7 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="theme-color" content="#f5f6f8" media="(prefers-color-scheme: light)">
   <meta name="theme-color" content="#12161c" media="(prefers-color-scheme: dark)">
-  <link rel="stylesheet" href="style.css?v=c81d3a54ce">
+  <link rel="stylesheet" href="style.css?v=06d093d63c">
 </head>
 <body>
   <p id="offline-banner" class="offline-banner hidden" role="status" data-i18n="offline.notice">You're offline. Everything still works, and your data is saved on this device.</p>
@@ -48,6 +48,10 @@
       <select id="language-select"></select>
       <h3 data-i18n="offlineStatus.heading">Offline use</h3>
       <p id="offline-status" class="hint"></p>
+      <h3 data-i18n="sample.heading">Sample data</h3>
+      <p class="hint" data-i18n="sample.hint">Adds example workouts, routines and meals so you can explore the app. Your own data stays, and you can remove the examples again.</p>
+      <button type="button" id="sample-load" class="secondary" data-i18n="history.loadSample">Load sample data to explore</button>
+      <button type="button" id="sample-remove" class="secondary hidden" data-i18n="sample.remove">Remove sample data</button>
       <details id="glossary" class="note-fold">
         <summary data-i18n="glossary.heading">Workout terms</summary>
         <dl class="glossary">
@@ -88,6 +92,7 @@
       </div>
       </div>
 
+      <div id="log-home">
       <div class="heading-row">
         <h2 data-i18n="log.heading">Log a workout</h2>
         <label for="date" class="sr-only" data-i18n="log.date">Date</label>
@@ -175,16 +180,31 @@
 
       <h3 data-i18n="log.todayHeading">Today's workout</h3>
       <ul id="today-list" class="entry-list"></ul>
-      <div id="log-sample" class="log-sample hidden">
-        <p class="hint" data-i18n="log.sampleHint">Just looking? Try the app with example workouts.</p>
-        <button id="load-sample-log" type="button" class="secondary" data-i18n="history.loadSample">Load sample data to explore</button>
+      <div class="dash-grid">
+        <button type="button" class="dash-card" data-panel="daynote" aria-controls="panel-daynote">
+          <span class="fold-icon" aria-hidden="true">📝</span>
+          <strong data-i18n="note.label">Note for this day</strong>
+          <span class="dash-stat" id="dash-stat-daynote"></span>
+        </button>
+        <button type="button" class="dash-card" data-panel="workoutsettings" aria-controls="panel-workoutsettings">
+          <span class="fold-icon" aria-hidden="true">⚙️</span>
+          <strong data-i18n="settings.workout">Workout settings</strong>
+        </button>
       </div>
-      <label for="workout-note" data-i18n="note.label">Note for this day</label>
-      <textarea id="workout-note" rows="3" data-i18n-placeholder="note.placeholder" placeholder="e.g. Slept badly, shoulder felt tight"></textarea>
-      <p class="hint" data-i18n="note.hint">Saved automatically when you tap away.</p>
+      </div>
 
-      <details class="settings-fold">
-        <summary data-i18n="settings.workout">Workout settings</summary>
+      <section id="panel-daynote" class="detail-panel hidden" aria-labelledby="panel-daynote-title">
+        <button type="button" class="link panel-back" data-i18n="log.back">Back to Log</button>
+        <div class="panel-title"><span class="fold-icon" aria-hidden="true">📝</span><h2 id="panel-daynote-title" data-i18n="note.label">Note for this day</h2></div>
+        <p id="note-date" class="hint"></p>
+        <label for="workout-note" class="sr-only" data-i18n="note.label">Note for this day</label>
+        <textarea id="workout-note" rows="5" data-i18n-placeholder="note.placeholder" placeholder="e.g. Slept badly, shoulder felt tight"></textarea>
+        <p class="hint" data-i18n="note.hint">Saved automatically when you tap away.</p>
+      </section>
+
+      <section id="panel-workoutsettings" class="detail-panel hidden" aria-labelledby="panel-workoutsettings-title">
+        <button type="button" class="link panel-back" data-i18n="log.back">Back to Log</button>
+        <div class="panel-title"><span class="fold-icon" aria-hidden="true">⚙️</span><h2 id="panel-workoutsettings-title" data-i18n="settings.workout">Workout settings</h2></div>
         <h3 data-i18n="rest.heading">Rest timer</h3>
         <label for="rest-seconds" data-i18n="rest.seconds">Rest time (seconds)</label>
         <input id="rest-seconds" type="number" inputmode="numeric" min="5" max="3600" step="1">
@@ -198,7 +218,7 @@
         <input id="rep-goal" type="number" inputmode="numeric" min="1" max="30" step="1">
         <div id="jump-settings"></div>
         <p id="progression-error" class="error" role="alert"></p>
-      </details>
+      </section>
     </section>
 
     <section id="tab-routines" class="tab hidden" aria-labelledby="nav-routines">
@@ -269,7 +289,6 @@
         <p id="calendar-stats" class="hint"></p>
       </div>
       <div id="history"></div>
-      <button id="load-sample" type="button" class="secondary hidden" data-i18n="history.loadSample">Load sample data to explore</button>
 
       <details class="settings-fold">
         <summary data-i18n="backup.heading">Back up your data</summary>
@@ -502,17 +521,17 @@
     <button id="nav-meals" data-tab="meals" data-section="diet" class="hidden" data-i18n="tab.meals">Meals</button>
   </nav>
 
-  <script src="i18n.js?v=c81d3a54ce"></script>
-  <script src="lang-en.js?v=c81d3a54ce"></script>
-  <script src="lang-es.js?v=c81d3a54ce"></script>
-  <script src="lang-zh.js?v=c81d3a54ce"></script>
-  <script src="lang-hi.js?v=c81d3a54ce"></script>
-  <script src="lang-ar.js?v=c81d3a54ce"></script>
-  <script src="lang-fr.js?v=c81d3a54ce"></script>
-  <script src="lang-pt.js?v=c81d3a54ce"></script>
-  <script src="lang-ru.js?v=c81d3a54ce"></script>
-  <script src="strength-data.js?v=c81d3a54ce"></script>
-  <script src="logic.js?v=c81d3a54ce"></script>
-  <script src="app.js?v=c81d3a54ce"></script>
+  <script src="i18n.js?v=06d093d63c"></script>
+  <script src="lang-en.js?v=06d093d63c"></script>
+  <script src="lang-es.js?v=06d093d63c"></script>
+  <script src="lang-zh.js?v=06d093d63c"></script>
+  <script src="lang-hi.js?v=06d093d63c"></script>
+  <script src="lang-ar.js?v=06d093d63c"></script>
+  <script src="lang-fr.js?v=06d093d63c"></script>
+  <script src="lang-pt.js?v=06d093d63c"></script>
+  <script src="lang-ru.js?v=06d093d63c"></script>
+  <script src="strength-data.js?v=06d093d63c"></script>
+  <script src="logic.js?v=06d093d63c"></script>
+  <script src="app.js?v=06d093d63c"></script>
 </body>
 </html>

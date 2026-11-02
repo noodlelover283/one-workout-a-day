@@ -163,6 +163,7 @@ function showTab(name) {
     button.setAttribute("aria-pressed", String(button.dataset.section === section));
   }
   if (name === "log") {
+    showPanel("log", null);
     renderRoutinePicker();
     renderToday();
   }
@@ -360,11 +361,12 @@ function renderToday() {
   const date = $("date").value || today();
   const list = $("today-list");
   const entries = state.entries.filter((e) => e.date === date);
-  $("log-sample").classList.toggle("hidden", !isAppEmpty());
   renderRoutineChecklist(Logic.workingSets(entries));
   renderWarmup();
   const note = $("workout-note");
   if (document.activeElement !== note) note.value = state.notes[date] || "";
+  $("note-date").textContent = new Intl.DateTimeFormat(I18n.locale(), { dateStyle: "full" }).format(new Date(`${date}T00:00`));
+  $("dash-stat-daynote").textContent = state.notes[date] ? Logic.noteExcerpt(state.notes[date]) : t("note.none");
   if (entries.length === 0) {
     list.replaceChildren(el("li", "empty", t("log.empty")));
     return;
@@ -1383,19 +1385,16 @@ function historyDay(date) {
   return day;
 }
 
-// True until something has been logged or noted, so a newcomer can be offered the sample data.
+// True until something has been logged or noted, so History can say there is nothing yet.
 const isAppEmpty = () => state.entries.length === 0 && Object.keys(state.notes).length === 0;
 
 function renderHistory() {
   renderCalendar();
   const container = $("history");
-  const sample = $("load-sample");
   if (isAppEmpty()) {
     container.replaceChildren(el("p", "empty", t("history.empty")));
-    sample.classList.remove("hidden");
     return;
   }
-  sample.classList.add("hidden");
   const dates = [...new Set([...state.entries.map((e) => e.date), ...Object.keys(state.notes)])].sort().reverse();
   const recent = dates.slice(0, RECENT_DAYS).map(historyDay);
   const older = dates.slice(RECENT_DAYS);
@@ -1409,13 +1408,28 @@ function renderHistory() {
   container.replaceChildren(...recent);
 }
 
+// The sample data is offered in the settings gear at all times; it is added next to the real data
+// (once only) and can be removed again without touching anything the user logged.
 function onLoadSample() {
-  const sample = Logic.sampleData(today());
-  state.entries.push(...sample.entries);
-  state.bodyweights.push(...sample.bodyweights);
-  saveState();
-  renderSetLists();
+  Object.assign(state, Logic.withSampleData(state, Logic.sampleData(today())));
+  afterSampleChange();
   showToast(t("toast.sample"));
+}
+
+function onRemoveSample() {
+  if (!window.confirm(t("sample.removeConfirm"))) return;
+  Object.assign(state, Logic.withoutSampleData(state));
+  afterSampleChange();
+  showToast(t("toast.sampleRemoved"));
+}
+
+function afterSampleChange() {
+  saveState();
+  $("sample-remove").classList.toggle("hidden", !Logic.hasSampleData(state));
+  renderRoutinePicker();
+  renderSetLists();
+  renderRoutines();
+  renderMeals();
 }
 
 // ---------- Backup and restore ----------
@@ -2307,6 +2321,7 @@ function closePanel(tab) {
   else {
     showPanel(tab, null);
     if (tab === "routines") renderRoutines();
+    if (tab === "log") renderToday();
   }
 }
 
@@ -2455,7 +2470,10 @@ async function renderOfflineStatus() {
 function toggleDisplayPanel() {
   const open = $("display-panel").classList.toggle("hidden") === false;
   $("display-toggle").setAttribute("aria-expanded", String(open));
-  if (open) renderOfflineStatus();
+  if (open) {
+    renderOfflineStatus();
+    $("sample-remove").classList.toggle("hidden", !Logic.hasSampleData(state));
+  }
 }
 
 // The tab bar is fixed to the bottom of the screen, so the page keeps clear space equal to its height.
@@ -2537,8 +2555,9 @@ function init() {
   $("measure-name").addEventListener("change", renderMeasurementChart);
   $("progress-exercise").addEventListener("change", renderExerciseChart);
   $("progress-metric").addEventListener("change", renderExerciseChart);
-  $("load-sample").addEventListener("click", onLoadSample);
-  $("load-sample-log").addEventListener("click", onLoadSample);
+  $("sample-load").addEventListener("click", onLoadSample);
+  $("sample-remove").addEventListener("click", onRemoveSample);
+  for (const card of document.querySelectorAll("#log-home .dash-card[data-panel]")) card.addEventListener("click", () => showPanel("log", card.dataset.panel));
   $("calendar-prev").addEventListener("click", () => showCalendarMonth(-1));
   $("calendar-next").addEventListener("click", () => showCalendarMonth(1));
   $("backup-download").addEventListener("click", onBackupDownload);
