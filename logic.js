@@ -1296,6 +1296,17 @@ const Logic = (() => {
 
   const roundToTenth = (value) => Math.round(value * 10) / 10;
 
+  // The carbs eaten on each of the last `days` days up to endDate, oldest first (0 for a day without meals).
+  function carbsByDay(meals, endDate, days) {
+    const end = new Date(`${endDate}T00:00:00`);
+    return Array.from({ length: days }, (_, index) => {
+      const day = new Date(end);
+      day.setDate(day.getDate() - (days - 1 - index));
+      const date = toDateString(day);
+      return { date, value: dayCarbs(meals, date) };
+    });
+  }
+
   const MAX_CARB_GOAL = 2000;
 
   // Checks a daily carbs goal in grams. null means no goal, which is allowed.
@@ -1366,6 +1377,7 @@ const Logic = (() => {
     carbGoalStatus,
     mealCarbs,
     dayCarbs,
+    carbsByDay,
     rememberFood,
     sanitizeFoodLibrary,
     sanitizeMeals,

@@ -12,7 +12,7 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="theme-color" content="#f5f6f8" media="(prefers-color-scheme: light)">
   <meta name="theme-color" content="#12161c" media="(prefers-color-scheme: dark)">
-  <link rel="stylesheet" href="style.css?v=85b72a23e1">
+  <link rel="stylesheet" href="style.css?v=1e383b4676">
 </head>
 <body>
   <p id="offline-banner" class="offline-banner hidden" role="status" data-i18n="offline.notice">You're offline. Everything still works, and your data is saved on this device.</p>
@@ -526,6 +526,16 @@
         <p id="meal-error" class="error" role="alert"></p>
       </form>
       <ul id="meal-list" class="meal-list"></ul>
+
+      <div class="heading-row">
+        <h2 data-i18n="meals.chartHeading">Carbs per day</h2>
+        <div class="range-toggle" role="group" data-i18n-aria="meals.chartRange" aria-label="Time span">
+          <button type="button" id="carb-range-7" data-days="7" aria-pressed="true" data-i18n="meals.chartDays7">7 days</button>
+          <button type="button" id="carb-range-30" data-days="30" aria-pressed="false" data-i18n="meals.chartDays30">30 days</button>
+        </div>
+      </div>
+      <div id="carb-chart" class="chart"></div>
+      <p id="carb-chart-detail" class="meal-total" aria-live="polite"></p>
     </section>
   </main>
 
@@ -541,17 +551,17 @@
     <button id="nav-meals" data-tab="meals" data-section="diet" class="hidden" data-i18n="tab.meals">Meals</button>
   </nav>
 
-  <script src="i18n.js?v=85b72a23e1"></script>
-  <script src="lang-en.js?v=85b72a23e1"></script>
-  <script src="lang-es.js?v=85b72a23e1"></script>
-  <script src="lang-zh.js?v=85b72a23e1"></script>
-  <script src="lang-hi.js?v=85b72a23e1"></script>
-  <script src="lang-ar.js?v=85b72a23e1"></script>
-  <script src="lang-fr.js?v=85b72a23e1"></script>
-  <script src="lang-pt.js?v=85b72a23e1"></script>
-  <script src="lang-ru.js?v=85b72a23e1"></script>
-  <script src="strength-data.js?v=85b72a23e1"></script>
-  <script src="logic.js?v=85b72a23e1"></script>
-  <script src="app.js?v=85b72a23e1"></script>
+  <script src="i18n.js?v=1e383b4676"></script>
+  <script src="lang-en.js?v=1e383b4676"></script>
+  <script src="lang-es.js?v=1e383b4676"></script>
+  <script src="lang-zh.js?v=1e383b4676"></script>
+  <script src="lang-hi.js?v=1e383b4676"></script>
+  <script src="lang-ar.js?v=1e383b4676"></script>
+  <script src="lang-fr.js?v=1e383b4676"></script>
+  <script src="lang-pt.js?v=1e383b4676"></script>
+  <script src="lang-ru.js?v=1e383b4676"></script>
+  <script src="strength-data.js?v=1e383b4676"></script>
+  <script src="logic.js?v=1e383b4676"></script>
+  <script src="app.js?v=1e383b4676"></script>
 </body>
 </html>

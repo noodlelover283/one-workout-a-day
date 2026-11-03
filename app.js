@@ -2113,6 +2113,10 @@ function onResetAdjustment() {
 
 // The foods added to the meal that has not been saved yet.
 let mealDraft = [];
+// How many days the carbs chart covers: 7 or 30.
+let carbChartDays = 7;
+// The day whose bar was pressed, as a date, or null when none is.
+let carbPickedDate = null;
 
 const mealDate = () => $("meal-date").value || today();
 
@@ -2141,6 +2145,7 @@ function renderMeals() {
       ? t("meals.totalOver", { grams: eaten, goal: state.carbGoal, over: status.over })
       : t("meals.totalGoal", { grams: eaten, goal: state.carbGoal, left: status.left });
   if (document.activeElement !== $("carb-goal")) $("carb-goal").value = state.carbGoal === null ? "" : state.carbGoal;
+  renderCarbChart();
   $("meal-list").replaceChildren(...(meals.length === 0 ? [el("li", "empty", t("meals.empty"))] : meals.map(mealCard)));
 }
 
@@ -2217,6 +2222,95 @@ function onMealSave() {
   saveState();
   renderMeals();
   showToast(t("meals.saved"));
+}
+
+function renderCarbChart() {
+  for (const button of document.querySelectorAll("#tab-meals .range-toggle button")) {
+    button.setAttribute("aria-pressed", String(Number(button.dataset.days) === carbChartDays));
+  }
+  const days = Logic.carbsByDay(state.meals, today(), carbChartDays);
+  const picked = days.find((day) => day.date === carbPickedDate);
+  $("carb-chart").replaceChildren(days.some((day) => day.value > 0) ? barChart(days, state.carbGoal, picked) : el("p", "empty", t("meals.chartEmpty")));
+  $("carb-chart-detail").textContent = picked ? carbDayText(picked) : "";
+}
+
+const carbDayText = (day) => t("meals.chartDetail", { date: I18n.formatDate(day.date), grams: day.value });
+
+// One bar per day, with the goal as a dashed line when there is one. Pressing a bar picks that day.
+function barChart(days, goal, picked) {
+  const width = 320, height = 160, pad = 28;
+  const max = Math.max(goal || 0, ...days.map((day) => day.value));
+  const y = (value) => height - pad - (value / max) * (height - pad * 2);
+  const slot = (width - pad * 2) / days.length;
+  const svg = document.createElementNS(SVG_NS, "svg");
+  svg.setAttribute("viewBox", `0 0 ${width} ${height}`);
+  svg.setAttribute("role", "img");
+  svg.setAttribute("aria-label", t("meals.chartAria", { days: days.length }));
+  const add = (tag, attrs, text) => {
+    const node = document.createElementNS(SVG_NS, tag);
+    for (const [key, value] of Object.entries(attrs)) node.setAttribute(key, value);
+    if (text !== undefined) node.textContent = text;
+    svg.append(node);
+  };
+  days.forEach((day, index) => {
+    add("rect", {
+      x: pad + index * slot + slot * 0.15,
+      y: y(day.value),
+      width: slot * 0.7,
+      height: height - pad - y(day.value),
+      class: picked && picked.date === day.date ? "bar selected" : "bar",
+    });
+  });
+  // A full-height strip over each day with carbs, so even a short bar is easy to press. Empty days have none.
+  days.forEach((day, index) => {
+    if (day.value === 0) return;
+    add("rect", {
+      x: pad + index * slot,
+      y: 0,
+      width: slot,
+      height: height - pad,
+      class: "bar-hit",
+      "data-date": day.date,
+      tabindex: 0,
+      role: "button",
+      "aria-label": carbDayText(day),
+    });
+  });
+  if (goal) {
+    add("line", { x1: pad, x2: width - pad, y1: y(goal), y2: y(goal), class: "goal-line" });
+    // The label sits on its own background, so a tall bar behind it cannot hide it.
+    const label = t("meals.chartGoal", { goal });
+    const labelWidth = label.length * 6.5 + 12;
+    add("rect", { x: width - pad - labelWidth, y: y(goal) - 22, width: labelWidth, height: 18, rx: 4, class: "goal-label-bg" });
+    add("text", { x: width - pad - 6, y: y(goal) - 9, class: "axis goal-label", "text-anchor": "end" }, label);
+  }
+  add("text", { x: 4, y: pad, class: "axis" }, `${max}`);
+  add("text", { x: 4, y: height - pad + 4, class: "axis" }, "0");
+  add("text", { x: pad, y: height - 6, class: "axis" }, I18n.formatShortDate(days[0].date));
+  add("text", { x: width - pad, y: height - 6, class: "axis", "text-anchor": "end" }, I18n.formatShortDate(days[days.length - 1].date));
+  svg.addEventListener("click", onCarbBarPress);
+  svg.addEventListener("keydown", (event) => {
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      onCarbBarPress(event);
+    }
+  });
+  return svg;
+}
+
+function onCarbBarPress(event) {
+  const strip = event.target.closest(".bar-hit");
+  if (!strip) return;
+  carbPickedDate = strip.dataset.date;
+  renderCarbChart();
+  // The chart is drawn again, so a keyboard user keeps their place on the same day.
+  if (event.type === "keydown") $("carb-chart").querySelector(`.bar-hit[data-date="${carbPickedDate}"]`).focus();
+}
+
+function onCarbRangeChange(event) {
+  carbChartDays = Number(event.currentTarget.dataset.days);
+  carbPickedDate = null;
+  renderCarbChart();
 }
 
 function onCarbGoalSave(event) {
@@ -2545,6 +2639,7 @@ function init() {
   $("meal-form").addEventListener("submit", onMealAddFood);
   $("meal-save").addEventListener("click", onMealSave);
   $("carb-goal-form").addEventListener("submit", onCarbGoalSave);
+  for (const button of document.querySelectorAll("#tab-meals .range-toggle button")) button.addEventListener("click", onCarbRangeChange);
   $("meal-food-name").addEventListener("input", onMealFoodNameInput);
   $("meal-date").addEventListener("change", renderMeals);
   $("backup-merge-go").addEventListener("click", onBackupMerge);

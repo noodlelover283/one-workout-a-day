@@ -79,11 +79,11 @@ body {
 .section-switch button:first-child { border-start-start-radius: 10px; border-end-start-radius: 10px; }
 .section-switch button:last-child { border-start-end-radius: 10px; border-end-end-radius: 10px; border-inline-start: none; }
 .section-switch button[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
-.unit-toggle { display: flex; flex-shrink: 0; }
-.unit-toggle button { min-width: 52px; border-radius: 0; font-weight: 600; }
-.unit-toggle button:first-child { border-start-start-radius: 10px; border-end-start-radius: 10px; }
-.unit-toggle button:last-child { border-start-end-radius: 10px; border-end-end-radius: 10px; border-inline-start: none; }
-.unit-toggle button[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
+.unit-toggle, .range-toggle { display: flex; flex-shrink: 0; }
+.unit-toggle button, .range-toggle button { min-width: 52px; border-radius: 0; font-weight: 600; }
+.unit-toggle button:first-child, .range-toggle button:first-child { border-start-start-radius: 10px; border-end-start-radius: 10px; }
+.unit-toggle button:last-child, .range-toggle button:last-child { border-start-end-radius: 10px; border-end-end-radius: 10px; border-inline-start: none; }
+.unit-toggle button[aria-pressed="true"], .range-toggle button[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
 h1 { margin: 0; font-size: 1.3rem; }
 h2 { margin: 24px 0 8px; font-size: 1.25rem; }
 h3 { margin: 20px 0 8px; font-size: 1.05rem; }
@@ -296,6 +296,13 @@ button.link { min-height: 44px; border: none; background: none; color: var(--acc
 .display-panel .hint { margin-top: 0; }
 .glossary { margin: 0; }
 .meal-total { margin: 8px 0 0; font-weight: 700; }
+.chart .bar { fill: var(--accent); }
+.chart .goal-line { stroke: var(--good); stroke-width: 3; stroke-dasharray: 8 5; }
+.chart .goal-label-bg { fill: var(--surface); stroke: var(--good); stroke-width: 2; }
+.chart .axis.goal-label { fill: var(--good); font-size: 11px; font-weight: 700; }
+.chart .bar.selected { stroke: var(--text); stroke-width: 2; }
+.chart .bar-hit { fill: transparent; cursor: pointer; }
+.chart .bar-hit:focus-visible { outline: 2px solid var(--text); }
 .meal-list, .meal-foods { margin: 8px 0 0; padding: 0; list-style: none; }
 .meal { margin-top: 10px; padding: 10px 12px; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; }
 .meal-head, .meal-food { display: flex; align-items: center; justify-content: space-between; gap: 8px; }

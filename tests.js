@@ -2616,4 +2616,95 @@ test("setting a daily carbs goal on the Meals tab shows the grams left, then ove
   }
 });
 
+// ---------- Carbs chart ----------
+
+test("carbs per day covers the last 7 or 30 days, oldest first, with zero for days without meals", () => {
+  const meal = (id, date, carbs) => ({ id, date, type: "lunch", foods: [{ name: "Rice", category: "carb", carbs }] });
+  const meals = [meal("a", "2026-11-02", 51), meal("b", "2026-11-02", 9), meal("c", "2026-10-31", 30), meal("d", "2026-09-01", 99)];
+  const week = Logic.carbsByDay(meals, "2026-11-02", 7);
+  assertEqual(week.length, 7, "days in a week:");
+  assertEqual([week[0].date, week[6].date], ["2026-10-27", "2026-11-02"], "week runs oldest to newest:");
+  assertEqual(week.map((day) => day.value), [0, 0, 0, 0, 30, 0, 60], "carbs per day:");
+  const month = Logic.carbsByDay(meals, "2026-11-02", 30);
+  assertEqual([month.length, month[0].date, month[29].date], [30, "2026-10-04", "2026-11-02"], "30 days across a month change:");
+  assertEqual(month.reduce((sum, day) => sum + day.value, 0), 90, "the meal 62 days ago is outside the 30 days:");
+});
+
+test("the Meals tab charts carbs per day, can switch between 7 and 30 days, and draws the goal as a line", async () => {
+  const app = await openApp();
+  try {
+    const doc = app.doc;
+    showTab(app, "meals");
+    if (doc.querySelector("#carb-chart svg")) throw new Error("with no meals logged, there should be a message instead of a chart");
+    if (!doc.getElementById("carb-chart").innerText.trim()) throw new Error("the empty chart needs a message");
+
+    addFoodToDraft(app, "Rice", "carb", "45");
+    addFoodToDraft(app, "Broccoli", "vegetable", "6");
+    doc.getElementById("meal-save").click();
+    const bars = () => [...doc.querySelectorAll("#carb-chart rect.bar")];
+    assertEqual(bars().length, 7, "bars for the last 7 days:");
+    assertEqual(doc.getElementById("carb-range-7").getAttribute("aria-pressed"), "true", "7 days is the starting choice:");
+    const tallest = Math.max(...bars().map((bar) => parseFloat(bar.getAttribute("height"))));
+    if (!(tallest > 0)) throw new Error("today's meal should draw a bar with some height");
+    assertEqual(bars().filter((bar) => parseFloat(bar.getAttribute("height")) > 0).length, 1, "only today has carbs:");
+    if (doc.querySelector("#carb-chart line.goal-line")) throw new Error("no goal is set, so there should be no goal line");
+
+    doc.getElementById("carb-range-30").click();
+    assertEqual(bars().length, 30, "bars for the last 30 days:");
+    assertEqual([doc.getElementById("carb-range-30").getAttribute("aria-pressed"), doc.getElementById("carb-range-7").getAttribute("aria-pressed")], ["true", "false"]);
+
+    doc.getElementById("carb-goal-fold").open = true;
+    doc.getElementById("carb-goal").value = "250";
+    doc.getElementById("carb-goal-save").click();
+    if (!doc.querySelector("#carb-chart line.goal-line")) throw new Error("with a goal set, the chart should draw a goal line");
+    assertEqual(bars().length, 30, "the chosen range survives redrawing:");
+    assertEqual(savedData(app).unit, "lb", "the 7/30 buttons must not change the weight unit:");
+    if (app.errors.length) throw new Error(`the app raised errors: ${app.errors.join("; ")}`);
+  } finally {
+    closeApp(app);
+  }
+});
+
+test("the carbs chart draws the goal in its own colour, and pressing a bar says how many grams were eaten that day", async () => {
+  const app = await openApp();
+  try {
+    const doc = app.doc;
+    showTab(app, "meals");
+    addFoodToDraft(app, "Rice", "carb", "45");
+    addFoodToDraft(app, "Broccoli", "vegetable", "6");
+    doc.getElementById("meal-save").click();
+    doc.getElementById("carb-goal-fold").open = true;
+    doc.getElementById("carb-goal").value = "250";
+    doc.getElementById("carb-goal-save").click();
+
+    // The goal line and its label must not be the same colour as the bars.
+    const style = (node) => app.win.getComputedStyle(node);
+    const barColour = style(doc.querySelector("#carb-chart rect.bar")).fill;
+    const lineColour = style(doc.querySelector("#carb-chart line.goal-line")).stroke;
+    const labelColour = style(doc.querySelector("#carb-chart text.goal-label")).fill;
+    if (lineColour === barColour) throw new Error(`the goal line is the same colour as the bars (${barColour})`);
+    if (labelColour === barColour) throw new Error(`the goal label is the same colour as the bars (${barColour})`);
+
+    // The goal stands out: a thick line, and a label on its own background so bars cannot hide it.
+    if (!(parseFloat(style(doc.querySelector("#carb-chart line.goal-line")).strokeWidth) >= 3)) throw new Error("the goal line should be at least 3 thick");
+    if (!doc.querySelector("#carb-chart rect.goal-label-bg")) throw new Error("the goal label should sit on its own background");
+
+    // Pressing a bar says that day's carbs. Days without carbs have nothing to press.
+    const detail = doc.getElementById("carb-chart-detail");
+    if (!detail) throw new Error("the chart needs a place to say what a pressed bar means");
+    const hits = [...doc.querySelectorAll("#carb-chart rect.bar-hit")];
+    assertEqual(hits.length, 1, "only the day with carbs can be pressed:");
+    assertEqual(hits[0].getAttribute("data-date"), Logic.toDateString(new Date()), "the pressable day is today:");
+    hits[0].dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    if (!detail.innerText.includes("51")) throw new Error(`pressing today's bar should say 51 g: "${detail.innerText}"`);
+    if (!doc.querySelector("#carb-chart rect.bar.selected")) throw new Error("the pressed bar should look selected");
+    // Changing the span clears the old pick, since its bar may not be there any more.
+    doc.getElementById("carb-range-30").click();
+    if (detail.innerText.trim() !== "") throw new Error(`the pressed bar's text should go when the span changes: "${detail.innerText}"`);
+    if (app.errors.length) throw new Error(`the app raised errors: ${app.errors.join("; ")}`);
+  } finally {
+    closeApp(app);
+  }
+});
+
 Promise.all(unfinished).then(showResults);
