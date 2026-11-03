@@ -2707,4 +2707,113 @@ test("the carbs chart draws the goal in its own colour, and pressing a bar says 
   }
 });
 
+// ---------- Editing a saved meal ----------
+
+test("replacing a meal keeps its id and day, and an unknown id changes nothing", () => {
+  const meals = [
+    { id: "a", date: "2026-11-02", type: "lunch", foods: [{ name: "Rice", category: "carb", carbs: 45 }] },
+    { id: "b", date: "2026-11-02", type: "dinner", foods: [{ name: "Beef", category: "protein", carbs: 0 }] },
+  ];
+  const changed = Logic.replaceMeal(meals, "a", { type: "snack", foods: [{ name: "Apple", category: "carb", carbs: 25 }] });
+  assertEqual(changed.map((meal) => [meal.id, meal.date, meal.type]), [["a", "2026-11-02", "snack"], ["b", "2026-11-02", "dinner"]], "ids, days and types:");
+  assertEqual(changed[0].foods[0].name, "Apple", "the foods are replaced:");
+  assertEqual(changed[1], meals[1], "other meals are untouched:");
+  assertEqual(Logic.replaceMeal(meals, "zzz", { type: "snack", foods: [] }), meals, "unknown id:");
+});
+
+// Logs lunch (chicken, rice 45, broccoli 6) and returns the helpers the editing tests share.
+async function openAppWithLunch() {
+  const app = await openApp();
+  const doc = app.doc;
+  showTab(app, "meals");
+  doc.getElementById("meal-type").value = "lunch";
+  addFoodToDraft(app, "Chicken", "protein", "");
+  addFoodToDraft(app, "Rice", "carb", "45");
+  addFoodToDraft(app, "Broccoli", "vegetable", "6");
+  doc.getElementById("meal-save").click();
+  return {
+    app,
+    doc,
+    card: () => doc.querySelector("#meal-list .meal"),
+    draftFoods: () => [...doc.querySelectorAll("#meal-draft li")].map((row) => row.innerText),
+    total: () => doc.getElementById("meal-day-total").innerText,
+  };
+}
+
+test("tapping Edit on a saved meal loads it into the form, and Save changes replaces it", async () => {
+  const { app, doc, card, draftFoods, total } = await openAppWithLunch();
+  try {
+    const originalId = savedData(app).meals[0].id;
+    card().querySelector("button.meal-edit").click();
+    assertEqual(draftFoods().length, 3, "the meal's foods load into the form:");
+    assertEqual(doc.getElementById("meal-type").value, "lunch", "meal type:");
+    if (doc.getElementById("meal-save").innerText.trim() !== "Save changes") throw new Error(`the save button reads "${doc.getElementById("meal-save").innerText}"`);
+    if (!isShown(doc.getElementById("meal-cancel"))) throw new Error("editing should offer Cancel");
+    if (!doc.getElementById("meal-editing").innerText.includes("Lunch")) throw new Error("the form should say which meal is being edited");
+
+    // Remove the broccoli, then save.
+    const broccoli = [...doc.querySelectorAll("#meal-draft li")].find((row) => row.innerText.includes("Broccoli"));
+    broccoli.querySelector("button.food-remove").click();
+    doc.getElementById("meal-save").click();
+    assertEqual(doc.querySelectorAll("#meal-list .meal").length, 1, "still one meal:");
+    if (!card().innerText.includes("45 g carbs") || card().innerText.includes("Broccoli")) throw new Error(`the meal reads "${card().innerText}"`);
+    if (!total().includes("45")) throw new Error(`the day's total should drop to 45: "${total()}"`);
+    const saved = savedData(app).meals;
+    assertEqual([saved.length, saved[0].id, saved[0].foods.length], [1, originalId, 2], "saved meal keeps its id:");
+    assertEqual(doc.getElementById("meal-save").innerText.trim(), "Save meal", "the save button goes back to normal:");
+    if (isShown(doc.getElementById("meal-cancel"))) throw new Error("Cancel should go away after saving");
+    assertEqual(draftFoods().length, 0, "the form is empty again:");
+    if (app.errors.length) throw new Error(`the app raised errors: ${app.errors.join("; ")}`);
+  } finally {
+    closeApp(app);
+  }
+});
+
+test("tapping a food in the list lets its category and carbs be changed in place", async () => {
+  const { app, doc, card, draftFoods, total } = await openAppWithLunch();
+  try {
+    card().querySelector("button.meal-edit").click();
+    const rice = [...doc.querySelectorAll("#meal-draft li")].find((row) => row.innerText.includes("Rice"));
+    rice.querySelector("button.food-edit").click();
+    assertEqual(doc.getElementById("meal-food-name").value, "Rice", "name loads:");
+    assertEqual(doc.getElementById("meal-food-category").value, "carb", "category loads:");
+    assertEqual(doc.getElementById("meal-food-carbs").value, "45", "carbs load:");
+    assertEqual(doc.getElementById("meal-add-food").innerText.trim(), "Update food", "the add button becomes Update food:");
+    doc.getElementById("meal-food-carbs").value = "30";
+    doc.getElementById("meal-add-food").click();
+    assertEqual(draftFoods().length, 3, "updating a food does not add a fourth:");
+    if (!draftFoods().some((line) => line.includes("Rice") && line.includes("30"))) throw new Error(`Rice should now show 30 g: ${draftFoods()}`);
+    assertEqual(doc.getElementById("meal-add-food").innerText.trim(), "Add food", "the button goes back to Add food:");
+    doc.getElementById("meal-save").click();
+    if (!card().innerText.includes("36 g carbs")) throw new Error(`the meal should total 36 g: "${card().innerText}"`);
+    if (!total().includes("36")) throw new Error(`the day's total should be 36: "${total()}"`);
+
+    // The same works on a meal that is still being built, and a food edit can be cancelled.
+    addFoodToDraft(app, "Cake", "other", "20");
+    [...doc.querySelectorAll("#meal-draft li")][0].querySelector("button.food-edit").click();
+    if (!isShown(doc.getElementById("meal-food-cancel"))) throw new Error("changing a food should offer Cancel");
+    doc.getElementById("meal-food-cancel").click();
+    assertEqual([doc.getElementById("meal-food-name").value, doc.getElementById("meal-add-food").innerText.trim()], ["", "Add food"], "cancelling a food change clears the fields:");
+    assertEqual(draftFoods().length, 1, "the food is still in the list:");
+  } finally {
+    closeApp(app);
+  }
+});
+
+test("cancelling an edit leaves the saved meal exactly as it was", async () => {
+  const { app, doc, card, draftFoods } = await openAppWithLunch();
+  try {
+    const before = JSON.stringify(savedData(app).meals);
+    card().querySelector("button.meal-edit").click();
+    for (const row of [...doc.querySelectorAll("#meal-draft li")]) row.querySelector("button.food-remove").click();
+    doc.getElementById("meal-cancel").click();
+    assertEqual(JSON.stringify(savedData(app).meals), before, "saved meals:");
+    if (!card().innerText.includes("51 g carbs")) throw new Error(`the meal should still read 51 g: "${card().innerText}"`);
+    assertEqual([draftFoods().length, doc.getElementById("meal-save").innerText.trim()], [0, "Save meal"], "the form goes back to normal:");
+    if (app.errors.length) throw new Error(`the app raised errors: ${app.errors.join("; ")}`);
+  } finally {
+    closeApp(app);
+  }
+});
+
 Promise.all(unfinished).then(showResults);

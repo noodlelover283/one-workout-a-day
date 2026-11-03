@@ -2113,6 +2113,9 @@ function onResetAdjustment() {
 
 // The foods added to the meal that has not been saved yet.
 let mealDraft = [];
+// The saved meal loaded into the form for editing, if any, and the food in the list loaded into the food fields.
+let editingMealId = null;
+let editingFoodIndex = null;
 // How many days the carbs chart covers: 7 or 30.
 let carbChartDays = 7;
 // The day whose bar was pressed, as a date, or null when none is.
@@ -2136,6 +2139,13 @@ function renderMeals() {
   $("meal-food-options").replaceChildren(...names.map((name) => Object.assign(el("option"), { value: name })));
 
   $("meal-draft").replaceChildren(...mealDraft.map(mealDraftRow));
+  const editing = state.meals.find((meal) => meal.id === editingMealId);
+  $("meal-editing").classList.toggle("hidden", !editing);
+  if (editing) $("meal-editing").textContent = t("meals.editing", { meal: t(`meals.type.${editing.type}`), date: I18n.formatDate(editing.date) });
+  $("meal-cancel").classList.toggle("hidden", !editing);
+  $("meal-save").textContent = t(editing ? "meals.saveChanges" : "meals.save");
+  $("meal-add-food").textContent = t(editingFoodIndex === null ? "meals.addFood" : "meals.updateFood");
+  $("meal-food-cancel").classList.toggle("hidden", editingFoodIndex === null);
   const meals = state.meals.filter((meal) => meal.date === mealDate());
   const eaten = Logic.dayCarbs(state.meals, mealDate());
   const status = Logic.carbGoalStatus(state.carbGoal, eaten);
@@ -2150,16 +2160,72 @@ function renderMeals() {
 }
 
 function mealDraftRow(food, index) {
-  const remove = el("button", "secondary", "×");
+  const change = el("button", "food-edit link", foodLine(food));
+  change.type = "button";
+  change.setAttribute("aria-label", t("meals.editFoodAria", { food: food.name }));
+  change.addEventListener("click", () => onFoodEditStart(index));
+  const remove = el("button", "food-remove secondary", "×");
   remove.type = "button";
   remove.setAttribute("aria-label", t("meals.removeFood", { food: food.name }));
   remove.addEventListener("click", () => {
     mealDraft.splice(index, 1);
+    // The food being changed may be the one removed, or one before it that shifts the list.
+    if (editingFoodIndex === index) clearFoodFields();
+    else if (editingFoodIndex !== null && editingFoodIndex > index) editingFoodIndex -= 1;
     renderMeals();
   });
   const row = el("li", "meal-food");
-  row.append(el("span", "", foodLine(food)), remove);
+  row.append(change, remove);
   return row;
+}
+
+function clearFoodFields() {
+  editingFoodIndex = null;
+  $("meal-food-name").value = "";
+  $("meal-food-carbs").value = "";
+}
+
+// Tapping a food in the list puts it back in the food fields, so its category and carbs can be changed.
+function onFoodEditStart(index) {
+  const food = mealDraft[index];
+  editingFoodIndex = index;
+  $("meal-food-name").value = food.name;
+  $("meal-food-category").value = food.category;
+  $("meal-food-carbs").value = food.carbs;
+  $("meal-error").textContent = "";
+  renderMeals();
+  $("meal-food-carbs").focus();
+}
+
+function onFoodEditCancel() {
+  clearFoodFields();
+  $("meal-error").textContent = "";
+  renderMeals();
+}
+
+// Loads a saved meal into the form, to change its foods or its type; saving replaces it.
+function onMealEditStart(meal) {
+  if (mealDraft.length > 0 && editingMealId !== meal.id && !window.confirm(t("meals.editDiscard"))) return;
+  mealDraft = meal.foods.map((food) => ({ ...food }));
+  editingMealId = meal.id;
+  clearFoodFields();
+  $("meal-error").textContent = "";
+  $("meal-type").value = meal.type;
+  renderMeals();
+  $("meal-form").scrollIntoView({ block: "start" });
+}
+
+// Puts the form back to a blank new meal.
+function resetMealForm() {
+  mealDraft = [];
+  editingMealId = null;
+  clearFoodFields();
+  $("meal-error").textContent = "";
+}
+
+function onMealEditCancel() {
+  resetMealForm();
+  renderMeals();
 }
 
 function mealCard(meal) {
@@ -2168,8 +2234,14 @@ function mealCard(meal) {
   remove.type = "button";
   remove.setAttribute("aria-label", t("meals.deleteAria", { meal: label }));
   remove.addEventListener("click", () => onMealDelete(meal.id));
+  const change = el("button", "meal-edit secondary", t("meals.edit"));
+  change.type = "button";
+  change.setAttribute("aria-label", t("meals.editAria", { meal: label }));
+  change.addEventListener("click", () => onMealEditStart(meal));
+  const actions = el("div", "meal-actions");
+  actions.append(change, remove);
   const head = el("div", "meal-head");
-  head.append(el("strong", "", `${label} · ${t("meals.mealCarbs", { grams: Logic.mealCarbs(meal) })}`), remove);
+  head.append(el("strong", "", `${label} · ${t("meals.mealCarbs", { grams: Logic.mealCarbs(meal) })}`), actions);
   const foods = el("ul", "meal-foods");
   foods.append(...meal.foods.map((food) => el("li", "meal-food", foodLine(food))));
   const card = el("li", "meal");
@@ -2197,9 +2269,10 @@ function addFoodToMeal() {
   const error = Logic.validateFood(food);
   $("meal-error").textContent = errorText(error);
   if (error) return false;
-  mealDraft.push({ ...food, carbs: food.carbs === null ? 0 : food.carbs });
-  $("meal-food-name").value = "";
-  $("meal-food-carbs").value = "";
+  const entry = { ...food, carbs: food.carbs === null ? 0 : food.carbs };
+  if (editingFoodIndex === null) mealDraft.push(entry);
+  else mealDraft[editingFoodIndex] = entry;
+  clearFoodFields();
   renderMeals();
   $("meal-food-name").focus();
   return true;
@@ -2216,12 +2289,16 @@ function onMealSave() {
   const error = mealDraft.length === 0 ? "error.mealEmpty" : "";
   $("meal-error").textContent = errorText(error);
   if (error) return;
-  state.meals = [...state.meals, { id: String(Date.now()), date: mealDate(), type: $("meal-type").value, foods: mealDraft }];
+  const type = $("meal-type").value;
+  const editing = editingMealId !== null;
+  state.meals = editing
+    ? Logic.replaceMeal(state.meals, editingMealId, { type, foods: mealDraft })
+    : [...state.meals, { id: String(Date.now()), date: mealDate(), type, foods: mealDraft }];
   for (const food of mealDraft) state.foodLibrary = Logic.rememberFood(state.foodLibrary, food);
-  mealDraft = [];
+  resetMealForm();
   saveState();
   renderMeals();
-  showToast(t("meals.saved"));
+  showToast(t(editing ? "meals.updated" : "meals.saved"));
 }
 
 function renderCarbChart() {
@@ -2329,6 +2406,7 @@ function onCarbGoalSave(event) {
 function onMealDelete(id) {
   if (!window.confirm(t("meals.deleteConfirm"))) return;
   state.meals = state.meals.filter((meal) => meal.id !== id);
+  if (id === editingMealId) resetMealForm();
   saveState();
   renderMeals();
   showToast(t("meals.deleted"));
@@ -2638,6 +2716,8 @@ function init() {
   $("diet-weight-form").addEventListener("submit", onDietWeightSubmit);
   $("meal-form").addEventListener("submit", onMealAddFood);
   $("meal-save").addEventListener("click", onMealSave);
+  $("meal-cancel").addEventListener("click", onMealEditCancel);
+  $("meal-food-cancel").addEventListener("click", onFoodEditCancel);
   $("carb-goal-form").addEventListener("submit", onCarbGoalSave);
   for (const button of document.querySelectorAll("#tab-meals .range-toggle button")) button.addEventListener("click", onCarbRangeChange);
   $("meal-food-name").addEventListener("input", onMealFoodNameInput);

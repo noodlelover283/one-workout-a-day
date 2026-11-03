@@ -1296,6 +1296,11 @@ const Logic = (() => {
 
   const roundToTenth = (value) => Math.round(value * 10) / 10;
 
+  // The meals with one replaced by a new type and foods; it keeps its id and its day. An unknown id changes nothing.
+  function replaceMeal(meals, id, { type, foods }) {
+    return meals.map((meal) => (meal.id === id ? { ...meal, type, foods } : meal));
+  }
+
   // The carbs eaten on each of the last `days` days up to endDate, oldest first (0 for a day without meals).
   function carbsByDay(meals, endDate, days) {
     const end = new Date(`${endDate}T00:00:00`);
@@ -1378,6 +1383,7 @@ const Logic = (() => {
     mealCarbs,
     dayCarbs,
     carbsByDay,
+    replaceMeal,
     rememberFood,
     sanitizeFoodLibrary,
     sanitizeMeals,

@@ -12,7 +12,7 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="theme-color" content="#f5f6f8" media="(prefers-color-scheme: light)">
   <meta name="theme-color" content="#12161c" media="(prefers-color-scheme: dark)">
-  <link rel="stylesheet" href="style.css?v=1e383b4676">
+  <link rel="stylesheet" href="style.css?v=8cb885a84d">
 </head>
 <body>
   <p id="offline-banner" class="offline-banner hidden" role="status" data-i18n="offline.notice">You're offline. Everything still works, and your data is saved on this device.</p>
@@ -504,6 +504,7 @@
       </details>
       <p class="hint" data-i18n="meals.hint">Add each food with its category and carbs in grams, then save the meal. Foods you have used before are remembered.</p>
       <form id="meal-form" novalidate>
+        <p id="meal-editing" class="meal-editing hidden"></p>
         <label for="meal-type" data-i18n="meals.type">Meal</label>
         <select id="meal-type"></select>
         <label for="meal-food-name" data-i18n="meals.food">Food</label>
@@ -520,9 +521,12 @@
           </div>
         </div>
         <button type="submit" id="meal-add-food" class="secondary" data-i18n="meals.addFood">Add food</button>
+        <button type="button" id="meal-food-cancel" class="secondary hidden" data-i18n="meals.cancel">Cancel</button>
         <h3 data-i18n="meals.draftHeading">In this meal</h3>
+        <p class="hint" data-i18n="meals.draftHint">Tap a food to change it.</p>
         <ul id="meal-draft" class="meal-foods"></ul>
         <button type="button" id="meal-save" class="primary" data-i18n="meals.save">Save meal</button>
+        <button type="button" id="meal-cancel" class="secondary hidden" data-i18n="meals.cancel">Cancel</button>
         <p id="meal-error" class="error" role="alert"></p>
       </form>
       <ul id="meal-list" class="meal-list"></ul>
@@ -551,17 +555,17 @@
     <button id="nav-meals" data-tab="meals" data-section="diet" class="hidden" data-i18n="tab.meals">Meals</button>
   </nav>
 
-  <script src="i18n.js?v=1e383b4676"></script>
-  <script src="lang-en.js?v=1e383b4676"></script>
-  <script src="lang-es.js?v=1e383b4676"></script>
-  <script src="lang-zh.js?v=1e383b4676"></script>
-  <script src="lang-hi.js?v=1e383b4676"></script>
-  <script src="lang-ar.js?v=1e383b4676"></script>
-  <script src="lang-fr.js?v=1e383b4676"></script>
-  <script src="lang-pt.js?v=1e383b4676"></script>
-  <script src="lang-ru.js?v=1e383b4676"></script>
-  <script src="strength-data.js?v=1e383b4676"></script>
-  <script src="logic.js?v=1e383b4676"></script>
-  <script src="app.js?v=1e383b4676"></script>
+  <script src="i18n.js?v=8cb885a84d"></script>
+  <script src="lang-en.js?v=8cb885a84d"></script>
+  <script src="lang-es.js?v=8cb885a84d"></script>
+  <script src="lang-zh.js?v=8cb885a84d"></script>
+  <script src="lang-hi.js?v=8cb885a84d"></script>
+  <script src="lang-ar.js?v=8cb885a84d"></script>
+  <script src="lang-fr.js?v=8cb885a84d"></script>
+  <script src="lang-pt.js?v=8cb885a84d"></script>
+  <script src="lang-ru.js?v=8cb885a84d"></script>
+  <script src="strength-data.js?v=8cb885a84d"></script>
+  <script src="logic.js?v=8cb885a84d"></script>
+  <script src="app.js?v=8cb885a84d"></script>
 </body>
 </html>

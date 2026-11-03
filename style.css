@@ -307,6 +307,9 @@ button.link { min-height: 44px; border: none; background: none; color: var(--acc
 .meal { margin-top: 10px; padding: 10px 12px; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; }
 .meal-head, .meal-food { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .meal-food { padding: 4px 0; }
+.meal-actions { display: flex; gap: 8px; }
+.meal-food .food-edit { flex: 1; justify-content: flex-start; padding-inline-start: 0; text-align: start; }
+.meal-editing { margin: 12px 0 0; font-weight: 700; color: var(--accent); }
 .meal-head button, .meal-food button { width: auto; min-height: 36px; margin: 0; padding: 0 14px; flex-shrink: 0; }
 .glossary dt { margin-top: 10px; font-weight: 700; }
 .glossary dd { margin: 2px 0 0; color: var(--muted); font-size: 0.9rem; }
