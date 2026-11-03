@@ -1296,6 +1296,22 @@ const Logic = (() => {
 
   const roundToTenth = (value) => Math.round(value * 10) / 10;
 
+  const MAX_CARB_GOAL = 2000;
+
+  // Checks a daily carbs goal in grams. null means no goal, which is allowed.
+  function validateCarbGoal(goal) {
+    return goal === null || (goal >= 1 && goal <= MAX_CARB_GOAL) ? "" : "error.carbGoal";
+  }
+
+  const sanitizeCarbGoal = (saved) => (typeof saved === "number" && validateCarbGoal(saved) === "" ? saved : null);
+
+  // How the day's carbs compare with the goal: { left } grams still to eat, or { over } grams past it.
+  function carbGoalStatus(goal, eaten) {
+    if (goal === null) return null;
+    const difference = roundToTenth(goal - eaten);
+    return difference >= 0 ? { left: difference } : { over: -difference };
+  }
+
   function mealCarbs(meal) {
     return roundToTenth(meal.foods.reduce((sum, food) => sum + food.carbs, 0));
   }
@@ -1345,6 +1361,9 @@ const Logic = (() => {
     MEAL_TYPES,
     FOOD_CATEGORIES,
     validateFood,
+    validateCarbGoal,
+    sanitizeCarbGoal,
+    carbGoalStatus,
     mealCarbs,
     dayCarbs,
     rememberFood,

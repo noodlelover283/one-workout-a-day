@@ -494,6 +494,16 @@ I18n.register("en", {
     "toast.sampleRemoved": "Sample data removed.",
 
     "log.back": "Back to Log",
+    "history.back": "Back to History",
+    "meals.goalHeading": "Daily carbs goal",
+    "meals.goalLabel": "Daily carbs goal (g)",
+    "meals.goalSave": "Save goal",
+    "meals.goalHint": "Leave it blank and save to remove the goal.",
+    "meals.totalGoal": "Carbs this day: {grams} of {goal} g · {left} g left",
+    "meals.totalOver": "Carbs this day: {grams} of {goal} g · {over} g over",
+    "error.carbGoal": "Enter a goal from 1 to 2000 grams, or leave it blank to remove it.",
+    "meals.goalSaved": "Goal saved",
+    "meals.goalRemoved": "Goal removed",
     "note.none": "No note yet",
 
     "tab.meals": "Meals",

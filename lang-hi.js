@@ -494,6 +494,16 @@ I18n.register("hi", {
     "toast.sampleRemoved": "नमूना डेटा हटाया गया।",
 
     "log.back": "लॉग पर वापस जाएँ",
+    "history.back": "इतिहास पर वापस जाएँ",
+    "meals.goalHeading": "रोज़ का कार्ब्स लक्ष्य",
+    "meals.goalLabel": "रोज़ का कार्ब्स लक्ष्य (ग्राम)",
+    "meals.goalSave": "लक्ष्य सहेजें",
+    "meals.goalHint": "लक्ष्य हटाने के लिए खाली छोड़कर सहेजें।",
+    "meals.totalGoal": "इस दिन के कार्ब्स: {goal} ग्राम में से {grams} · {left} ग्राम बाकी",
+    "meals.totalOver": "इस दिन के कार्ब्स: {goal} ग्राम में से {grams} · {over} ग्राम ज़्यादा",
+    "error.carbGoal": "1 से 2000 ग्राम का लक्ष्य लिखें, या हटाने के लिए खाली छोड़ें।",
+    "meals.goalSaved": "लक्ष्य सहेजा गया",
+    "meals.goalRemoved": "लक्ष्य हटाया गया",
     "note.none": "अभी कोई नोट नहीं",
 
     "tab.meals": "भोजन",

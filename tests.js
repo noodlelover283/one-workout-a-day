@@ -1266,7 +1266,7 @@ test("every tab draws its screen, with no errors", async () => {
     const expected = {
       log: ["#log-form", "#today-list", "#routine-select", "#workout-note", "#log-home .dash-card"],
       routines: ["#routine-list .dash-card", "#routine-form", "#my-exercises"],
-      history: ["#calendar-grid .day-cell", "#history .day", "#backup-download"],
+      history: ["#calendar-grid .day-cell", "#history .day", "#backup-download", "#history-home .dash-card"],
       progress: ["#plateau-cards", "#exercise-chart svg", "#strength-results .strength-card", "#bodyweight-chart svg", "#measure-chart svg"],
       plan: ["#plan-sex", "#plan-result .plan-card"],
       weight: ["#diet-weight-chart svg", "#diet-check"],
@@ -2531,6 +2531,85 @@ test("the Log tab shows the day note and workout settings as cards that open the
     if (!isShown(doc.getElementById("rest-seconds")) || !isShown(doc.getElementById("rep-goal"))) throw new Error("the settings panel should show the rest timer and suggestion settings");
     doc.querySelector("#panel-workoutsettings .panel-back").click();
     if (!isShown(home)) throw new Error("Back should return to the Log tab's cards");
+    if (app.errors.length) throw new Error(`the app raised errors: ${app.errors.join("; ")}`);
+  } finally {
+    closeApp(app);
+  }
+});
+
+// ---------- History tab cards ----------
+
+test("the History tab keeps the calendar and days on top and shows backups as a card that opens its own panel", async () => {
+  const app = await openApp();
+  try {
+    const doc = app.doc;
+    const tab = showTab(app, "history");
+    const home = doc.getElementById("history-home");
+    if (!isShown(home) || !isShown(doc.getElementById("calendar-grid")) || !isShown(doc.querySelector("#history .day"))) {
+      throw new Error("the calendar and the list of days should stay on the History tab's first screen");
+    }
+    const card = tab.querySelector('#history-home .dash-card[data-panel="backup"]');
+    if (!card) throw new Error("the History tab is missing its Backups card");
+    if (isShown(doc.getElementById("backup-download"))) throw new Error("the backup buttons should be inside their panel, not stacked under the days");
+    card.click();
+    if (isShown(home) || !isShown(doc.getElementById("panel-backup")) || !isShown(doc.getElementById("backup-download")) || !isShown(doc.getElementById("backup-file"))) {
+      throw new Error("tapping the Backups card should open the backup panel with Download and Restore");
+    }
+    doc.querySelector("#panel-backup .panel-back").click();
+    if (!isShown(home) || isShown(doc.getElementById("panel-backup")) || !isShown(doc.getElementById("calendar-grid"))) {
+      throw new Error("Back should return to the calendar and the days");
+    }
+    if (app.errors.length) throw new Error(`the app raised errors: ${app.errors.join("; ")}`);
+  } finally {
+    closeApp(app);
+  }
+});
+
+// ---------- Daily carbs goal ----------
+
+test("a carbs goal is checked, and compared with what was eaten as grams left or grams over", () => {
+  assertEqual(Logic.carbGoalStatus(null, 51), null, "no goal:");
+  assertEqual(Logic.carbGoalStatus(250, 51), { left: 199 }, "under the goal:");
+  assertEqual(Logic.carbGoalStatus(250, 250), { left: 0 }, "exactly on the goal:");
+  assertEqual(Logic.carbGoalStatus(250, 351), { over: 101 }, "over the goal:");
+  assertEqual([0, 1, 250, 2000, 2001, -5, NaN].map((goal) => Logic.validateCarbGoal(goal)), ["error.carbGoal", "", "", "", "error.carbGoal", "error.carbGoal", "error.carbGoal"]);
+  assertEqual(Logic.validateCarbGoal(null), "", "no goal is allowed:");
+  assertEqual([Logic.sanitizeCarbGoal(250), Logic.sanitizeCarbGoal("250"), Logic.sanitizeCarbGoal(-3), Logic.sanitizeCarbGoal(undefined)], [250, null, null, null]);
+});
+
+test("setting a daily carbs goal on the Meals tab shows the grams left, then over, and clearing it removes the goal", async () => {
+  const app = await openApp();
+  try {
+    const doc = app.doc;
+    showTab(app, "meals");
+    addFoodToDraft(app, "Rice", "carb", "45");
+    addFoodToDraft(app, "Broccoli", "vegetable", "6");
+    doc.getElementById("meal-save").click();
+    const total = () => doc.getElementById("meal-day-total").innerText;
+    doc.getElementById("carb-goal-fold").open = true; // a person opens the fold to set a goal
+    const setGoal = (value) => {
+      doc.getElementById("carb-goal").value = value;
+      doc.getElementById("carb-goal-save").click();
+    };
+    if (total().includes("left")) throw new Error("with no goal set, the total should not talk about grams left");
+
+    setGoal("250");
+    for (const expected of ["51", "250", "199"]) {
+      if (!total().includes(expected)) throw new Error(`the total should show ${expected}: "${total()}"`);
+    }
+    assertEqual(savedData(app).carbGoal, 250, "saved goal:");
+
+    addFoodToDraft(app, "Cake", "carb", "300");
+    doc.getElementById("meal-save").click();
+    if (!total().includes("101") || !total().includes("over")) throw new Error(`going over the goal should say by how much: "${total()}"`);
+
+    setGoal("-5");
+    if (!doc.getElementById("carb-goal-error").innerText.trim()) throw new Error("a negative goal should show a message");
+    assertEqual(savedData(app).carbGoal, 250, "a refused goal should not change the saved one:");
+
+    setGoal("");
+    assertEqual(savedData(app).carbGoal, null, "cleared goal:");
+    if (total().includes("250") || total().includes("over")) throw new Error(`clearing the goal should remove it from the total: "${total()}"`);
     if (app.errors.length) throw new Error(`the app raised errors: ${app.errors.join("; ")}`);
   } finally {
     closeApp(app);

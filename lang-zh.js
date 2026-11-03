@@ -492,6 +492,16 @@ I18n.register("zh", {
     "toast.sampleRemoved": "已移除示例数据。",
 
     "log.back": "返回记录",
+    "history.back": "返回历史",
+    "meals.goalHeading": "每日碳水目标",
+    "meals.goalLabel": "每日碳水目标（克）",
+    "meals.goalSave": "保存目标",
+    "meals.goalHint": "留空并保存即可移除目标。",
+    "meals.totalGoal": "当天碳水化合物：{grams} / {goal} 克 · 还剩 {left} 克",
+    "meals.totalOver": "当天碳水化合物：{grams} / {goal} 克 · 超出 {over} 克",
+    "error.carbGoal": "请输入 1 到 2000 克的目标，或留空以移除。",
+    "meals.goalSaved": "已保存目标",
+    "meals.goalRemoved": "已移除目标",
     "note.none": "还没有备注",
 
     "tab.meals": "饮食记录",

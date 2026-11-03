@@ -12,7 +12,7 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="theme-color" content="#f5f6f8" media="(prefers-color-scheme: light)">
   <meta name="theme-color" content="#12161c" media="(prefers-color-scheme: dark)">
-  <link rel="stylesheet" href="style.css?v=06d093d63c">
+  <link rel="stylesheet" href="style.css?v=85b72a23e1">
 </head>
 <body>
   <p id="offline-banner" class="offline-banner hidden" role="status" data-i18n="offline.notice">You're offline. Everything still works, and your data is saved on this device.</p>
@@ -278,6 +278,7 @@
     </section>
 
     <section id="tab-history" class="tab hidden" aria-labelledby="nav-history">
+      <div id="history-home">
       <h2 data-i18n="history.heading">History</h2>
       <div id="calendar">
         <div class="calendar-nav">
@@ -290,8 +291,17 @@
       </div>
       <div id="history"></div>
 
-      <details class="settings-fold">
-        <summary data-i18n="backup.heading">Back up your data</summary>
+      <div class="dash-grid">
+        <button type="button" class="dash-card" data-panel="backup" aria-controls="panel-backup">
+          <span class="fold-icon" aria-hidden="true">💾</span>
+          <strong data-i18n="backup.heading">Back up your data</strong>
+        </button>
+      </div>
+      </div>
+
+      <section id="panel-backup" class="detail-panel hidden" aria-labelledby="panel-backup-title">
+        <button type="button" class="link panel-back" data-i18n="history.back">Back to History</button>
+        <div class="panel-title"><span class="fold-icon" aria-hidden="true">💾</span><h2 id="panel-backup-title" data-i18n="backup.heading">Back up your data</h2></div>
         <p class="hint" data-i18n="backup.hint">Your workouts are saved only in this browser. Download a backup file to keep them safe, or to move them to another device.</p>
         <button id="backup-download" type="button" class="secondary" data-i18n="backup.download">Download backup</button>
         <label for="backup-file" data-i18n="backup.restore">Restore from a backup file</label>
@@ -305,7 +315,7 @@
           <button type="button" id="backup-replace-go" class="secondary" data-i18n="backup.replace">Replace everything</button>
           <button type="button" id="backup-merge-cancel" class="secondary" data-i18n="backup.cancel">Cancel</button>
         </div>
-      </details>
+      </section>
     </section>
 
     <section id="tab-progress" class="tab hidden" aria-labelledby="nav-progress">
@@ -482,6 +492,16 @@
         <input id="meal-date" type="date" required>
       </div>
       <p id="meal-day-total" class="meal-total"></p>
+      <details id="carb-goal-fold" class="slim-fold">
+        <summary data-i18n="meals.goalHeading">Daily carbs goal</summary>
+        <form id="carb-goal-form" novalidate>
+          <label for="carb-goal" data-i18n="meals.goalLabel">Daily carbs goal (g)</label>
+          <input id="carb-goal" type="number" inputmode="decimal" min="1" max="2000" step="any">
+          <p class="hint" data-i18n="meals.goalHint">Leave it blank and save to remove the goal.</p>
+          <button type="submit" id="carb-goal-save" class="secondary" data-i18n="meals.goalSave">Save goal</button>
+          <p id="carb-goal-error" class="error" role="alert"></p>
+        </form>
+      </details>
       <p class="hint" data-i18n="meals.hint">Add each food with its category and carbs in grams, then save the meal. Foods you have used before are remembered.</p>
       <form id="meal-form" novalidate>
         <label for="meal-type" data-i18n="meals.type">Meal</label>
@@ -521,17 +541,17 @@
     <button id="nav-meals" data-tab="meals" data-section="diet" class="hidden" data-i18n="tab.meals">Meals</button>
   </nav>
 
-  <script src="i18n.js?v=06d093d63c"></script>
-  <script src="lang-en.js?v=06d093d63c"></script>
-  <script src="lang-es.js?v=06d093d63c"></script>
-  <script src="lang-zh.js?v=06d093d63c"></script>
-  <script src="lang-hi.js?v=06d093d63c"></script>
-  <script src="lang-ar.js?v=06d093d63c"></script>
-  <script src="lang-fr.js?v=06d093d63c"></script>
-  <script src="lang-pt.js?v=06d093d63c"></script>
-  <script src="lang-ru.js?v=06d093d63c"></script>
-  <script src="strength-data.js?v=06d093d63c"></script>
-  <script src="logic.js?v=06d093d63c"></script>
-  <script src="app.js?v=06d093d63c"></script>
+  <script src="i18n.js?v=85b72a23e1"></script>
+  <script src="lang-en.js?v=85b72a23e1"></script>
+  <script src="lang-es.js?v=85b72a23e1"></script>
+  <script src="lang-zh.js?v=85b72a23e1"></script>
+  <script src="lang-hi.js?v=85b72a23e1"></script>
+  <script src="lang-ar.js?v=85b72a23e1"></script>
+  <script src="lang-fr.js?v=85b72a23e1"></script>
+  <script src="lang-pt.js?v=85b72a23e1"></script>
+  <script src="lang-ru.js?v=85b72a23e1"></script>
+  <script src="strength-data.js?v=85b72a23e1"></script>
+  <script src="logic.js?v=85b72a23e1"></script>
+  <script src="app.js?v=85b72a23e1"></script>
 </body>
 </html>

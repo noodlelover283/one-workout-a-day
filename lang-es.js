@@ -494,6 +494,16 @@ I18n.register("es", {
     "toast.sampleRemoved": "Datos de ejemplo eliminados.",
 
     "log.back": "Volver a Registro",
+    "history.back": "Volver a Historial",
+    "meals.goalHeading": "Meta diaria de carbohidratos",
+    "meals.goalLabel": "Meta diaria de carbohidratos (g)",
+    "meals.goalSave": "Guardar meta",
+    "meals.goalHint": "Déjala en blanco y guarda para quitar la meta.",
+    "meals.totalGoal": "Carbohidratos de este día: {grams} de {goal} g · quedan {left} g",
+    "meals.totalOver": "Carbohidratos de este día: {grams} de {goal} g · te pasaste {over} g",
+    "error.carbGoal": "Escribe una meta de 1 a 2000 gramos, o déjala en blanco para quitarla.",
+    "meals.goalSaved": "Meta guardada",
+    "meals.goalRemoved": "Meta quitada",
     "note.none": "Aún no hay nota",
 
     "tab.meals": "Comidas",

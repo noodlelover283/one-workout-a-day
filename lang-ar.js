@@ -503,6 +503,16 @@ I18n.register("ar", {
     "toast.sampleRemoved": "تمت إزالة البيانات التجريبية.",
 
     "log.back": "العودة إلى التسجيل",
+    "history.back": "العودة إلى السجل",
+    "meals.goalHeading": "هدف الكربوهيدرات اليومي",
+    "meals.goalLabel": "هدف الكربوهيدرات اليومي (غ)",
+    "meals.goalSave": "احفظ الهدف",
+    "meals.goalHint": "اترك الحقل فارغًا واحفظ لإزالة الهدف.",
+    "meals.totalGoal": "كربوهيدرات هذا اليوم: {grams} من {goal} غ · المتبقي {left} غ",
+    "meals.totalOver": "كربوهيدرات هذا اليوم: {grams} من {goal} غ · تجاوزت بمقدار {over} غ",
+    "error.carbGoal": "أدخل هدفًا من 1 إلى 2000 غرام، أو اتركه فارغًا لإزالته.",
+    "meals.goalSaved": "تم حفظ الهدف",
+    "meals.goalRemoved": "تمت إزالة الهدف",
     "note.none": "لا توجد ملاحظة بعد",
 
     "tab.meals": "الوجبات",

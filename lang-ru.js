@@ -498,6 +498,16 @@ I18n.register("ru", {
     "toast.sampleRemoved": "Пример данных убран.",
 
     "log.back": "Назад к записи",
+    "history.back": "Назад к истории",
+    "meals.goalHeading": "Дневная цель по углеводам",
+    "meals.goalLabel": "Дневная цель по углеводам (г)",
+    "meals.goalSave": "Сохранить цель",
+    "meals.goalHint": "Оставьте поле пустым и сохраните, чтобы убрать цель.",
+    "meals.totalGoal": "Углеводы за этот день: {grams} из {goal} г · осталось {left} г",
+    "meals.totalOver": "Углеводы за этот день: {grams} из {goal} г · превышение {over} г",
+    "error.carbGoal": "Введите цель от 1 до 2000 граммов или оставьте поле пустым, чтобы убрать её.",
+    "meals.goalSaved": "Цель сохранена",
+    "meals.goalRemoved": "Цель убрана",
     "note.none": "Заметки пока нет",
 
     "tab.meals": "Еда",

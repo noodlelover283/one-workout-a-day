@@ -494,6 +494,16 @@ I18n.register("fr", {
     "toast.sampleRemoved": "Données d'exemple retirées.",
 
     "log.back": "Retour à Journal",
+    "history.back": "Retour à Historique",
+    "meals.goalHeading": "Objectif quotidien de glucides",
+    "meals.goalLabel": "Objectif quotidien de glucides (g)",
+    "meals.goalSave": "Enregistrer l'objectif",
+    "meals.goalHint": "Laissez vide et enregistrez pour retirer l'objectif.",
+    "meals.totalGoal": "Glucides de ce jour : {grams} sur {goal} g · il reste {left} g",
+    "meals.totalOver": "Glucides de ce jour : {grams} sur {goal} g · {over} g de trop",
+    "error.carbGoal": "Saisissez un objectif de 1 à 2000 grammes, ou laissez vide pour le retirer.",
+    "meals.goalSaved": "Objectif enregistré",
+    "meals.goalRemoved": "Objectif retiré",
     "note.none": "Pas encore de note",
 
     "tab.meals": "Repas",

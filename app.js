@@ -35,6 +35,7 @@ function loadState() {
     measurements: [],
     meals: [],
     foodLibrary: [],
+    carbGoal: null,
     diet: { ...Logic.DEFAULT_DIET },
     section: "workout",
     rest: { ...DEFAULT_REST },
@@ -58,6 +59,7 @@ function normalizeState(saved) {
   loaded.measurements = Logic.sanitizeMeasurements(saved.measurements, loaded.customMeasurements);
   loaded.meals = Logic.sanitizeMeals(saved.meals);
   loaded.foodLibrary = Logic.sanitizeFoodLibrary(saved.foodLibrary);
+  loaded.carbGoal = Logic.sanitizeCarbGoal(saved.carbGoal);
   loaded.diet = Logic.sanitizeDiet(saved.diet);
   loaded.section = saved.section === "diet" ? "diet" : "workout";
   loaded.routines =loaded.routines.map((routine) =>
@@ -171,7 +173,10 @@ function showTab(name) {
     showPanel("routines", null);
     renderRoutines();
   }
-  if (name === "history") renderHistory();
+  if (name === "history") {
+    showPanel("history", null);
+    renderHistory();
+  }
   if (name === "progress") {
     showProgressPanel(null);
     renderProgress();
@@ -2128,7 +2133,14 @@ function renderMeals() {
 
   $("meal-draft").replaceChildren(...mealDraft.map(mealDraftRow));
   const meals = state.meals.filter((meal) => meal.date === mealDate());
-  $("meal-day-total").textContent = t("meals.total", { grams: Logic.dayCarbs(state.meals, mealDate()) });
+  const eaten = Logic.dayCarbs(state.meals, mealDate());
+  const status = Logic.carbGoalStatus(state.carbGoal, eaten);
+  $("meal-day-total").textContent = !status
+    ? t("meals.total", { grams: eaten })
+    : "over" in status
+      ? t("meals.totalOver", { grams: eaten, goal: state.carbGoal, over: status.over })
+      : t("meals.totalGoal", { grams: eaten, goal: state.carbGoal, left: status.left });
+  if (document.activeElement !== $("carb-goal")) $("carb-goal").value = state.carbGoal === null ? "" : state.carbGoal;
   $("meal-list").replaceChildren(...(meals.length === 0 ? [el("li", "empty", t("meals.empty"))] : meals.map(mealCard)));
 }
 
@@ -2205,6 +2217,19 @@ function onMealSave() {
   saveState();
   renderMeals();
   showToast(t("meals.saved"));
+}
+
+function onCarbGoalSave(event) {
+  event.preventDefault();
+  const text = $("carb-goal").value.trim();
+  const goal = text === "" ? null : Number(text);
+  const error = Logic.validateCarbGoal(goal);
+  $("carb-goal-error").textContent = errorText(error);
+  if (error) return;
+  state.carbGoal = goal;
+  saveState();
+  renderMeals();
+  showToast(t(goal === null ? "meals.goalRemoved" : "meals.goalSaved"));
 }
 
 function onMealDelete(id) {
@@ -2322,6 +2347,7 @@ function closePanel(tab) {
     showPanel(tab, null);
     if (tab === "routines") renderRoutines();
     if (tab === "log") renderToday();
+    if (tab === "history") renderHistory();
   }
 }
 
@@ -2518,6 +2544,7 @@ function init() {
   $("diet-weight-form").addEventListener("submit", onDietWeightSubmit);
   $("meal-form").addEventListener("submit", onMealAddFood);
   $("meal-save").addEventListener("click", onMealSave);
+  $("carb-goal-form").addEventListener("submit", onCarbGoalSave);
   $("meal-food-name").addEventListener("input", onMealFoodNameInput);
   $("meal-date").addEventListener("change", renderMeals);
   $("backup-merge-go").addEventListener("click", onBackupMerge);
@@ -2558,6 +2585,7 @@ function init() {
   $("sample-load").addEventListener("click", onLoadSample);
   $("sample-remove").addEventListener("click", onRemoveSample);
   for (const card of document.querySelectorAll("#log-home .dash-card[data-panel]")) card.addEventListener("click", () => showPanel("log", card.dataset.panel));
+  for (const card of document.querySelectorAll("#history-home .dash-card[data-panel]")) card.addEventListener("click", () => showPanel("history", card.dataset.panel));
   $("calendar-prev").addEventListener("click", () => showCalendarMonth(-1));
   $("calendar-next").addEventListener("click", () => showCalendarMonth(1));
   $("backup-download").addEventListener("click", onBackupDownload);
