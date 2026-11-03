@@ -37,6 +37,7 @@ function loadState() {
     foodLibrary: [],
     carbGoal: null,
     diet: { ...Logic.DEFAULT_DIET },
+    tourDone: false,
     section: "workout",
     rest: { ...DEFAULT_REST },
     progression: { repGoal: Logic.DEFAULT_REP_GOAL, jumps: { lb: {}, kg: {} } },
@@ -62,6 +63,8 @@ function normalizeState(saved) {
   loaded.carbGoal = Logic.sanitizeCarbGoal(saved.carbGoal);
   loaded.diet = Logic.sanitizeDiet(saved.diet);
   loaded.section = saved.section === "diet" ? "diet" : "workout";
+  // Anyone with saved data from before the walkthrough existed counts as having seen it.
+  loaded.tourDone = saved.tourDone !== false;
   loaded.routines =loaded.routines.map((routine) =>
     routine && Array.isArray(routine.exercises) ? { ...routine, targets: Logic.sanitizeTargets(routine.targets, routine.exercises) } : routine
   );
@@ -2123,8 +2126,12 @@ let carbPickedDate = null;
 
 const mealDate = () => $("meal-date").value || today();
 
+// A food as text: name, category and carbs, then calories and protein when they were entered.
 function foodLine(food) {
-  return t("meals.foodLine", { name: food.name, category: t(`meals.category.${food.category}`), grams: food.carbs });
+  const parts = [t("meals.foodLine", { name: food.name, category: t(`meals.category.${food.category}`), grams: food.carbs })];
+  if (typeof food.calories === "number") parts.push(t("meals.mealCalories", { kcal: food.calories }));
+  if (typeof food.protein === "number") parts.push(t("meals.mealProtein", { grams: food.protein }));
+  return parts.join(" · ");
 }
 
 function renderMeals() {
@@ -2148,15 +2155,36 @@ function renderMeals() {
   $("meal-food-cancel").classList.toggle("hidden", editingFoodIndex === null);
   const meals = state.meals.filter((meal) => meal.date === mealDate());
   const eaten = Logic.dayCarbs(state.meals, mealDate());
-  const status = Logic.carbGoalStatus(state.carbGoal, eaten);
+  const status = Logic.goalStatus(state.carbGoal, eaten);
   $("meal-day-total").textContent = !status
     ? t("meals.total", { grams: eaten })
     : "over" in status
       ? t("meals.totalOver", { grams: eaten, goal: state.carbGoal, over: status.over })
       : t("meals.totalGoal", { grams: eaten, goal: state.carbGoal, left: status.left });
   if (document.activeElement !== $("carb-goal")) $("carb-goal").value = state.carbGoal === null ? "" : state.carbGoal;
+  renderDayNutrition();
   renderCarbChart();
   $("meal-list").replaceChildren(...(meals.length === 0 ? [el("li", "empty", t("meals.empty"))] : meals.map(mealCard)));
+}
+
+// The day's calories and protein, against the Plan tab's target when there is one.
+function renderDayNutrition() {
+  const date = mealDate();
+  const calories = Logic.dayCalories(state.meals, date);
+  const protein = Logic.dayProtein(state.meals, date);
+  const plan = Logic.calorieTarget(state.diet, state.sex, Logic.latestBodyweight(state.bodyweights));
+  const number = (value) => value.toLocaleString(I18n.locale());
+  const lines = [];
+  if (calories !== null) {
+    const status = plan && Logic.goalStatus(plan.target, calories);
+    if (!status) lines.push(t("meals.dayCalories", { kcal: number(calories) }));
+    else if ("over" in status) lines.push(t("meals.dayCaloriesOver", { kcal: number(calories), target: number(plan.target), over: number(status.over) }));
+    else lines.push(t("meals.dayCaloriesTarget", { kcal: number(calories), target: number(plan.target), left: number(status.left) }));
+  }
+  if (protein !== null) {
+    lines.push(plan ? t("meals.dayProteinGoal", { grams: number(protein), goal: number(plan.protein) }) : t("meals.dayProtein", { grams: number(protein) }));
+  }
+  $("meal-day-nutrition").replaceChildren(...lines.map((line) => el("p", "meal-total-sub", line)));
 }
 
 function mealDraftRow(food, index) {
@@ -2181,8 +2209,7 @@ function mealDraftRow(food, index) {
 
 function clearFoodFields() {
   editingFoodIndex = null;
-  $("meal-food-name").value = "";
-  $("meal-food-carbs").value = "";
+  for (const id of ["meal-food-name", "meal-food-carbs", "meal-food-calories", "meal-food-protein"]) $(id).value = "";
 }
 
 // Tapping a food in the list puts it back in the food fields, so its category and carbs can be changed.
@@ -2192,6 +2219,8 @@ function onFoodEditStart(index) {
   $("meal-food-name").value = food.name;
   $("meal-food-category").value = food.category;
   $("meal-food-carbs").value = food.carbs;
+  $("meal-food-calories").value = typeof food.calories === "number" ? food.calories : "";
+  $("meal-food-protein").value = typeof food.protein === "number" ? food.protein : "";
   $("meal-error").textContent = "";
   renderMeals();
   $("meal-food-carbs").focus();
@@ -2230,6 +2259,13 @@ function onMealEditCancel() {
 
 function mealCard(meal) {
   const label = t(`meals.type.${meal.type}`);
+  const calories = Logic.mealCalories(meal);
+  const protein = Logic.mealProtein(meal);
+  const totals = [
+    t("meals.mealCarbs", { grams: Logic.mealCarbs(meal) }),
+    ...(calories === null ? [] : [t("meals.mealCalories", { kcal: calories })]),
+    ...(protein === null ? [] : [t("meals.mealProtein", { grams: protein })]),
+  ];
   const remove = el("button", "secondary", t("meals.delete"));
   remove.type = "button";
   remove.setAttribute("aria-label", t("meals.deleteAria", { meal: label }));
@@ -2241,7 +2277,7 @@ function mealCard(meal) {
   const actions = el("div", "meal-actions");
   actions.append(change, remove);
   const head = el("div", "meal-head");
-  head.append(el("strong", "", `${label} · ${t("meals.mealCarbs", { grams: Logic.mealCarbs(meal) })}`), actions);
+  head.append(el("strong", "", [label, ...totals].join(" · ")), actions);
   const foods = el("ul", "meal-foods");
   foods.append(...meal.foods.map((food) => el("li", "meal-food", foodLine(food))));
   const card = el("li", "meal");
@@ -2256,20 +2292,24 @@ function onMealFoodNameInput() {
   if (!known) return;
   $("meal-food-category").value = known.category;
   $("meal-food-carbs").value = known.carbs;
+  $("meal-food-calories").value = typeof known.calories === "number" ? known.calories : "";
+  $("meal-food-protein").value = typeof known.protein === "number" ? known.protein : "";
 }
 
 // Adds the food in the fields to the meal being built. Returns true when it was added.
 function addFoodToMeal() {
-  const carbsText = $("meal-food-carbs").value.trim();
+  const numberIn = (id) => ($(id).value.trim() === "" ? null : Number($(id).value));
   const food = {
     name: Logic.normalizeName($("meal-food-name").value),
     category: $("meal-food-category").value,
-    carbs: carbsText === "" ? null : Number(carbsText),
+    carbs: numberIn("meal-food-carbs"),
+    calories: numberIn("meal-food-calories"),
+    protein: numberIn("meal-food-protein"),
   };
   const error = Logic.validateFood(food);
   $("meal-error").textContent = errorText(error);
   if (error) return false;
-  const entry = { ...food, carbs: food.carbs === null ? 0 : food.carbs };
+  const entry = Logic.foodFields({ ...food, carbs: food.carbs === null ? 0 : food.carbs });
   if (editingFoodIndex === null) mealDraft.push(entry);
   else mealDraft[editingFoodIndex] = entry;
   clearFoodFields();
@@ -2595,6 +2635,7 @@ function applyLanguage() {
   renderPlan();
   renderWeight();
   renderMeals();
+  renderTour();
 }
 
 function onLanguageChange() {
@@ -2674,6 +2715,59 @@ function toggleDisplayPanel() {
   }
 }
 
+// ---------- Getting-started walkthrough ----------
+
+const TOUR_STEPS = 5;
+let tourStep = 1;
+
+function renderTour() {
+  const last = tourStep === TOUR_STEPS;
+  $("tour-step").textContent = t("tour.step", { current: tourStep, total: TOUR_STEPS });
+  $("tour-title").textContent = t(`tour.s${tourStep}.title`);
+  $("tour-body").textContent = t(`tour.s${tourStep}.body`);
+  $("tour-next").textContent = t(last ? "tour.done" : "tour.next");
+  $("tour-back").classList.toggle("hidden", tourStep === 1);
+  $("tour-skip").classList.toggle("hidden", last);
+  $("tour-terms").classList.toggle("hidden", !last);
+}
+
+function openTour() {
+  tourStep = 1;
+  $("tour").classList.remove("hidden");
+  renderTour();
+  $("tour-next").focus();
+}
+
+// Finishing and skipping both close it for good; the settings gear can bring it back.
+function closeTour() {
+  $("tour").classList.add("hidden");
+  if (!state.tourDone) {
+    state.tourDone = true;
+    saveState();
+  }
+}
+
+function onTourNext() {
+  if (tourStep === TOUR_STEPS) {
+    closeTour();
+    return;
+  }
+  tourStep += 1;
+  renderTour();
+}
+
+function onTourBack() {
+  tourStep -= 1;
+  renderTour();
+}
+
+function onTourTerms() {
+  closeTour();
+  if ($("display-panel").classList.contains("hidden")) toggleDisplayPanel();
+  $("glossary").open = true;
+  $("glossary").scrollIntoView({ block: "center" });
+}
+
 // The tab bar is fixed to the bottom of the screen, so the page keeps clear space equal to its height.
 function keepClearOfTabBar() {
   const tabbar = document.querySelector(".tabbar");
@@ -2686,6 +2780,14 @@ function init() {
   keepClearOfTabBar();
   applyAppearance();
   $("display-toggle").addEventListener("click", toggleDisplayPanel);
+  $("tour-open").addEventListener("click", openTour);
+  $("tour-next").addEventListener("click", onTourNext);
+  $("tour-back").addEventListener("click", onTourBack);
+  $("tour-skip").addEventListener("click", closeTour);
+  $("tour-terms").addEventListener("click", onTourTerms);
+  $("tour").addEventListener("keydown", (event) => {
+    if (event.key === "Escape") closeTour();
+  });
   $("theme-select").addEventListener("change", onAppearanceChange);
   $("text-size-select").addEventListener("change", onAppearanceChange);
   deviceDarkQuery.addEventListener("change", applyAppearance);
@@ -2777,6 +2879,7 @@ function init() {
   window.addEventListener("offline", updateOfflineNotice);
   updateOfflineNotice();
   registerOfflineSupport();
+  if (!state.tourDone) openTour();
 }
 
 init();

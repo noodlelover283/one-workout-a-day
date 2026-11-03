@@ -1233,9 +1233,9 @@ function screenTestData() {
 
 // Loads the app in a hidden frame on throwaway data. Resolves with the frame, its document, and a list
 // that fills with any errors the app raises afterwards.
-function openApp() {
+function openApp({ brandNew = false } = {}) {
   const storage = `screen-test-${(screenRuns += 1)}`;
-  localStorage.setItem(storage, JSON.stringify(screenTestData()));
+  if (!brandNew) localStorage.setItem(storage, JSON.stringify(screenTestData()));
   return new Promise((resolve) => {
     const frame = document.createElement("iframe");
     frame.style.cssText = "position: absolute; left: -9999px; width: 375px; height: 812px; border: 0;";
@@ -2423,10 +2423,105 @@ test("the settings gear has a Workout terms section that explains the jargon", a
   }
 });
 
+// ---------- Getting-started walkthrough ----------
+
+const tourIsOpen = (app) => !app.doc.getElementById("tour").classList.contains("hidden");
+const tourTitle = (app) => app.doc.getElementById("tour-title").textContent.trim();
+const tourButton = (app, id) => app.doc.getElementById(id);
+
+test("a brand-new device opens the walkthrough, and Next steps through all 5 screens to Got it", async () => {
+  const app = await openApp({ brandNew: true });
+  try {
+    if (!tourIsOpen(app)) throw new Error("a first-time visitor should see the walkthrough");
+    assertEqual(app.doc.getElementById("tour-step").textContent.trim(), "1 of 5");
+    if (!tourButton(app, "tour-back").classList.contains("hidden")) throw new Error("there is no screen before the first one, so Back should be hidden");
+    const titles = [tourTitle(app)];
+    for (let step = 2; step <= 5; step += 1) {
+      tourButton(app, "tour-next").click();
+      assertEqual(app.doc.getElementById("tour-step").textContent.trim(), `${step} of 5`);
+      titles.push(tourTitle(app));
+    }
+    assertEqual(new Set(titles).size, 5, "each screen should have its own title:");
+    if (!/weight/i.test(titles[2])) throw new Error(`the third screen should answer what weight to start with, but is titled "${titles[2]}"`);
+    if (!tourButton(app, "tour-skip").classList.contains("hidden")) throw new Error("Skip should go away on the last screen");
+    assertEqual(tourButton(app, "tour-next").textContent.trim(), "Got it");
+    tourButton(app, "tour-back").click();
+    assertEqual(app.doc.getElementById("tour-step").textContent.trim(), "4 of 5");
+    tourButton(app, "tour-next").click();
+    tourButton(app, "tour-next").click();
+    if (tourIsOpen(app)) throw new Error("Got it should close the walkthrough");
+    if (app.errors.length) throw new Error(app.errors.join("; "));
+  } finally {
+    closeApp(app);
+  }
+});
+
+test("the walkthrough does not come back after Got it or Skip", async () => {
+  for (const finish of ["skip", "done"]) {
+    const app = await openApp({ brandNew: true });
+    let second;
+    try {
+      if (finish === "skip") {
+        tourButton(app, "tour-skip").click();
+      } else {
+        for (let step = 1; step <= 5; step += 1) tourButton(app, "tour-next").click();
+      }
+      if (tourIsOpen(app)) throw new Error(`${finish} should close the walkthrough`);
+      second = await reopenApp(app);
+      if (!second.doc.getElementById("tour") || !second.doc.getElementById("tour").classList.contains("hidden")) {
+        throw new Error(`the walkthrough came back after ${finish}`);
+      }
+    } finally {
+      if (second) second.frame.remove();
+      closeApp(app);
+    }
+  }
+});
+
+test("someone who already has data is not shown the walkthrough", async () => {
+  const app = await openApp();
+  try {
+    if (!app.doc.getElementById("tour")) throw new Error("the page has no walkthrough at all");
+    if (tourIsOpen(app)) throw new Error("existing users should not get the walkthrough");
+  } finally {
+    closeApp(app);
+  }
+});
+
+test("the settings gear can reopen the walkthrough at the first screen", async () => {
+  const app = await openApp();
+  try {
+    app.doc.getElementById("display-toggle").click();
+    const reopen = app.doc.getElementById("tour-open");
+    if (!reopen) throw new Error("the settings panel has no button to reopen the walkthrough");
+    reopen.click();
+    if (!tourIsOpen(app)) throw new Error("the button did not open the walkthrough");
+    assertEqual(app.doc.getElementById("tour-step").textContent.trim(), "1 of 5");
+    tourButton(app, "tour-skip").click();
+    if (tourIsOpen(app)) throw new Error("Skip should close it again");
+  } finally {
+    closeApp(app);
+  }
+});
+
+test("the last walkthrough screen can take you to the Workout terms", async () => {
+  const app = await openApp();
+  try {
+    app.doc.getElementById("tour-open").click();
+    for (let step = 1; step < 5; step += 1) tourButton(app, "tour-next").click();
+    tourButton(app, "tour-terms").click();
+    if (tourIsOpen(app)) throw new Error("the walkthrough should close");
+    if (app.doc.getElementById("display-panel").classList.contains("hidden")) throw new Error("the settings panel should be open");
+    if (!app.doc.getElementById("glossary").open) throw new Error("the Workout terms should be open");
+  } finally {
+    closeApp(app);
+  }
+});
+
 // ---------- Meal tracker ----------
 
 // Fills in the food row and adds it to the meal being built, the way a person would.
-function addFoodToDraft(app, name, category, carbs) {
+function addFoodToDraft(app, name, category, carbs, calories = "", protein = "") {
   const set = (id, value) => {
     const field = app.doc.getElementById(id);
     field.value = value;
@@ -2435,6 +2530,8 @@ function addFoodToDraft(app, name, category, carbs) {
   set("meal-food-name", name);
   set("meal-food-category", category);
   set("meal-food-carbs", carbs);
+  if (calories !== "") set("meal-food-calories", calories);
+  if (protein !== "") set("meal-food-protein", protein);
   app.doc.getElementById("meal-add-food").click();
 }
 
@@ -2568,10 +2665,10 @@ test("the History tab keeps the calendar and days on top and shows backups as a 
 // ---------- Daily carbs goal ----------
 
 test("a carbs goal is checked, and compared with what was eaten as grams left or grams over", () => {
-  assertEqual(Logic.carbGoalStatus(null, 51), null, "no goal:");
-  assertEqual(Logic.carbGoalStatus(250, 51), { left: 199 }, "under the goal:");
-  assertEqual(Logic.carbGoalStatus(250, 250), { left: 0 }, "exactly on the goal:");
-  assertEqual(Logic.carbGoalStatus(250, 351), { over: 101 }, "over the goal:");
+  assertEqual(Logic.goalStatus(null, 51), null, "no goal:");
+  assertEqual(Logic.goalStatus(250, 51), { left: 199 }, "under the goal:");
+  assertEqual(Logic.goalStatus(250, 250), { left: 0 }, "exactly on the goal:");
+  assertEqual(Logic.goalStatus(250, 351), { over: 101 }, "over the goal:");
   assertEqual([0, 1, 250, 2000, 2001, -5, NaN].map((goal) => Logic.validateCarbGoal(goal)), ["error.carbGoal", "", "", "", "error.carbGoal", "error.carbGoal", "error.carbGoal"]);
   assertEqual(Logic.validateCarbGoal(null), "", "no goal is allowed:");
   assertEqual([Logic.sanitizeCarbGoal(250), Logic.sanitizeCarbGoal("250"), Logic.sanitizeCarbGoal(-3), Logic.sanitizeCarbGoal(undefined)], [250, null, null, null]);
@@ -2810,6 +2907,102 @@ test("cancelling an edit leaves the saved meal exactly as it was", async () => {
     assertEqual(JSON.stringify(savedData(app).meals), before, "saved meals:");
     if (!card().innerText.includes("51 g carbs")) throw new Error(`the meal should still read 51 g: "${card().innerText}"`);
     assertEqual([draftFoods().length, doc.getElementById("meal-save").innerText.trim()], [0, "Save meal"], "the form goes back to normal:");
+    if (app.errors.length) throw new Error(`the app raised errors: ${app.errors.join("; ")}`);
+  } finally {
+    closeApp(app);
+  }
+});
+
+// ---------- Calories and protein ----------
+
+test("calories and protein are optional on a food, checked, added up, and kept through saving and restoring", () => {
+  const food = (name, extra = {}) => ({ name, category: "other", carbs: 10, ...extra });
+  assertEqual(Logic.validateFood({ name: "Rice", carbs: 45, calories: null, protein: null }), "", "both blank:");
+  assertEqual(Logic.validateFood({ name: "Rice", carbs: 45, calories: 205, protein: 4 }), "", "both filled in:");
+  assertEqual(Logic.validateFood({ name: "Rice", carbs: 45, calories: -1, protein: null }), "error.foodCalories", "negative calories:");
+  assertEqual(Logic.validateFood({ name: "Rice", carbs: 45, calories: 5001, protein: null }), "error.foodCalories", "too many calories:");
+  assertEqual(Logic.validateFood({ name: "Rice", carbs: 45, calories: null, protein: 501 }), "error.foodProtein", "too much protein:");
+
+  const meal = { id: "m", date: "2026-11-03", type: "lunch", foods: [food("Chicken", { calories: 165, protein: 31 }), food("Rice", { calories: 205, protein: 4 }), food("Broccoli", { calories: 35, protein: 3 })] };
+  assertEqual([Logic.mealCalories(meal), Logic.mealProtein(meal)], [405, 38], "meal totals:");
+  const plain = { id: "p", date: "2026-11-03", type: "snack", foods: [food("Apple")] };
+  assertEqual([Logic.mealCalories(plain), Logic.mealProtein(plain)], [null, null], "a meal with no numbers has no totals:");
+  assertEqual([Logic.dayCalories([meal, plain], "2026-11-03"), Logic.dayProtein([meal, plain], "2026-11-03")], [405, 38], "day totals ignore meals without numbers:");
+  assertEqual(Logic.dayCalories([meal], "2026-11-04"), null, "a day without meals:");
+
+  const kept = Logic.sanitizeMeals([meal, plain, { ...meal, id: "bad", foods: [food("Bad", { calories: "lots" })] }]);
+  assertEqual(kept.map((saved) => saved.id), ["m", "p"], "a meal with a bad calorie value is dropped:");
+  assertEqual(kept[0].foods[0], { name: "Chicken", category: "other", carbs: 10, calories: 165, protein: 31 }, "the numbers survive:");
+  assertEqual(kept[1].foods[0], { name: "Apple", category: "other", carbs: 10 }, "foods without numbers stay as they were:");
+  const library = Logic.rememberFood([], food("Rice", { calories: 205, protein: 4 }));
+  assertEqual(library[0].calories, 205, "remembered foods keep their calories:");
+});
+
+test("a meal's calories and protein show on its foods and card, and the day shows them against the Plan target", async () => {
+  const app = await openApp();
+  try {
+    const doc = app.doc;
+    showTab(app, "meals");
+    addFoodToDraft(app, "Rice", "carb", "45");
+    doc.getElementById("meal-save").click();
+    if (doc.getElementById("meal-day-nutrition").innerText.trim() !== "") throw new Error("with no calories or protein entered, there should be no calories line");
+
+    doc.getElementById("meal-type").value = "lunch";
+    addFoodToDraft(app, "Chicken", "protein", "", "165", "31");
+    addFoodToDraft(app, "Rice", "carb", "45", "205", "4");
+    addFoodToDraft(app, "Broccoli", "vegetable", "6", "35", "3");
+    doc.getElementById("meal-save").click();
+    const lunch = [...doc.querySelectorAll("#meal-list .meal")].find((card) => card.innerText.includes("Lunch"));
+    for (const expected of ["405 kcal", "38 g protein", "165 kcal", "31 g protein"]) {
+      if (!lunch.innerText.includes(expected)) throw new Error(`the lunch card should show "${expected}": ${lunch.innerText}`);
+    }
+    const target = app.win.eval("Logic.calorieTarget(state.diet, state.sex, Logic.latestBodyweight(state.bodyweights)).target");
+    const line = doc.getElementById("meal-day-nutrition").innerText;
+    for (const expected of ["405", target.toLocaleString("en"), "left"]) {
+      if (!line.includes(expected)) throw new Error(`with a Plan target, the day's calories should show "${expected}": "${line}"`);
+    }
+    // Without a Plan target, the day shows just the totals.
+    app.win.eval('state.sex = ""; renderMeals();');
+    const bare = doc.getElementById("meal-day-nutrition").innerText;
+    if (!bare.includes("405") || !bare.includes("38") || bare.includes("left")) throw new Error(`without a target the day should show only totals: "${bare}"`);
+    if (app.errors.length) throw new Error(`the app raised errors: ${app.errors.join("; ")}`);
+  } finally {
+    closeApp(app);
+  }
+});
+
+test("remembered foods fill in calories and protein, editing a food changes them, and bad numbers are refused", async () => {
+  const app = await openApp();
+  try {
+    const doc = app.doc;
+    showTab(app, "meals");
+    addFoodToDraft(app, "Rice", "carb", "45", "205", "4");
+    doc.getElementById("meal-save").click();
+    const name = doc.getElementById("meal-food-name");
+    name.value = "rice";
+    name.dispatchEvent(new Event("input", { bubbles: true }));
+    assertEqual([doc.getElementById("meal-food-calories").value, doc.getElementById("meal-food-protein").value], ["205", "4"], "remembered numbers:");
+    name.value = "";
+    name.dispatchEvent(new Event("input", { bubbles: true }));
+
+    // Editing: tap the food, change its calories, save.
+    doc.querySelector("#meal-list .meal button.meal-edit").click();
+    doc.querySelector("#meal-draft li button.food-edit").click();
+    assertEqual(doc.getElementById("meal-food-calories").value, "205", "calories load for editing:");
+    doc.getElementById("meal-food-calories").value = "300";
+    doc.getElementById("meal-add-food").click();
+    doc.getElementById("meal-save").click();
+    if (!doc.querySelector("#meal-list .meal").innerText.includes("300 kcal")) throw new Error("the meal should now show 300 kcal");
+
+    for (const [field, value] of [["meal-food-calories", "-5"], ["meal-food-protein", "9999"]]) {
+      doc.getElementById("meal-food-calories").value = "";
+      doc.getElementById("meal-food-protein").value = "";
+      doc.getElementById("meal-food-name").value = "Egg";
+      doc.getElementById(field).value = value;
+      doc.getElementById("meal-add-food").click();
+      if (doc.querySelectorAll("#meal-draft li").length) throw new Error(`${field} = ${value} should be refused`);
+      if (!doc.getElementById("meal-error").innerText.trim()) throw new Error(`${field} = ${value} should show a message`);
+    }
     if (app.errors.length) throw new Error(`the app raised errors: ${app.errors.join("; ")}`);
   } finally {
     closeApp(app);

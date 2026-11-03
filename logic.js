@@ -583,14 +583,14 @@ const Logic = (() => {
     },
   };
 
-  // Two days of meals, as [daysAgo, meal type, [food, category, carbs in grams]].
+  // Two days of meals, as [daysAgo, meal type, [food, category, carbs in grams, calories, protein in grams]].
   const SAMPLE_MEALS = [
-    [0, "breakfast", [["Oats", "carb", 54], ["Eggs", "protein", 1], ["Banana", "carb", 27]]],
-    [0, "lunch", [["Chicken", "protein", 0], ["Rice", "carb", 45], ["Broccoli", "vegetable", 6]]],
-    [0, "dinner", [["Salmon", "protein", 0], ["Sweet potato", "carb", 40], ["Spinach", "vegetable", 3], ["Olive oil", "fat", 0]]],
-    [1, "lunch", [["Turkey sandwich", "carb", 36], ["Apple", "carb", 25]]],
-    [1, "dinner", [["Beef", "protein", 0], ["Pasta", "carb", 60], ["Green beans", "vegetable", 7]]],
-    [1, "snack", [["Greek yogurt", "protein", 6], ["Almonds", "fat", 6]]],
+    [0, "breakfast", [["Oats", "carb", 54, 300, 10], ["Eggs", "protein", 1, 140, 12], ["Banana", "carb", 27, 105, 1]]],
+    [0, "lunch", [["Chicken", "protein", 0, 165, 31], ["Rice", "carb", 45, 205, 4], ["Broccoli", "vegetable", 6, 35, 3]]],
+    [0, "dinner", [["Salmon", "protein", 0, 280, 25], ["Sweet potato", "carb", 40, 170, 4], ["Spinach", "vegetable", 3, 20, 2], ["Olive oil", "fat", 0, 120, 0]]],
+    [1, "lunch", [["Turkey sandwich", "carb", 36, 320, 22], ["Apple", "carb", 25, 95, 0]]],
+    [1, "dinner", [["Beef", "protein", 0, 300, 26], ["Pasta", "carb", 60, 300, 11], ["Green beans", "vegetable", 7, 35, 2]]],
+    [1, "snack", [["Greek yogurt", "protein", 6, 100, 17], ["Almonds", "fat", 6, 165, 6]]],
   ];
 
   function sampleData(today) {
@@ -626,7 +626,7 @@ const Logic = (() => {
       id: `sample-meal-${index}`,
       date: dayString(daysAgo),
       type,
-      foods: foods.map(([name, category, carbs]) => ({ name, category, carbs })),
+      foods: foods.map(([name, category, carbs, calories, protein]) => ({ name, category, carbs, calories, protein })),
     }));
     return { entries, bodyweights, routines, meals };
   }
@@ -1277,22 +1277,41 @@ const Logic = (() => {
   const FOOD_CATEGORIES = ["protein", "carb", "vegetable", "fat", "other"];
   const FOOD_NAME_MAX_LENGTH = 60;
   const MAX_FOOD_CARBS = 1000;
+  const MAX_FOOD_CALORIES = 5000;
+  const MAX_FOOD_PROTEIN = 500;
 
-  // Checks one food typed into a meal. carbs is grams, or null when left blank (counted as 0).
-  function validateFood({ name, carbs }) {
+  // Checks one food typed into a meal. carbs is grams, or null when left blank (counted as 0); calories and
+  // protein are optional, and null when left blank.
+  function validateFood({ name, carbs, calories = null, protein = null }) {
     const clean = normalizeName(name);
     if (!clean) return "error.foodName";
     if (clean.length > FOOD_NAME_MAX_LENGTH) return "error.foodNameLong";
     if (carbs !== null && !(carbs >= 0 && carbs <= MAX_FOOD_CARBS)) return "error.foodCarbs";
+    if (calories !== null && !(calories >= 0 && calories <= MAX_FOOD_CALORIES)) return "error.foodCalories";
+    if (protein !== null && !(protein >= 0 && protein <= MAX_FOOD_PROTEIN)) return "error.foodProtein";
     return "";
   }
+
+  // A saved food may leave calories and protein out; if they are there they must be sensible numbers.
+  const isValidOptional = (value, max) => value === undefined || (typeof value === "number" && value >= 0 && value <= max);
 
   const isValidFood = (food) =>
     Boolean(food) &&
     typeof food.name === "string" &&
     validateFood({ name: food.name, carbs: food.carbs }) === "" &&
     typeof food.carbs === "number" &&
-    FOOD_CATEGORIES.includes(food.category);
+    FOOD_CATEGORIES.includes(food.category) &&
+    isValidOptional(food.calories, MAX_FOOD_CALORIES) &&
+    isValidOptional(food.protein, MAX_FOOD_PROTEIN);
+
+  // A food as it is saved: name, category and carbs, plus calories and protein when they were entered.
+  const foodFields = ({ name, category, carbs, calories, protein }) => ({
+    name: normalizeName(name),
+    category,
+    carbs,
+    ...(calories === undefined || calories === null ? {} : { calories }),
+    ...(protein === undefined || protein === null ? {} : { protein }),
+  });
 
   const roundToTenth = (value) => Math.round(value * 10) / 10;
 
@@ -1321,8 +1340,8 @@ const Logic = (() => {
 
   const sanitizeCarbGoal = (saved) => (typeof saved === "number" && validateCarbGoal(saved) === "" ? saved : null);
 
-  // How the day's carbs compare with the goal: { left } grams still to eat, or { over } grams past it.
-  function carbGoalStatus(goal, eaten) {
+  // How what was eaten compares with a goal: { left } still to eat, or { over } past it. Null when there is no goal.
+  function goalStatus(goal, eaten) {
     if (goal === null) return null;
     const difference = roundToTenth(goal - eaten);
     return difference >= 0 ? { left: difference } : { over: -difference };
@@ -1336,12 +1355,24 @@ const Logic = (() => {
     return roundToTenth(meals.filter((meal) => meal.date === date).reduce((sum, meal) => sum + mealCarbs(meal), 0));
   }
 
+  // The total of calories or protein over some foods, or null when none of them has the number entered.
+  function sumOptional(foods, field) {
+    const entered = foods.filter((food) => typeof food[field] === "number");
+    return entered.length === 0 ? null : roundToTenth(entered.reduce((sum, food) => sum + food[field], 0));
+  }
+
+  const mealCalories = (meal) => sumOptional(meal.foods, "calories");
+  const mealProtein = (meal) => sumOptional(meal.foods, "protein");
+  const dayFoods = (meals, date) => meals.filter((meal) => meal.date === date).flatMap((meal) => meal.foods);
+  const dayCalories = (meals, date) => sumOptional(dayFoods(meals, date), "calories");
+  const dayProtein = (meals, date) => sumOptional(dayFoods(meals, date), "protein");
+
   // The remembered foods with this one added, replacing an earlier one with the same name (any capitals),
   // so the next meal starts from the latest category and carbs typed for it.
   function rememberFood(foodLibrary, food) {
     const name = normalizeName(food.name);
     const others = foodLibrary.filter((known) => known.name.toLowerCase() !== name.toLowerCase());
-    return [...others, { name, category: food.category, carbs: food.carbs }];
+    return [...others, foodFields({ ...food, name })];
   }
 
   // Keeps only valid remembered foods, one per name.
@@ -1364,7 +1395,7 @@ const Logic = (() => {
           meal.foods.length > 0 &&
           meal.foods.every(isValidFood)
       )
-      .map((meal) => ({ id: meal.id, date: meal.date, type: meal.type, foods: meal.foods.map(({ name, category, carbs }) => ({ name: normalizeName(name), category, carbs })) }));
+      .map((meal) => ({ id: meal.id, date: meal.date, type: meal.type, foods: meal.foods.map(foodFields) }));
   }
 
   return {
@@ -1379,8 +1410,13 @@ const Logic = (() => {
     validateFood,
     validateCarbGoal,
     sanitizeCarbGoal,
-    carbGoalStatus,
+    goalStatus,
     mealCarbs,
+    mealCalories,
+    mealProtein,
+    dayCalories,
+    dayProtein,
+    foodFields,
     dayCarbs,
     carbsByDay,
     replaceMeal,

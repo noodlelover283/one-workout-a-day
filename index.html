@@ -12,7 +12,7 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="theme-color" content="#f5f6f8" media="(prefers-color-scheme: light)">
   <meta name="theme-color" content="#12161c" media="(prefers-color-scheme: dark)">
-  <link rel="stylesheet" href="style.css?v=8cb885a84d">
+  <link rel="stylesheet" href="style.css?v=ceb03a2e56">
 </head>
 <body>
   <p id="offline-banner" class="offline-banner hidden" role="status" data-i18n="offline.notice">You're offline. Everything still works, and your data is saved on this device.</p>
@@ -52,6 +52,9 @@
       <p class="hint" data-i18n="sample.hint">Adds example workouts, routines and meals so you can explore the app. Your own data stays, and you can remove the examples again.</p>
       <button type="button" id="sample-load" class="secondary" data-i18n="history.loadSample">Load sample data to explore</button>
       <button type="button" id="sample-remove" class="secondary hidden" data-i18n="sample.remove">Remove sample data</button>
+      <h3 data-i18n="tour.heading">Getting started</h3>
+      <p class="hint" data-i18n="tour.hint">A short walkthrough of the app and the basics of lifting.</p>
+      <button type="button" id="tour-open" class="secondary" data-i18n="tour.open">Show the walkthrough</button>
       <details id="glossary" class="note-fold">
         <summary data-i18n="glossary.heading">Workout terms</summary>
         <dl class="glossary">
@@ -492,6 +495,7 @@
         <input id="meal-date" type="date" required>
       </div>
       <p id="meal-day-total" class="meal-total"></p>
+      <div id="meal-day-nutrition"></div>
       <details id="carb-goal-fold" class="slim-fold">
         <summary data-i18n="meals.goalHeading">Daily carbs goal</summary>
         <form id="carb-goal-form" novalidate>
@@ -518,6 +522,16 @@
           <div>
             <label for="meal-food-carbs" data-i18n="meals.carbs">Carbs (g)</label>
             <input id="meal-food-carbs" type="number" inputmode="decimal" min="0" step="any" data-i18n-placeholder="meals.carbsPlaceholder" placeholder="optional">
+          </div>
+        </div>
+        <div class="row">
+          <div>
+            <label for="meal-food-calories" data-i18n="meals.calories">Calories (kcal)</label>
+            <input id="meal-food-calories" type="number" inputmode="decimal" min="0" step="any" data-i18n-placeholder="meals.carbsPlaceholder" placeholder="optional">
+          </div>
+          <div>
+            <label for="meal-food-protein" data-i18n="meals.protein">Protein (g)</label>
+            <input id="meal-food-protein" type="number" inputmode="decimal" min="0" step="any" data-i18n-placeholder="meals.carbsPlaceholder" placeholder="optional">
           </div>
         </div>
         <button type="submit" id="meal-add-food" class="secondary" data-i18n="meals.addFood">Add food</button>
@@ -555,17 +569,31 @@
     <button id="nav-meals" data-tab="meals" data-section="diet" class="hidden" data-i18n="tab.meals">Meals</button>
   </nav>
 
-  <script src="i18n.js?v=8cb885a84d"></script>
-  <script src="lang-en.js?v=8cb885a84d"></script>
-  <script src="lang-es.js?v=8cb885a84d"></script>
-  <script src="lang-zh.js?v=8cb885a84d"></script>
-  <script src="lang-hi.js?v=8cb885a84d"></script>
-  <script src="lang-ar.js?v=8cb885a84d"></script>
-  <script src="lang-fr.js?v=8cb885a84d"></script>
-  <script src="lang-pt.js?v=8cb885a84d"></script>
-  <script src="lang-ru.js?v=8cb885a84d"></script>
-  <script src="strength-data.js?v=8cb885a84d"></script>
-  <script src="logic.js?v=8cb885a84d"></script>
-  <script src="app.js?v=8cb885a84d"></script>
+  <div id="tour" class="tour hidden" role="dialog" aria-modal="true" aria-labelledby="tour-title">
+    <div class="tour-card">
+      <p id="tour-step" class="tour-step"></p>
+      <h2 id="tour-title"></h2>
+      <p id="tour-body" class="tour-body"></p>
+      <button type="button" id="tour-terms" class="secondary hidden" data-i18n="tour.terms">Show the Workout terms</button>
+      <div class="tour-actions">
+        <button type="button" id="tour-back" class="secondary" data-i18n="tour.back">Back</button>
+        <button type="button" id="tour-next" class="primary"></button>
+      </div>
+      <button type="button" id="tour-skip" class="link" data-i18n="tour.skip">Skip</button>
+    </div>
+  </div>
+
+  <script src="i18n.js?v=ceb03a2e56"></script>
+  <script src="lang-en.js?v=ceb03a2e56"></script>
+  <script src="lang-es.js?v=ceb03a2e56"></script>
+  <script src="lang-zh.js?v=ceb03a2e56"></script>
+  <script src="lang-hi.js?v=ceb03a2e56"></script>
+  <script src="lang-ar.js?v=ceb03a2e56"></script>
+  <script src="lang-fr.js?v=ceb03a2e56"></script>
+  <script src="lang-pt.js?v=ceb03a2e56"></script>
+  <script src="lang-ru.js?v=ceb03a2e56"></script>
+  <script src="strength-data.js?v=ceb03a2e56"></script>
+  <script src="logic.js?v=ceb03a2e56"></script>
+  <script src="app.js?v=ceb03a2e56"></script>
 </body>
 </html>
