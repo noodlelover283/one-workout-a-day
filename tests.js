@@ -1126,7 +1126,8 @@ test("the page links its app description and a 180 pixel iPhone icon, and opens 
 
 test("sw.js saves every file the page loads, so the app can start with no connection", async () => {
   const page = await (await fetch("index.html", { cache: "no-store" })).text();
-  const loaded = [...page.matchAll(/(?:src|href)="([\w.-]+\.(?:js|css))"/g)].map((match) => match[1]);
+  // The published site adds ?v=<code> to each link (see publish.py), so allow for it.
+  const loaded = [...page.matchAll(/(?:src|href)="([\w.-]+\.(?:js|css))(?:\?v=\w+)?"/g)].map((match) => match[1]);
   const worker = await (await fetch("sw.js", { cache: "no-store" })).text();
   const missing = loaded.filter((file) => !worker.includes(`"${file}"`));
   if (loaded.length < 10) throw new Error(`expected to find the page's files, found ${loaded.length}`);
