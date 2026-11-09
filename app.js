@@ -167,6 +167,8 @@ function showTab(name) {
   for (const button of document.querySelectorAll(".section-switch button")) {
     button.setAttribute("aria-pressed", String(button.dataset.section === section));
   }
+  $("stat-strip").classList.toggle("hidden", section !== "workout");
+  if (section === "workout") renderStatStrip();
   if (name === "log") {
     showPanel("log", null);
     renderRoutinePicker();
@@ -187,6 +189,19 @@ function showTab(name) {
   if (name === "plan") renderPlan();
   if (name === "weight") renderWeight();
   if (name === "meals") renderMeals();
+}
+
+// The row of big numbers above the workout tabs on a computer (hidden on a phone by the stylesheet).
+function renderStatStrip() {
+  const week = Logic.weekAtAGlance(state.entries, today(), weekStartDay());
+  $("stat-workouts").textContent = String(week.workouts);
+  $("stat-workouts-sub").textContent = t("stats.lastWeek", { n: week.workoutsLastWeek });
+  $("stat-sets").textContent = String(week.sets);
+  $("stat-sets-sub").textContent = t("stats.lastWeek", { n: week.setsLastWeek });
+  $("stat-streak").textContent = String(week.streak);
+  const bodyweight = Logic.latestBodyweight(state.bodyweights);
+  $("stat-body").textContent = bodyweight === null ? "—" : `${Logic.formatWeight(bodyweight, state.unit)} ${state.unit}`;
+  $("stat-body-sub").textContent = t(bodyweight === null ? "stats.none" : "stats.latest");
 }
 
 function showSection(section) {
@@ -369,6 +384,7 @@ function renderToday() {
   const date = $("date").value || today();
   const list = $("today-list");
   const entries = state.entries.filter((e) => e.date === date);
+  renderStatStrip();
   renderRoutineChecklist(Logic.workingSets(entries));
   renderWarmup();
   const note = $("workout-note");

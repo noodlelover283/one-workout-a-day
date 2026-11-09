@@ -590,6 +590,22 @@ test("a weekly streak is not broken just because this week has no workout yet", 
   assertEqual(Logic.currentWeeklyStreak(new Set(["2026-10-06", "2026-09-30"]), "2026-10-13", 1), 2);
 });
 
+test("the stat strip counts workout days and working sets this week and last week", () => {
+  const entries = [
+    { date: "2026-10-13", exercise: "Squat", weight: 225, reps: 5 },
+    { date: "2026-10-13", exercise: "Squat", weight: 225, reps: 5 },
+    { date: "2026-10-13", exercise: "Squat", weight: 135, reps: 5, warmup: true },
+    { date: "2026-10-12", exercise: "Bench Press", weight: 185, reps: 8 },
+    { date: "2026-10-08", exercise: "Bench Press", weight: 185, reps: 8 },
+    { date: "2026-09-20", exercise: "Bench Press", weight: 175, reps: 8 },
+  ];
+  assertEqual(Logic.weekAtAGlance(entries, "2026-10-13", 1), { workouts: 2, workoutsLastWeek: 1, sets: 3, setsLastWeek: 1, streak: 2 });
+});
+
+test("the stat strip shows zeros with no workouts", () => {
+  assertEqual(Logic.weekAtAGlance([], "2026-10-13", 1), { workouts: 0, workoutsLastWeek: 0, sets: 0, setsLastWeek: 0, streak: 0 });
+});
+
 test("a whole week without a workout ends the streak", () => {
   assertEqual(Logic.currentWeeklyStreak(new Set(["2026-09-30"]), "2026-10-13", 1), 0);
   assertEqual(Logic.currentWeeklyStreak(new Set(), "2026-10-13", 1), 0);

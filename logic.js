@@ -25,7 +25,7 @@ const Logic = (() => {
 
   const THEMES = ["auto", "light", "dark", "contrast"];
   const TEXT_SIZES = [100, 125, 150, 175]; // percent of the normal size
-  const DEFAULT_APPEARANCE = { theme: "auto", textSize: 100 };
+  const DEFAULT_APPEARANCE = { theme: "dark", textSize: 100 };
 
   // Keeps only valid saved display settings, falling back to the defaults.
   function sanitizeAppearance(saved) {
@@ -719,6 +719,30 @@ const Logic = (() => {
       week = weekBefore(week);
     }
     return streak;
+  }
+
+  // The numbers for the stat strip: workout days and working sets this week and last week, and the
+  // weekly streak. Warm-up sets are left out, the same as everywhere else.
+  function weekAtAGlance(entries, today, weekStart) {
+    const working = workingSets(entries);
+    const thisWeek = weekStartOf(today, weekStart);
+    const [year, month, day] = thisWeek.split("-").map(Number);
+    const lastWeek = toDateString(new Date(year, month - 1, day - 7));
+    const counts = { [thisWeek]: { days: new Set(), sets: 0 }, [lastWeek]: { days: new Set(), sets: 0 } };
+    for (const entry of working) {
+      if (entry.date > today) continue;
+      const bucket = counts[weekStartOf(entry.date, weekStart)];
+      if (!bucket) continue;
+      bucket.days.add(entry.date);
+      bucket.sets += 1;
+    }
+    return {
+      workouts: counts[thisWeek].days.size,
+      workoutsLastWeek: counts[lastWeek].days.size,
+      sets: counts[thisWeek].sets,
+      setsLastWeek: counts[lastWeek].sets,
+      streak: currentWeeklyStreak(new Set(entries.map((entry) => entry.date)), today, weekStart),
+    };
   }
 
   // How many weeks the weekly volume chart covers, and the range of hard sets per muscle group per
@@ -1472,6 +1496,7 @@ const Logic = (() => {
     monthCells,
     weekStartOf,
     currentWeeklyStreak,
+    weekAtAGlance,
     weeklyVolume,
     personalRecords,
     NEW_RECORD_DAYS,
