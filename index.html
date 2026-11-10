@@ -12,9 +12,15 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="theme-color" content="#fafafa" media="(prefers-color-scheme: light)">
   <meta name="theme-color" content="#0a0a0a" media="(prefers-color-scheme: dark)">
-  <link rel="stylesheet" href="style.css?v=75a79ee4e3">
+  <link rel="stylesheet" href="style.css?v=b27430dd87">
 </head>
 <body>
+  <!-- Opening screen: a pixel bar fills in, then the whole thing fades away by itself (CSS only). -->
+  <div id="splash" class="splash" aria-hidden="true">
+    <span class="ascii-slot" aria-hidden="true"></span>
+    <p class="splash-name" data-i18n="app.title">One Workout a Day</p>
+    <div class="pixel-bar"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+  </div>
   <p id="offline-banner" class="offline-banner hidden" role="status" data-i18n="offline.notice">You're offline. Everything still works, and your data is saved on this device.</p>
   <!-- On a phone the sidebar box disappears and its parts sit where they always have: the header on top,
        the tabs fixed to the bottom. On a computer it becomes a sidebar on the left. -->
@@ -102,7 +108,8 @@
       <div class="rest-slot">
       <div id="rest-banner" class="rest-banner hidden" role="group" data-i18n-aria="rest.timerLabel" aria-label="Rest timer">
         <div class="rest-main">
-          <p class="rest-text"><span id="rest-label" class="rest-label">Rest</span> <span id="rest-clock" class="rest-clock">1:30</span></p>
+          <span class="ascii-slot" aria-hidden="true"></span>
+          <p class="rest-text"><span class="live-dot" aria-hidden="true"></span><span id="rest-label" class="rest-label">Rest</span> <span id="rest-clock" class="rest-clock">1:30</span></p>
           <button type="button" id="rest-adjust-toggle" class="rest-toggle" aria-expanded="false" aria-controls="rest-adjust" data-i18n="rest.adjust">Adjust</button>
           <button type="button" id="rest-skip" class="rest-skip">Skip</button>
         </div>
@@ -188,6 +195,16 @@
           <details class="suggestion-why">
             <summary data-i18n="suggest.why">Why?</summary>
             <p id="suggestion-detail" class="hint"></p>
+            <div class="flow">
+              <p class="flow-box" data-i18n="flow.log">Log your sets</p>
+              <span class="flow-line" aria-hidden="true"></span>
+              <p class="flow-box flow-question" data-i18n="flow.question">Did every set at your top weight reach the rep goal?</p>
+              <span class="flow-line" aria-hidden="true"></span>
+              <div class="flow-split">
+                <div class="flow-branch"><span class="flow-line" aria-hidden="true"></span><p class="flow-box" data-i18n="flow.yes">Yes: add weight next time</p></div>
+                <div class="flow-branch"><span class="flow-line" aria-hidden="true"></span><p class="flow-box" data-i18n="flow.no">No: same weight, aim for one more rep</p></div>
+              </div>
+            </div>
           </details>
         </div>
 
@@ -204,7 +221,7 @@
       </div>
 
       <div class="log-side">
-      <h3 data-i18n="log.todayHeading">Today's workout</h3>
+      <h3><span data-i18n="log.todayHeading">Today's workout</span><span id="today-live" class="live-dot hidden" aria-hidden="true"></span></h3>
       <ul id="today-list" class="entry-list"></ul>
       <div class="dash-grid">
         <button type="button" class="dash-card" data-panel="daynote" aria-controls="panel-daynote">
@@ -347,6 +364,12 @@
 
     <section id="tab-progress" class="tab hidden" aria-labelledby="nav-progress">
       <div id="progress-home">
+      <section id="record-ticker" class="marquee hidden" data-i18n-aria="records.heading" aria-label="Personal records">
+        <div class="marquee-track">
+          <ul id="record-ticker-list" class="marquee-list"></ul>
+          <ul id="record-ticker-copy" class="marquee-list" aria-hidden="true"></ul>
+        </div>
+      </section>
       <h2 data-i18n="progress.plateauHeading">Plateau check</h2>
       <p class="hint" data-i18n="progress.plateauHint">Muscle groups, by how recently you set a new weight record.</p>
       <div id="plateau-cards"></div>
@@ -588,7 +611,10 @@
     <div class="tour-card">
       <p id="tour-step" class="tour-step"></p>
       <h2 id="tour-title"></h2>
-      <p id="tour-body" class="tour-body"></p>
+      <div class="tour-flow">
+        <span class="tour-plate" aria-hidden="true"></span>
+        <p id="tour-body" class="tour-body"></p>
+      </div>
       <button type="button" id="tour-terms" class="secondary hidden" data-i18n="tour.terms">Show the Workout terms</button>
       <div class="tour-actions">
         <button type="button" id="tour-back" class="secondary" data-i18n="tour.back">Back</button>
@@ -598,17 +624,17 @@
     </div>
   </div>
 
-  <script src="i18n.js?v=75a79ee4e3"></script>
-  <script src="lang-en.js?v=75a79ee4e3"></script>
-  <script src="lang-es.js?v=75a79ee4e3"></script>
-  <script src="lang-zh.js?v=75a79ee4e3"></script>
-  <script src="lang-hi.js?v=75a79ee4e3"></script>
-  <script src="lang-ar.js?v=75a79ee4e3"></script>
-  <script src="lang-fr.js?v=75a79ee4e3"></script>
-  <script src="lang-pt.js?v=75a79ee4e3"></script>
-  <script src="lang-ru.js?v=75a79ee4e3"></script>
-  <script src="strength-data.js?v=75a79ee4e3"></script>
-  <script src="logic.js?v=75a79ee4e3"></script>
-  <script src="app.js?v=75a79ee4e3"></script>
+  <script src="i18n.js?v=b27430dd87"></script>
+  <script src="lang-en.js?v=b27430dd87"></script>
+  <script src="lang-es.js?v=b27430dd87"></script>
+  <script src="lang-zh.js?v=b27430dd87"></script>
+  <script src="lang-hi.js?v=b27430dd87"></script>
+  <script src="lang-ar.js?v=b27430dd87"></script>
+  <script src="lang-fr.js?v=b27430dd87"></script>
+  <script src="lang-pt.js?v=b27430dd87"></script>
+  <script src="lang-ru.js?v=b27430dd87"></script>
+  <script src="strength-data.js?v=b27430dd87"></script>
+  <script src="logic.js?v=b27430dd87"></script>
+  <script src="app.js?v=b27430dd87"></script>
 </body>
 </html>

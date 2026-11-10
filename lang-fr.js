@@ -360,6 +360,10 @@ I18n.register("fr", {
     "stats.lastWeek": "Semaine dernière : {n}",
     "stats.latest": "Dernière saisie",
     "stats.none": "Pas encore noté",
+    "flow.log": "Note tes séries",
+    "flow.question": "Toutes les séries à ton poids max ont-elles atteint l'objectif de répétitions ?",
+    "flow.yes": "Oui : plus de poids la prochaine fois",
+    "flow.no": "Non : même poids, vise une répétition de plus",
 
     "measure.heading": "Mensurations",
     "measure.hint": "Mesurez toujours au même endroit, par exemple le tour de taille au niveau du nombril. En ajouter une autre le même jour remplace la précédente.",

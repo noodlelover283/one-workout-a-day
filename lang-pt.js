@@ -360,6 +360,10 @@ I18n.register("pt", {
     "stats.lastWeek": "Semana passada: {n}",
     "stats.latest": "Último registro",
     "stats.none": "Ainda não registrado",
+    "flow.log": "Registre suas séries",
+    "flow.question": "Todas as séries no seu peso máximo atingiram a meta de repetições?",
+    "flow.yes": "Sim: mais peso na próxima vez",
+    "flow.no": "Não: mesmo peso, tente uma repetição a mais",
 
     "measure.heading": "Medidas corporais",
     "measure.hint": "Meça sempre o mesmo ponto, por exemplo a cintura na altura do umbigo. Adicionar outra no mesmo dia substitui a anterior.",

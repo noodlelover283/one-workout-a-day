@@ -721,6 +721,26 @@ const Logic = (() => {
     return streak;
   }
 
+  // An ordered (Bayer 8x8) dither of soft waves: 1 where a dot is drawn, 0 where it is not. The waves
+  // repeat exactly across the width and height, so the pattern tiles with no seam and can drift forever.
+  const BAYER_8 = [
+    0, 32, 8, 40, 2, 34, 10, 42, 48, 16, 56, 24, 50, 18, 58, 26, 12, 44, 4, 36, 14, 46, 6, 38, 60, 28, 52, 20, 62, 30, 54, 22,
+    3, 35, 11, 43, 1, 33, 9, 41, 51, 19, 59, 27, 49, 17, 57, 25, 15, 47, 7, 39, 13, 45, 5, 37, 63, 31, 55, 23, 61, 29, 53, 21,
+  ];
+  function ditherDots(width, height) {
+    const dots = new Uint8Array(width * height);
+    for (let y = 0; y < height; y += 1) {
+      for (let x = 0; x < width; x += 1) {
+        const across = Math.sin((2 * Math.PI * x) / width);
+        const diagonal = Math.sin(2 * Math.PI * (y / height + (2 * x) / width));
+        const brightness = 0.4 + 0.18 * across + 0.18 * diagonal;
+        const threshold = (BAYER_8[(y % 8) * 8 + (x % 8)] + 0.5) / 64;
+        dots[y * width + x] = brightness > threshold ? 1 : 0;
+      }
+    }
+    return dots;
+  }
+
   // The numbers for the stat strip: workout days and working sets this week and last week, and the
   // weekly streak. Warm-up sets are left out, the same as everywhere else.
   function weekAtAGlance(entries, today, weekStart) {
@@ -1497,6 +1517,7 @@ const Logic = (() => {
     weekStartOf,
     currentWeeklyStreak,
     weekAtAGlance,
+    ditherDots,
     weeklyVolume,
     personalRecords,
     NEW_RECORD_DAYS,

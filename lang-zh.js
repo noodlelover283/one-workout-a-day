@@ -358,6 +358,10 @@ I18n.register("zh", {
     "stats.lastWeek": "上周：{n}",
     "stats.latest": "最近一次记录",
     "stats.none": "尚未记录",
+    "flow.log": "记录你的组",
+    "flow.question": "最重重量的每一组都达到目标次数了吗？",
+    "flow.yes": "是：下次加重量",
+    "flow.no": "否：同样重量，争取多做一次",
 
     "measure.heading": "身体围度",
     "measure.hint": "每次测量同一个位置，例如在肚脐处测量腰围。同一天再次添加会覆盖之前的记录。",

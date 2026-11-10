@@ -385,6 +385,8 @@ function renderToday() {
   const list = $("today-list");
   const entries = state.entries.filter((e) => e.date === date);
   renderStatStrip();
+  // A pulsing dot by the heading while today's workout is under way.
+  $("today-live").classList.toggle("hidden", date !== today() || Logic.workingSets(entries).length === 0);
   renderRoutineChecklist(Logic.workingSets(entries));
   renderWarmup();
   const note = $("workout-note");
@@ -392,7 +394,9 @@ function renderToday() {
   $("note-date").textContent = new Intl.DateTimeFormat(I18n.locale(), { dateStyle: "full" }).format(new Date(`${date}T00:00`));
   $("dash-stat-daynote").textContent = state.notes[date] ? Logic.noteExcerpt(state.notes[date]) : t("note.none");
   if (entries.length === 0) {
-    list.replaceChildren(el("li", "empty", t("log.empty")));
+    const empty = el("li", "empty", t("log.empty"));
+    empty.prepend(asciiLifter());
+    list.replaceChildren(empty);
     return;
   }
   list.replaceChildren(...exerciseGroups(entries));
@@ -1605,6 +1609,7 @@ function renderVolume() {
 
 function renderRecords() {
   const records = Logic.personalRecords(workingEntries());
+  renderRecordTicker(records);
   if (records.length === 0) {
     $("records-list").replaceChildren(el("p", "empty", t("records.empty")));
     return;
@@ -1956,13 +1961,36 @@ function lineChart(series, unit = state.unit) {
     if (text !== undefined) node.textContent = text;
     svg.append(node);
   };
-  add("path", { d: `M${series.map((p) => `${x(p)},${y(p)}`).join(" L")}`, class: "line", pathLength: 1 });
+  add("path", { d: `M${series.map((p) => `${x(p)},${y(p)}`).join(" L")}`, class: "line" });
   for (const p of series) add("circle", { cx: x(p), cy: y(p), r: 3.5, class: "dot" });
   add("text", { x: 4, y: pad, class: "axis" }, `${max}`);
   add("text", { x: 4, y: height - pad + 4, class: "axis" }, `${min}`);
   add("text", { x: pad, y: height - 6, class: "axis" }, I18n.formatShortDate(series[0].date));
   add("text", { x: width - pad, y: height - 6, class: "axis", "text-anchor": "end" }, I18n.formatShortDate(series[series.length - 1].date));
+  addPixelVeil(svg, width, height);
   return svg;
+}
+
+// A grid of squares over a new chart: they light up grey in a scattered order and vanish, so the chart
+// appears pixel by pixel. Pure decoration; the stylesheet does the timing.
+function addPixelVeil(svg, width, height) {
+  const size = 16;
+  const cols = Math.ceil(width / size), rows = Math.ceil(height / size);
+  const count = cols * rows;
+  const veil = document.createElementNS(SVG_NS, "g");
+  veil.setAttribute("class", "pixel-veil");
+  veil.setAttribute("aria-hidden", "true");
+  for (let i = 0; i < count; i += 1) {
+    const cell = document.createElementNS(SVG_NS, "rect");
+    cell.setAttribute("x", (i % cols) * size);
+    cell.setAttribute("y", Math.floor(i / cols) * size);
+    cell.setAttribute("width", size);
+    cell.setAttribute("height", size);
+    // 53 shares no factor with the cell count here, so this visits every cell once in a scattered order.
+    cell.style.animationDelay = `${((i * 53) % count) / count * 0.45}s`;
+    veil.append(cell);
+  }
+  svg.append(veil);
 }
 
 // Saves today's bodyweight from a box (replacing one already saved today). Both the Progress tab and the
@@ -2591,6 +2619,23 @@ function renderProgress() {
   renderMeasurementChart();
 }
 
+// The endless marquee at the top of the Progress tab: every personal record, newest first, scrolling by.
+// The list is drawn twice so the loop is seamless; screen readers get only the first copy.
+function renderRecordTicker(records) {
+  $("record-ticker").classList.toggle("hidden", records.length === 0);
+  const unit = state.unit;
+  const items = () => records.map((record) => {
+    const item = el("li", "marquee-item");
+    item.append(el("strong", "", exerciseLabel(record.exercise)), ` ${Logic.formatWeight(record.weight, unit)} ${unit} × ${repsText(record.reps)}`);
+    if (Logic.daysBetween(record.date, today()) < Logic.NEW_RECORD_DAYS) item.append(el("span", "badge", t("records.new")));
+    return item;
+  });
+  $("record-ticker-list").replaceChildren(...items());
+  $("record-ticker-copy").replaceChildren(...items());
+  // About four seconds per record, so the speed stays the same however many there are.
+  $("record-ticker").style.setProperty("--marquee-duration", `${Math.max(12, records.length * 4)}s`);
+}
+
 // ---------- Display settings ----------
 
 const deviceDarkQuery = window.matchMedia("(prefers-color-scheme: dark)");
@@ -2889,6 +2934,8 @@ function init() {
   for (const button of document.querySelectorAll(".unit-toggle button")) {
     button.addEventListener("click", () => setUnit(button.dataset.unit));
   }
+  makeDitherTexture();
+  for (const slot of document.querySelectorAll(".ascii-slot")) slot.replaceChildren(asciiLifter());
   applyLanguage();
   showSection(state.section);
   window.addEventListener("online", updateOfflineNotice);
@@ -2896,6 +2943,55 @@ function init() {
   updateOfflineNotice();
   registerOfflineSupport();
   if (!state.tourDone) openTour();
+  removeSplashLater();
+}
+
+// A little lifter drawn in text characters, pressing a barbell overhead: four frames of four lines each.
+// The stylesheet shows one frame at a time and steps through them.
+const ASCII_LIFTER = [
+  ["         ", " o==O==o ", "   /|\\   ", "   / \\   "],
+  ["         ", " o=====o ", "   \\O/   ", "   / \\   "],
+  [" o=====o ", "  \\ O /  ", "    |    ", "   / \\   "],
+  ["         ", " o=====o ", "   \\O/   ", "   / \\   "],
+];
+
+function asciiLifter() {
+  const art = el("pre", "ascii");
+  art.setAttribute("aria-hidden", "true");
+  art.append(el("span", "ascii-frames", ASCII_LIFTER.flat().join("\n")));
+  return art;
+}
+
+// Draws the dither pattern once (each dot 2 pixels square) and hands it to the stylesheet, which uses it
+// as a mask so the dots take the theme's text colour. Nothing dithered shows until this has run.
+function makeDitherTexture() {
+  const width = 256, height = 128, dotSize = 2;
+  const canvas = document.createElement("canvas");
+  canvas.width = width * dotSize;
+  canvas.height = height * dotSize;
+  const context = canvas.getContext("2d");
+  if (!context) return;
+  const dots = Logic.ditherDots(width, height);
+  for (let i = 0; i < dots.length; i += 1) {
+    if (dots[i]) context.fillRect((i % width) * dotSize, Math.floor(i / width) * dotSize, dotSize, dotSize);
+  }
+  document.documentElement.style.setProperty("--dither", `url(${canvas.toDataURL()})`);
+  document.documentElement.classList.add("has-dither");
+}
+
+// The opening screen fades out by itself; it only plays on the first open of a visit, and its box is
+// taken out of the page afterwards.
+function removeSplashLater() {
+  const splash = $("splash");
+  let seen = false;
+  try {
+    seen = sessionStorage.getItem("splashSeen") === "1";
+    sessionStorage.setItem("splashSeen", "1");
+  } catch {
+    // Storage can be blocked; then the opening screen simply plays each time.
+  }
+  if (seen) splash.remove();
+  else setTimeout(() => splash.remove(), 1400);
 }
 
 init();

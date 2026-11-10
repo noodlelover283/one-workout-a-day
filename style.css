@@ -230,11 +230,11 @@ button.link { min-height: 44px; border: none; background: none; color: var(--acc
 }
 .rest-banner.over { background: var(--good-bg); border-color: var(--good); }
 .rest-banner p { margin: 0; }
-.rest-main { display: flex; align-items: center; gap: 8px; }
+.rest-main { display: flex; align-items: center; gap: 6px; }
 .rest-text { flex: 1; min-width: 0; display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
 .rest-label { font-weight: 600; }
 .rest-clock { font-size: 1.7rem; font-weight: 700; font-variant-numeric: tabular-nums; }
-.rest-main button { min-height: 40px; padding: 0 12px; }
+.rest-main button { min-height: 40px; padding: 0 8px; }
 .rest-adjust { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin: 6px 0 2px; }
 .rest-adjust button { padding: 0 2px; white-space: nowrap; font-size: min(1rem, 4.4vw); }
 .rest-banner.over .rest-clock, .rest-banner.over .rest-toggle, .rest-banner.over .rest-adjust { display: none; }
@@ -282,8 +282,8 @@ button.link { min-height: 44px; border: none; background: none; color: var(--acc
 
 .chart { margin-top: 8px; }
 .chart svg { direction: ltr; width: 100%; height: auto; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); }
-.line { fill: none; stroke: var(--accent); stroke-width: 2.5; stroke-dasharray: 1; animation: draw-line 0.7s ease-out; }
-.dot { fill: var(--accent); animation: fade-in 0.3s 0.5s ease-out backwards; }
+.line { fill: none; stroke: var(--accent); stroke-width: 2.5; }
+.dot { fill: var(--accent); }
 .axis { fill: var(--muted); font-size: 10px; }
 
 .tabbar {
@@ -403,8 +403,6 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
   60% { opacity: 1; transform: translateX(-50%) scale(1.06); }
   to { transform: translateX(-50%) scale(1); }
 }
-@keyframes draw-line { from { stroke-dashoffset: 1; } to { stroke-dashoffset: 0; } }
-@keyframes fade-in { from { opacity: 0; } }
 
 /* Anyone who asks their device to reduce motion gets no movement at all. */
 @media (prefers-reduced-motion: reduce) {
@@ -469,6 +467,168 @@ button.primary:hover:not(:disabled) { opacity: 0.88; }
 .card.stalled { border-inline-start: 3px solid var(--warn); }
 .card.progressing { border-inline-start: 3px solid var(--good); }
 
+/* Pulsing live dot: by the rest timer while it counts down, and by Today's workout once a set is in. */
+.live-dot { position: relative; display: inline-block; flex-shrink: 0; width: 8px; height: 8px; margin-inline: 8px; border-radius: 50%; background: var(--text); vertical-align: middle; }
+.live-dot::after { content: ""; position: absolute; inset: 0; border-radius: 50%; background: inherit; animation: live-pulse 1.6s ease-out infinite; }
+@keyframes live-pulse { from { transform: scale(1); opacity: 0.6; } to { transform: scale(2.8); opacity: 0; } }
+.rest-text .live-dot { align-self: center; margin-inline: 2px 6px; }
+.rest-banner.over .live-dot { display: none; }
+
+/* Sparkles twinkle at two corners of the "New record!" message. Each corner is one star glyph copied
+   to two more spots with text-shadow, so screen readers still hear only the message. */
+.toast.record.show::before, .toast.record.show::after {
+  position: absolute; font-size: 19px; line-height: 1; color: var(--text); opacity: 0; pointer-events: none;
+  animation: sparkle 1.3s ease-in-out 3;
+}
+.toast.record.show::before { content: "\2726"; top: -18px; left: -8px; text-shadow: 26px -6px 0 var(--text), -12px 22px 0 var(--text); }
+.toast.record.show::after { content: "\2727"; bottom: -18px; right: -8px; text-shadow: -28px 8px 0 var(--text), 12px -22px 0 var(--text); animation-delay: 0.35s; }
+@keyframes sparkle {
+  0% { opacity: 0; transform: scale(0.2) rotate(0deg); }
+  35% { opacity: 1; transform: scale(1.15) rotate(25deg); }
+  65% { opacity: 0.8; transform: scale(0.85) rotate(50deg); }
+  100% { opacity: 0; transform: scale(0.2) rotate(90deg); }
+}
+
+/* Pixel loader. Opening screen: a row of squares fills in, then the screen fades away. It never blocks
+   a tap, and it hides itself even if the script fails. */
+.splash {
+  position: fixed; inset: 0; z-index: 40; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px;
+  background: var(--bg); pointer-events: none; opacity: 0; animation: splash-out 0.3s 1s ease-in backwards;
+}
+.splash-name { margin: 0; font-family: var(--font-mono); font-size: 0.8rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); }
+.pixel-bar { display: flex; gap: 4px; }
+.pixel-bar i { width: 14px; height: 14px; background: var(--text); opacity: 0.12; animation: pixel-on 0.15s ease-out forwards; }
+.pixel-bar i:nth-child(1) { animation-delay: 0.1s; }
+.pixel-bar i:nth-child(2) { animation-delay: 0.18s; }
+.pixel-bar i:nth-child(3) { animation-delay: 0.26s; }
+.pixel-bar i:nth-child(4) { animation-delay: 0.34s; }
+.pixel-bar i:nth-child(5) { animation-delay: 0.42s; }
+.pixel-bar i:nth-child(6) { animation-delay: 0.5s; }
+.pixel-bar i:nth-child(7) { animation-delay: 0.58s; }
+.pixel-bar i:nth-child(8) { animation-delay: 0.66s; }
+.pixel-bar i:nth-child(9) { animation-delay: 0.74s; }
+.pixel-bar i:nth-child(10) { animation-delay: 0.82s; }
+@keyframes splash-out { from { opacity: 1; } to { opacity: 0; } }
+@keyframes pixel-on { to { opacity: 1; } }
+
+/* Charts: the squares of the pixel veil start blank, flash grey and vanish, revealing the chart. */
+.pixel-veil { pointer-events: none; }
+.pixel-veil rect { fill: var(--surface); opacity: 0; animation: pixel-reveal 0.35s ease-out backwards; }
+@keyframes pixel-reveal {
+  0% { opacity: 1; fill: var(--surface); }
+  45% { opacity: 1; fill: var(--border); }
+  100% { opacity: 0; fill: var(--border); }
+}
+
+/* Endless marquee: the record list and its copy slide left together; halfway, the copy sits exactly
+   where the list started, so the loop never shows a seam. Hovering or focusing pauses it. */
+.marquee { overflow: hidden; margin-top: 16px; border-block: 1px solid var(--border); mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent); }
+.marquee-track { display: flex; width: max-content; direction: ltr; animation: marquee var(--marquee-duration, 20s) linear infinite; }
+.marquee:hover .marquee-track, .marquee:focus-within .marquee-track { animation-play-state: paused; }
+.marquee-list { display: flex; margin: 0; padding: 0; list-style: none; }
+.marquee-item { display: flex; align-items: center; gap: 8px; padding: 10px 0; white-space: nowrap; font-family: var(--font-mono); font-size: 0.8rem; color: var(--muted); }
+.marquee-item::after { content: "/"; margin-inline: 22px; color: var(--border); }
+.marquee-item strong { color: var(--text); font-weight: 500; text-transform: uppercase; letter-spacing: 0.04em; }
+.marquee-item .badge { padding: 1px 8px; font-size: 0.65rem; border: 1px solid var(--muted); border-radius: 999px; color: var(--text); }
+@keyframes marquee { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+
+/* Dithering (not on the opening screen, at Isaac's request): a drifting pattern of tiny dots in the text colour, very faint. app.js draws the pattern
+   into --dither and adds .has-dither; the dots sit behind the content of each place that uses them. */
+:root.has-dither .stat-strip::before,
+:root.has-dither .empty::before,
+:root.has-dither .chart:has(svg)::after {
+  content: ""; position: absolute; inset: 0; z-index: -1; pointer-events: none;
+  background: var(--text); opacity: 0.12;
+  -webkit-mask-image: var(--dither), var(--dither-fade, linear-gradient(#000, #000));
+  mask-image: var(--dither), var(--dither-fade, linear-gradient(#000, #000));
+  -webkit-mask-size: 512px 256px, 100% 100%; mask-size: 512px 256px, 100% 100%;
+  -webkit-mask-repeat: repeat, no-repeat; mask-repeat: repeat, no-repeat;
+  -webkit-mask-composite: source-in; mask-composite: intersect;
+  animation: dither-drift 48s linear infinite;
+}
+@keyframes dither-drift {
+  from { -webkit-mask-position: 0 0, 0 0; mask-position: 0 0, 0 0; }
+  to { -webkit-mask-position: -512px 0, 0 0; mask-position: -512px 0, 0 0; }
+}
+.stat-strip, .empty { isolation: isolate; }
+.stat-strip, .empty { position: relative; overflow: hidden; }
+.empty { padding: 18px 14px; border: 1px dashed var(--border); border-radius: var(--radius-lg); }
+:root.has-dither .empty::before { --dither-fade: linear-gradient(90deg, transparent, #000 70%); }
+.chart:has(svg) { position: relative; border-radius: var(--radius); overflow: hidden; }
+:root.has-dither .chart:has(svg)::after { z-index: auto; opacity: 0.1; --dither-fade: linear-gradient(to top, #000, transparent 70%); }
+/* On a phone the header bar on top of every tab gets the dither too (on a computer it is the sidebar). */
+@media (max-width: 1023px) {
+  .app-header { position: relative; isolation: isolate; }
+  :root.has-dither .app-header::before { content: ""; position: absolute; inset: 0 -16px; z-index: -1; pointer-events: none; background: var(--text); opacity: 0.09;
+    -webkit-mask-image: var(--dither), linear-gradient(to bottom, #000, transparent); mask-image: var(--dither), linear-gradient(to bottom, #000, transparent);
+    -webkit-mask-size: 512px 256px, 100% 100%; mask-size: 512px 256px, 100% 100%;
+    -webkit-mask-repeat: repeat, no-repeat; mask-repeat: repeat, no-repeat;
+    -webkit-mask-composite: source-in; mask-composite: intersect;
+    animation: dither-drift 48s linear infinite; }
+}
+/* High contrast keeps plain backgrounds. */
+:root[data-theme="contrast"] .stat-strip::before, :root[data-theme="contrast"] .empty::before,
+:root[data-theme="contrast"] .chart:has(svg)::after, :root[data-theme="contrast"] .app-header::before { display: none; }
+
+/* Disco logo: a band of light sweeps across the app name like a mirror ball catching a light, every
+   few seconds (the sidebar name on a computer, the opening screen everywhere). */
+.brand, .splash-name {
+  --shine-base: color-mix(in srgb, currentColor 72%, var(--bg));
+  background: linear-gradient(100deg, var(--shine-base) 0 38%, currentColor 46%, #fff 50%, currentColor 54%, var(--shine-base) 62% 100%) 0 0 / 300% 100% no-repeat;
+  -webkit-background-clip: text; background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: disco-shine 5s ease-in-out infinite;
+}
+.splash-name { animation-duration: 1.2s; animation-iteration-count: 1; }
+@keyframes disco-shine {
+  0%, 55% { background-position: 100% 0; }
+  100% { background-position: 0% 0; }
+}
+:root[data-theme="light"] .brand, :root[data-theme="light"] .splash-name { --shine-base: color-mix(in srgb, currentColor 60%, var(--bg)); }
+:root[data-theme="contrast"] .brand, :root[data-theme="contrast"] .splash-name { background: none; -webkit-text-fill-color: currentColor; }
+.title-row .brand::after { -webkit-text-fill-color: var(--muted); }
+
+/* Decorative flowchart under "Why?": how the weight suggestion is chosen. Dashes flow down the
+   connecting lines, and out to both sides where the path splits into Yes and No. */
+.flow { display: flex; flex-direction: column; align-items: center; margin: 10px 0 6px; }
+.flow .flow-box { margin: 0; padding: 8px 12px; max-width: 100%; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); font-family: var(--font-mono); font-size: 0.78rem; line-height: 1.35; text-align: center; }
+.flow-question { border-style: dashed; border-color: var(--muted); }
+.flow-line { display: block; flex-shrink: 0; width: 2px; height: 16px; margin: 0 auto; background: repeating-linear-gradient(to bottom, var(--muted) 0 4px, transparent 4px 8px); animation: flow-down 0.8s linear infinite; }
+.flow-split { position: relative; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; width: 100%; }
+.flow-split::before, .flow-split::after { content: ""; position: absolute; top: 0; height: 2px; width: 25%; background: repeating-linear-gradient(to right, var(--muted) 0 4px, transparent 4px 8px); }
+.flow-split::before { inset-inline-end: 50%; animation: flow-left 0.8s linear infinite; }
+.flow-split::after { inset-inline-start: 50%; animation: flow-right 0.8s linear infinite; }
+.flow-branch { display: flex; flex-direction: column; align-items: stretch; }
+@keyframes flow-down { from { background-position: 0 0; } to { background-position: 0 8px; } }
+@keyframes flow-right { from { background-position: 0 0; } to { background-position: 8px 0; } }
+@keyframes flow-left { from { background-position: 0 0; } to { background-position: -8px 0; } }
+
+/* ASCII art that moves (a text-character lifter pressing a barbell). The box shows four lines (one frame)
+   and the frames slide up through it in four jumps. Used in the rest timer, the empty Today's workout
+   and the opening screen. */
+.ascii { flex-shrink: 0; height: 4em; margin: 0; overflow: hidden; font-family: var(--font-mono); font-size: 10px; line-height: 1; color: var(--muted); direction: ltr; }
+.ascii-frames { display: block; white-space: pre; animation: ascii-play 1.6s steps(4) infinite; }
+@keyframes ascii-play { to { transform: translateY(-16em); } }
+.ascii-slot { display: contents; }
+.rest-main .ascii { font-size: 5px; color: var(--text); }
+.splash .ascii { font-size: 14px; color: var(--text); }
+li.empty { display: flex; align-items: center; gap: 14px; }
+
+/* Text wrapping around a moving shape: in the walkthrough, a weight plate floats beside the text with a
+   round wrap shape, and drifts down and back up while slowly turning, so the lines re-flow around it.
+   The box keeps room for the plate's whole path, so the card does not change height as it moves. */
+.tour-flow { display: flow-root; min-height: 9.5rem; }
+.tour-plate {
+  float: inline-end; width: 4.5rem; height: 4.5rem; margin: 0 0 0 0.75rem;
+  shape-outside: circle(50%); shape-margin: 0.6rem; border-radius: 50%;
+  border: 2px solid var(--text);
+  background: radial-gradient(circle, var(--surface) 0 16%, var(--text) 17% 21%, transparent 22% 54%, var(--muted) 55% 57%, transparent 58%);
+  animation: plate-drift 6s ease-in-out infinite alternate, plate-turn 12s linear infinite;
+}
+:root[dir="rtl"] .tour-plate { margin: 0 0.75rem 0 0; }
+@keyframes plate-drift { from { margin-top: 0; } to { margin-top: 4.5rem; } }
+@keyframes plate-turn { to { rotate: 360deg; } }
+
 /* The stat strip and the sidebar box only exist on a computer. */
 .stat-strip { display: none; }
 .sidebar { display: contents; }
@@ -531,6 +691,7 @@ button.primary:hover:not(:disabled) { opacity: 0.88; }
   .tab h3 { font-size: 1.15rem; }
 
   /* Stat strip: four big figures in one ruled box. */
+  :root.has-dither .stat-strip::before { opacity: 0.08; --dither-fade: linear-gradient(90deg, #000, transparent 85%); }
   .stat-strip { display: grid; grid-template-columns: repeat(4, 1fr); border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--surface); }
   .stat-card { display: flex; flex-direction: column; gap: 6px; min-width: 0; padding: 18px 20px; }
   .stat-card + .stat-card { border-inline-start: 1px solid var(--border); }
@@ -543,8 +704,8 @@ button.primary:hover:not(:disabled) { opacity: 0.88; }
   .log-main { padding-inline-end: 40px; }
   .log-side { position: sticky; top: 24px; margin-top: 12px; padding-inline-start: 40px; border-inline-start: 1px solid var(--border); min-height: 320px; }
   .log-side > h3 { margin: 0 0 14px; padding: 14px 0; border-bottom: 1px solid var(--border); font-family: var(--font-mono); font-size: 0.72rem; font-weight: 500; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
-  .rest-slot { top: 16px; }
-  .rest-banner { inset-inline-start: auto; width: 440px; }
+  /* The rest timer floats in the bottom corner, clear of both columns. */
+  .rest-banner { position: fixed; top: auto; bottom: 24px; inset-inline-start: auto; inset-inline-end: 24px; z-index: 15; width: 400px; }
 
   /* Card grids spread out; detail panels and the diet forms keep a readable width. */
   .dash-grid { grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; }
@@ -561,5 +722,5 @@ button.primary:hover:not(:disabled) { opacity: 0.88; }
   #history { grid-column: 2; grid-row: 2 / span 2; }
   #history-home > .dash-grid { grid-column: 1; grid-row: 3; grid-template-columns: 1fr; }
 
-  .toast { bottom: 32px; left: calc(50% + var(--sidebar-width) / 2); }
+  .toast { bottom: 104px; left: calc(50% + var(--sidebar-width) / 2); }
 }

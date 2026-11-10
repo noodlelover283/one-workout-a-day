@@ -602,6 +602,17 @@ test("the stat strip counts workout days and working sets this week and last wee
   assertEqual(Logic.weekAtAGlance(entries, "2026-10-13", 1), { workouts: 2, workoutsLastWeek: 1, sets: 3, setsLastWeek: 1, streak: 2 });
 });
 
+test("the dither pattern is dots and gaps, denser where its waves are brighter", () => {
+  const width = 64, height = 32;
+  const dots = Logic.ditherDots(width, height);
+  assertEqual(dots.length, width * height);
+  if (![...dots].every((dot) => dot === 0 || dot === 1)) throw new Error("every cell should be 0 or 1");
+  const density = dots.reduce((sum, dot) => sum + dot, 0) / dots.length;
+  if (density < 0.2 || density > 0.6) throw new Error(`about 40% of cells should be dots, found ${Math.round(density * 100)}%`);
+  const quarterBright = (x) => [...Array(height).keys()].reduce((sum, y) => sum + dots[y * width + x], 0);
+  if (quarterBright(width / 4) <= quarterBright((3 * width) / 4)) throw new Error("the bright side of the wave should have more dots than the dark side");
+});
+
 test("the stat strip shows zeros with no workouts", () => {
   assertEqual(Logic.weekAtAGlance([], "2026-10-13", 1), { workouts: 0, workoutsLastWeek: 0, sets: 0, setsLastWeek: 0, streak: 0 });
 });
@@ -1489,8 +1500,30 @@ test("a tab fades in, a chart line draws in, and an opened section eases open", 
     const progress = showTab(app, "progress");
     assertEqual(animationOf(progress), "tab-in");
     const line = progress.querySelector("#exercise-chart path.line");
-    if (!line || line.getAttribute("pathLength") !== "1") throw new Error("the chart line should be a path with pathLength 1, so it can draw in");
-    assertEqual(animationOf(line), "draw-line");
+    if (!line) throw new Error("the exercise chart should have a line");
+    const ticker = progress.querySelector("#record-ticker");
+    if (ticker.classList.contains("hidden")) throw new Error("the record ticker should show once there are records");
+    const [first, copy] = ticker.querySelectorAll(".marquee-list");
+    assertEqual(copy.textContent, first.textContent);
+    assertEqual(copy.getAttribute("aria-hidden"), "true");
+    assertEqual(animationOf(ticker.querySelector(".marquee-track")), "marquee");
+    const cells = progress.querySelectorAll("#exercise-chart .pixel-veil rect");
+    if (cells.length < 100) throw new Error(`the chart should appear through a pixel veil, found ${cells.length} squares`);
+    assertEqual(animationOf(cells[0]), "pixel-reveal");
+    if (!app.doc.documentElement.classList.contains("has-dither")) throw new Error("the dither pattern should be drawn when the app starts");
+    assertEqual(app.win.getComputedStyle(progress.querySelector("#exercise-chart"), "::after").animationName, "dither-drift");
+    const splash = app.doc.getElementById("splash");
+    if (splash) assertEqual(animationOf(splash), "splash-out");
+    assertEqual(animationOf(app.doc.querySelector(".brand")), "disco-shine");
+    assertEqual(animationOf(app.doc.querySelector(".flow-line")), "flow-down");
+    const plate = app.doc.querySelector(".tour-flow .tour-plate");
+    if (!plate || !app.win.getComputedStyle(plate).shapeOutside.startsWith("circle")) throw new Error("the walkthrough text should wrap around a round plate");
+    assertEqual(app.win.getComputedStyle(plate).animationName, "plate-drift, plate-turn");
+    const lifter = app.doc.querySelector(".rest-main .ascii-frames");
+    if (!lifter) throw new Error("the rest timer should have the ASCII lifter");
+    assertEqual(lifter.textContent.split("\n").length, 16);
+    assertEqual(animationOf(lifter), "ascii-play");
+    assertEqual(app.doc.querySelectorAll(".flow .flow-box").length, 4);
     const fold = progress.querySelector("details");
     fold.open = true;
     assertEqual(animationOf(fold.querySelector(":scope > :not(summary)")), "fold-in");
@@ -1515,6 +1548,10 @@ test("a set that was just added flashes, and its routine chip pulses", async () 
     const pulsing = app.doc.querySelectorAll("#routine-checklist .chip.pulse");
     if (pulsing.length !== 1) throw new Error(`expected 1 chip to pulse, found ${pulsing.length}`);
     assertEqual(app.win.getComputedStyle(pulsing[0]).animationName, "pulse");
+    // Today's workout is under way, so its heading gets the pulsing live dot.
+    const live = app.doc.getElementById("today-live");
+    if (live.classList.contains("hidden")) throw new Error("the live dot should show once a set is logged today");
+    assertEqual(app.win.getComputedStyle(live, "::after").animationName, "live-pulse");
     // Drawing the list again later (a tab change, say) must not replay the flash.
     showTab(app, "history");
     showTab(app, "log");
@@ -1734,6 +1771,7 @@ test("a set heavier than the best so far gets a New record message, and a lighte
     const toast = app.doc.getElementById("toast");
     logSetInApp(app, "Bench Press", 500, 1);
     if (!toast.classList.contains("record") || !toast.textContent.includes("New record")) throw new Error(`a 500 lb bench should be a record, but the message reads "${toast.textContent}"`);
+    assertEqual([app.win.getComputedStyle(toast, "::before").animationName, app.win.getComputedStyle(toast, "::after").animationName], ["sparkle", "sparkle"]);
     logSetInApp(app, "Bench Press", 100, 8);
     if (toast.classList.contains("record")) throw new Error("a lighter set must not give a record message");
   } finally {

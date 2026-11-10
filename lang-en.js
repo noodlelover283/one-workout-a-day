@@ -360,6 +360,10 @@ I18n.register("en", {
     "stats.lastWeek": "Last week: {n}",
     "stats.latest": "Latest entry",
     "stats.none": "Not logged yet",
+    "flow.log": "Log your sets",
+    "flow.question": "Did every set at your top weight reach the rep goal?",
+    "flow.yes": "Yes: add weight next time",
+    "flow.no": "No: same weight, aim for one more rep",
 
     "measure.heading": "Body measurements",
     "measure.hint": "Measure the same spot each time, for example your waist at the navel. Adding one again on the same day replaces it.",
