@@ -1364,14 +1364,19 @@ const Logic = (() => {
     return meals.map((meal) => (meal.id === id ? { ...meal, type, foods } : meal));
   }
 
-  // The carbs eaten on each of the last `days` days up to endDate, oldest first (0 for a day without meals).
-  function carbsByDay(meals, endDate, days) {
+  const CHART_NUTRIENTS = ["carbs", "protein", "calories"];
+
+  // How much of one nutrient ("carbs", "protein" or "calories") was eaten on each of the last `days` days up
+  // to endDate, oldest first. Carbs are 0 on a day without meals; protein and calories are null on a day where
+  // no food had them entered, so a day that was never counted does not look like a day of eating none.
+  function nutrientByDay(meals, endDate, days, nutrient) {
+    const dayTotal = { carbs: dayCarbs, protein: dayProtein, calories: dayCalories }[nutrient];
     const end = new Date(`${endDate}T00:00:00`);
     return Array.from({ length: days }, (_, index) => {
       const day = new Date(end);
       day.setDate(day.getDate() - (days - 1 - index));
       const date = toDateString(day);
-      return { date, value: dayCarbs(meals, date) };
+      return { date, value: dayTotal(meals, date) };
     });
   }
 
@@ -1462,7 +1467,8 @@ const Logic = (() => {
     dayProtein,
     foodFields,
     dayCarbs,
-    carbsByDay,
+    nutrientByDay,
+    CHART_NUTRIENTS,
     replaceMeal,
     rememberFood,
     sanitizeFoodLibrary,

@@ -2163,8 +2163,9 @@ let mealDraft = [];
 // The saved meal loaded into the form for editing, if any, and the food in the list loaded into the food fields.
 let editingMealId = null;
 let editingFoodIndex = null;
-// How many days the carbs chart covers: 7 or 30.
+// How many days the per-day chart covers: 7 or 30, and which nutrient it shows (one of Logic.CHART_NUTRIENTS).
 let carbChartDays = 7;
+let chartNutrient = "carbs";
 // The day whose bar was pressed, as a date, or null when none is.
 let carbPickedDate = null;
 
@@ -2385,28 +2386,50 @@ function onMealSave() {
   showToast(t(editing ? "meals.updated" : "meals.saved"));
 }
 
+// The words that change with the chart's nutrient, as translation keys. Carbs keep the keys they always had.
+const CHART_TEXT = {
+  carbs: { heading: "meals.chartHeading", empty: "meals.chartEmpty", aria: "meals.chartAria", goal: "meals.chartGoal", detail: "meals.chartDetail" },
+  protein: { heading: "meals.chartHeadingProtein", empty: "meals.chartEmptyProtein", aria: "meals.chartAriaProtein", goal: "meals.chartGoal", detail: "meals.chartDetailProtein" },
+  calories: { heading: "meals.chartHeadingCalories", empty: "meals.chartEmptyCalories", aria: "meals.chartAriaCalories", goal: "meals.chartGoalKcal", detail: "meals.chartDetailCalories" },
+};
+
+// The goal line for the chart's nutrient: the carbs goal from this tab, or the Plan tab's protein or calorie target.
+function chartGoal() {
+  if (chartNutrient === "carbs") return state.carbGoal;
+  const plan = Logic.calorieTarget(state.diet, state.sex, Logic.latestBodyweight(state.bodyweights));
+  if (!plan) return null;
+  return chartNutrient === "protein" ? plan.protein : plan.target;
+}
+
 function renderCarbChart() {
-  for (const button of document.querySelectorAll("#tab-meals .range-toggle button")) {
+  for (const button of document.querySelectorAll("#tab-meals [data-days]")) {
     button.setAttribute("aria-pressed", String(Number(button.dataset.days) === carbChartDays));
   }
-  const days = Logic.carbsByDay(state.meals, today(), carbChartDays);
-  const picked = days.find((day) => day.date === carbPickedDate);
-  $("carb-chart").replaceChildren(days.some((day) => day.value > 0) ? barChart(days, state.carbGoal, picked) : el("p", "empty", t("meals.chartEmpty")));
+  for (const button of document.querySelectorAll("#tab-meals [data-nutrient]")) {
+    button.setAttribute("aria-pressed", String(button.dataset.nutrient === chartNutrient));
+  }
+  $("carb-chart-heading").textContent = t(CHART_TEXT[chartNutrient].heading);
+  const days = Logic.nutrientByDay(state.meals, today(), carbChartDays, chartNutrient);
+  const picked = days.find((day) => day.date === carbPickedDate && day.value > 0);
+  $("carb-chart").replaceChildren(
+    days.some((day) => day.value > 0) ? barChart(days, chartGoal(), picked) : el("p", "empty", t(CHART_TEXT[chartNutrient].empty))
+  );
   $("carb-chart-detail").textContent = picked ? carbDayText(picked) : "";
 }
 
-const carbDayText = (day) => t("meals.chartDetail", { date: I18n.formatDate(day.date), grams: day.value });
+const carbDayText = (day) =>
+  t(CHART_TEXT[chartNutrient].detail, { date: I18n.formatDate(day.date), grams: day.value, kcal: day.value.toLocaleString(I18n.locale()) });
 
 // One bar per day, with the goal as a dashed line when there is one. Pressing a bar picks that day.
 function barChart(days, goal, picked) {
   const width = 320, height = 160, pad = 28;
-  const max = Math.max(goal || 0, ...days.map((day) => day.value));
+  const max = Math.max(goal || 0, ...days.map((day) => day.value || 0));
   const y = (value) => height - pad - (value / max) * (height - pad * 2);
   const slot = (width - pad * 2) / days.length;
   const svg = document.createElementNS(SVG_NS, "svg");
   svg.setAttribute("viewBox", `0 0 ${width} ${height}`);
   svg.setAttribute("role", "img");
-  svg.setAttribute("aria-label", t("meals.chartAria", { days: days.length }));
+  svg.setAttribute("aria-label", t(CHART_TEXT[chartNutrient].aria, { days: days.length }));
   const add = (tag, attrs, text) => {
     const node = document.createElementNS(SVG_NS, tag);
     for (const [key, value] of Object.entries(attrs)) node.setAttribute(key, value);
@@ -2414,6 +2437,8 @@ function barChart(days, goal, picked) {
     svg.append(node);
   };
   days.forEach((day, index) => {
+    // A day with nothing entered (null) gets no bar at all, rather than a bar of zero.
+    if (day.value === null) return;
     add("rect", {
       x: pad + index * slot + slot * 0.15,
       y: y(day.value),
@@ -2422,9 +2447,9 @@ function barChart(days, goal, picked) {
       class: picked && picked.date === day.date ? "bar selected" : "bar",
     });
   });
-  // A full-height strip over each day with carbs, so even a short bar is easy to press. Empty days have none.
+  // A full-height strip over each day with a bar, so even a short bar is easy to press. Empty days have none.
   days.forEach((day, index) => {
-    if (day.value === 0) return;
+    if (!day.value) return;
     add("rect", {
       x: pad + index * slot,
       y: 0,
@@ -2440,7 +2465,7 @@ function barChart(days, goal, picked) {
   if (goal) {
     add("line", { x1: pad, x2: width - pad, y1: y(goal), y2: y(goal), class: "goal-line" });
     // The label sits on its own background, so a tall bar behind it cannot hide it.
-    const label = t("meals.chartGoal", { goal });
+    const label = t(CHART_TEXT[chartNutrient].goal, { goal });
     const labelWidth = label.length * 6.5 + 12;
     add("rect", { x: width - pad - labelWidth, y: y(goal) - 22, width: labelWidth, height: 18, rx: 4, class: "goal-label-bg" });
     add("text", { x: width - pad - 6, y: y(goal) - 9, class: "axis goal-label", "text-anchor": "end" }, label);
@@ -2471,6 +2496,11 @@ function onCarbBarPress(event) {
 function onCarbRangeChange(event) {
   carbChartDays = Number(event.currentTarget.dataset.days);
   carbPickedDate = null;
+  renderCarbChart();
+}
+
+function onChartNutrientChange(event) {
+  chartNutrient = event.currentTarget.dataset.nutrient;
   renderCarbChart();
 }
 
@@ -2882,7 +2912,8 @@ function init() {
   $("meal-cancel").addEventListener("click", onMealEditCancel);
   $("meal-food-cancel").addEventListener("click", onFoodEditCancel);
   $("carb-goal-form").addEventListener("submit", onCarbGoalSave);
-  for (const button of document.querySelectorAll("#tab-meals .range-toggle button")) button.addEventListener("click", onCarbRangeChange);
+  for (const button of document.querySelectorAll("#tab-meals [data-days]")) button.addEventListener("click", onCarbRangeChange);
+  for (const button of document.querySelectorAll("#tab-meals [data-nutrient]")) button.addEventListener("click", onChartNutrientChange);
   $("meal-food-name").addEventListener("input", onMealFoodNameInput);
   $("meal-date").addEventListener("change", renderMeals);
   $("backup-merge-go").addEventListener("click", onBackupMerge);

@@ -2773,11 +2773,11 @@ test("setting a daily carbs goal on the Meals tab shows the grams left, then ove
 test("carbs per day covers the last 7 or 30 days, oldest first, with zero for days without meals", () => {
   const meal = (id, date, carbs) => ({ id, date, type: "lunch", foods: [{ name: "Rice", category: "carb", carbs }] });
   const meals = [meal("a", "2026-11-02", 51), meal("b", "2026-11-02", 9), meal("c", "2026-10-31", 30), meal("d", "2026-09-01", 99)];
-  const week = Logic.carbsByDay(meals, "2026-11-02", 7);
+  const week = Logic.nutrientByDay(meals, "2026-11-02", 7, "carbs");
   assertEqual(week.length, 7, "days in a week:");
   assertEqual([week[0].date, week[6].date], ["2026-10-27", "2026-11-02"], "week runs oldest to newest:");
   assertEqual(week.map((day) => day.value), [0, 0, 0, 0, 30, 0, 60], "carbs per day:");
-  const month = Logic.carbsByDay(meals, "2026-11-02", 30);
+  const month = Logic.nutrientByDay(meals, "2026-11-02", 30, "carbs");
   assertEqual([month.length, month[0].date, month[29].date], [30, "2026-10-04", "2026-11-02"], "30 days across a month change:");
   assertEqual(month.reduce((sum, day) => sum + day.value, 0), 90, "the meal 62 days ago is outside the 30 days:");
 });
@@ -2853,6 +2853,79 @@ test("the carbs chart draws the goal in its own colour, and pressing a bar says 
     // Changing the span clears the old pick, since its bar may not be there any more.
     doc.getElementById("carb-range-30").click();
     if (detail.innerText.trim() !== "") throw new Error(`the pressed bar's text should go when the span changes: "${detail.innerText}"`);
+    if (app.errors.length) throw new Error(`the app raised errors: ${app.errors.join("; ")}`);
+  } finally {
+    closeApp(app);
+  }
+});
+
+test("protein and calories per day count only their own field, and a day with none entered is empty, not zero", () => {
+  const meals = [
+    { id: "a", date: "2026-11-02", type: "lunch", foods: [{ name: "Chicken", category: "protein", carbs: 0, calories: 165, protein: 31 }, { name: "Rice", category: "carb", carbs: 45 }] },
+    { id: "b", date: "2026-11-01", type: "lunch", foods: [{ name: "Rice", category: "carb", carbs: 45 }] },
+  ];
+  const values = (nutrient) => Logic.nutrientByDay(meals, "2026-11-02", 3, nutrient).map((day) => day.value);
+  assertEqual(values("carbs"), [0, 45, 45], "carbs, which every food has:");
+  assertEqual(values("protein"), [null, null, 31], "protein: the rice-only day was never counted:");
+  assertEqual(values("calories"), [null, null, 165], "calories:");
+});
+
+test("the Meals chart switches between carbs, protein and calories, and switching back leaves the carbs chart as it was", async () => {
+  const app = await openApp();
+  try {
+    const doc = app.doc;
+    showTab(app, "meals");
+    addFoodToDraft(app, "Chicken", "protein", "0", "165", "31");
+    addFoodToDraft(app, "Rice", "carb", "45", "205", "4");
+    doc.getElementById("meal-save").click();
+    doc.getElementById("carb-goal-fold").open = true;
+    doc.getElementById("carb-goal").value = "250";
+    doc.getElementById("carb-goal-save").click();
+    const heading = () => doc.getElementById("carb-chart-heading").innerText;
+    const pressToday = () => doc.querySelector("#carb-chart rect.bar-hit").dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    const detail = () => doc.getElementById("carb-chart-detail").innerText;
+    assertEqual(doc.getElementById("chart-nutrient-carbs").getAttribute("aria-pressed"), "true", "carbs is the starting choice:");
+
+    doc.getElementById("chart-nutrient-protein").click();
+    if (!heading().includes("Protein")) throw new Error(`the heading should say protein: "${heading()}"`);
+    pressToday();
+    if (!detail().includes("35 g of protein")) throw new Error(`pressing today's bar should say 35 g of protein: "${detail()}"`);
+    // The test data has a Plan, so the line is the Plan's protein target, never the 250 g carbs goal.
+    const goalLabel = () => doc.querySelector("#carb-chart text.goal-label").textContent;
+    if (goalLabel().includes("250")) throw new Error("the carbs goal must not be drawn on the protein chart");
+    if (!goalLabel().includes(` ${Logic.calorieTarget(savedData(app).diet, "male", Logic.latestBodyweight(savedData(app).bodyweights)).protein} g`)) {
+      throw new Error(`the protein chart's line should be the Plan's protein target: "${goalLabel()}"`);
+    }
+
+    doc.getElementById("chart-nutrient-calories").click();
+    pressToday();
+    if (!detail().includes("370 kcal")) throw new Error(`pressing today's bar should say 370 kcal: "${detail()}"`);
+
+    doc.getElementById("chart-nutrient-carbs").click();
+    if (!heading().includes("Carbs")) throw new Error(`the heading should say carbs again: "${heading()}"`);
+    if (!doc.querySelector("#carb-chart line.goal-line")) throw new Error("the carbs goal line should be back");
+    pressToday();
+    if (!detail().includes("45 g of carbs")) throw new Error(`pressing today's bar should say 45 g of carbs: "${detail()}"`);
+    assertEqual(savedData(app).carbGoal, 250, "switching the chart must not change the carbs goal:");
+    doc.getElementById("carb-range-30").click();
+    assertEqual(doc.querySelectorAll("#carb-chart rect.bar").length, 30, "the 7/30 buttons still work after switching:");
+    assertEqual(doc.getElementById("chart-nutrient-carbs").getAttribute("aria-pressed"), "true", "the 7/30 buttons must not change the nutrient:");
+    if (app.errors.length) throw new Error(`the app raised errors: ${app.errors.join("; ")}`);
+  } finally {
+    closeApp(app);
+  }
+});
+
+test("a meal logged without protein shows a message on the protein chart instead of a zero bar", async () => {
+  const app = await openApp();
+  try {
+    const doc = app.doc;
+    showTab(app, "meals");
+    addFoodToDraft(app, "Rice", "carb", "45");
+    doc.getElementById("meal-save").click();
+    doc.getElementById("chart-nutrient-protein").click();
+    if (doc.querySelector("#carb-chart svg")) throw new Error("no protein was entered, so there should be no protein chart");
+    if (!doc.getElementById("carb-chart").innerText.includes("protein")) throw new Error("the message should say no protein was entered");
     if (app.errors.length) throw new Error(`the app raised errors: ${app.errors.join("; ")}`);
   } finally {
     closeApp(app);
