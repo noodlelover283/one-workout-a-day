@@ -501,9 +501,9 @@ I18n.register("zh", {
     "glossary.record.def": "你在某个动作上到目前为止的最大重量。举得更重就刷新纪录。",
 
     "sample.heading": "示例数据",
-    "sample.hint": "添加示例训练、训练计划和餐食，方便你体验应用。你自己的数据会保留，之后也可以移除这些示例。",
+    "sample.hint": "添加示例训练、计划、两周带备注的餐食、饮水、常用餐食，以及（若你还没有）示例的计划和目标，方便你体验应用。你自己的数据不受影响，示例可随时移除。",
     "sample.remove": "移除示例数据",
-    "sample.removeConfirm": "移除示例训练、训练计划和餐食？你自己的数据会保留。",
+    "sample.removeConfirm": "移除示例训练、计划、餐食、饮水、常用餐食，以及它填入的计划和目标？你自己的数据不受影响。",
     "toast.sampleRemoved": "已移除示例数据。",
 
     "log.back": "返回记录",
@@ -594,6 +594,11 @@ I18n.register("zh", {
     "meals.copyPrevious": "复制 {date} 的餐食",
     "meals.copied": "已复制 {date} 的餐食",
     "meals.copyNothing": "{date} 没有记录餐食，没有可复制的内容。",
+    "meals.calendarToday": "今天",
+    "meals.calendarDay": "{date}",
+    "meals.calendarDayMeals": "{date}，已记录餐食",
+    "meals.note": "备注（可选）",
+    "meals.notePlaceholder": "例如：在外面吃的，分量是估的",
     "meals.proteinGoalHeading": "每日蛋白质目标",
     "meals.proteinGoalLabel": "每日蛋白质目标（克）",
     "meals.proteinGoalHint": "留空并保存，即改用“计划”页的目标。",

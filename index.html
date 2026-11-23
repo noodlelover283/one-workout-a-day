@@ -12,7 +12,7 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="theme-color" content="#fafafa" media="(prefers-color-scheme: light)">
   <meta name="theme-color" content="#0a0a0a" media="(prefers-color-scheme: dark)">
-  <link rel="stylesheet" href="style.css?v=608a333627">
+  <link rel="stylesheet" href="style.css?v=335371b181">
 </head>
 <body>
   <!-- Opening screen: a pixel bar fills in, then the whole thing fades away by itself (CSS only). -->
@@ -536,11 +536,20 @@
     </section>
 
     <section id="tab-meals" class="tab hidden" aria-labelledby="nav-meals">
-      <div class="heading-row">
-        <h2 data-i18n="meals.heading">Meals</h2>
-        <label for="meal-date" class="sr-only" data-i18n="log.date">Date</label>
-        <input id="meal-date" type="date" required>
+      <h2 data-i18n="meals.heading">Meals</h2>
+      <div id="meal-calendar" class="meal-calendar">
+        <div class="calendar-nav">
+          <button type="button" id="meal-calendar-prev" class="secondary" data-i18n-aria="calendar.prev" aria-label="Previous month">&lsaquo;</button>
+          <strong id="meal-calendar-title" aria-live="polite"></strong>
+          <button type="button" id="meal-calendar-next" class="secondary" data-i18n-aria="calendar.next" aria-label="Next month">&rsaquo;</button>
+        </div>
+        <div id="meal-calendar-grid" class="calendar-grid"></div>
       </div>
+      <div class="heading-row">
+        <h3 id="meal-day-heading" aria-live="polite"></h3>
+        <button type="button" id="meal-calendar-today" class="link" data-i18n="meals.calendarToday">Today</button>
+      </div>
+      <input id="meal-date" type="date" class="hidden" tabindex="-1" aria-hidden="true">
       <p id="meal-day-total" class="meal-total"></p>
       <div id="meal-day-nutrition"></div>
       <div id="meal-macro-split" class="macro-split hidden"></div>
@@ -620,6 +629,8 @@
         <h3 data-i18n="meals.draftHeading">In this meal</h3>
         <p class="hint" data-i18n="meals.draftHint">Tap a food to change it.</p>
         <ul id="meal-draft" class="meal-foods"></ul>
+        <label for="meal-note" data-i18n="meals.note">Note (optional)</label>
+        <textarea id="meal-note" rows="2" maxlength="200" data-i18n-placeholder="meals.notePlaceholder" placeholder="e.g. Ate out, guessed the portions"></textarea>
         <button type="button" id="meal-save" class="primary" data-i18n="meals.save">Save meal</button>
         <button type="button" id="meal-cancel" class="secondary hidden" data-i18n="meals.cancel">Cancel</button>
         <p id="meal-error" class="error" role="alert"></p>
@@ -670,17 +681,17 @@
     </div>
   </div>
 
-  <script src="i18n.js?v=608a333627"></script>
-  <script src="lang-en.js?v=608a333627"></script>
-  <script src="lang-es.js?v=608a333627"></script>
-  <script src="lang-zh.js?v=608a333627"></script>
-  <script src="lang-hi.js?v=608a333627"></script>
-  <script src="lang-ar.js?v=608a333627"></script>
-  <script src="lang-fr.js?v=608a333627"></script>
-  <script src="lang-pt.js?v=608a333627"></script>
-  <script src="lang-ru.js?v=608a333627"></script>
-  <script src="strength-data.js?v=608a333627"></script>
-  <script src="logic.js?v=608a333627"></script>
-  <script src="app.js?v=608a333627"></script>
+  <script src="i18n.js?v=335371b181"></script>
+  <script src="lang-en.js?v=335371b181"></script>
+  <script src="lang-es.js?v=335371b181"></script>
+  <script src="lang-zh.js?v=335371b181"></script>
+  <script src="lang-hi.js?v=335371b181"></script>
+  <script src="lang-ar.js?v=335371b181"></script>
+  <script src="lang-fr.js?v=335371b181"></script>
+  <script src="lang-pt.js?v=335371b181"></script>
+  <script src="lang-ru.js?v=335371b181"></script>
+  <script src="strength-data.js?v=335371b181"></script>
+  <script src="logic.js?v=335371b181"></script>
+  <script src="app.js?v=335371b181"></script>
 </body>
 </html>

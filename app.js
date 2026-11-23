@@ -36,6 +36,8 @@ function loadState() {
     meals: [],
     foodLibrary: [],
     favoriteMeals: [],
+    sampleWater: [],
+    sampleSettings: [],
     water: {},
     waterGoal: null,
     carbGoal: null,
@@ -66,6 +68,8 @@ function normalizeState(saved) {
   loaded.foodLibrary = Logic.sanitizeFoodLibrary(saved.foodLibrary);
   loaded.favoriteMeals = Logic.sanitizeFavoriteMeals(saved.favoriteMeals);
   loaded.water = Logic.sanitizeWater(saved.water);
+  loaded.sampleWater = Logic.sanitizeSampleWater(saved.sampleWater);
+  loaded.sampleSettings = Logic.sanitizeSampleSettings(saved.sampleSettings);
   loaded.waterGoal = Logic.sanitizeWaterGoal(saved.waterGoal);
   loaded.carbGoal = Logic.sanitizeCarbGoal(saved.carbGoal);
   loaded.proteinGoal = Logic.sanitizeProteinGoal(saved.proteinGoal);
@@ -1466,6 +1470,8 @@ function afterSampleChange() {
   renderSetLists();
   renderRoutines();
   renderMeals();
+  renderPlan();
+  renderWeight();
 }
 
 // ---------- Backup and restore ----------
@@ -2179,6 +2185,60 @@ let carbPickedDate = null;
 
 const mealDate = () => $("meal-date").value || today();
 
+// The month the meal calendar is showing, as { year, month }; null until it is first drawn.
+let mealCalendarMonth = null;
+
+function showMealCalendarMonth(change) {
+  const shifted = new Date(mealCalendarMonth.year, mealCalendarMonth.month + change, 1);
+  mealCalendarMonth = { year: shifted.getFullYear(), month: shifted.getMonth() };
+  renderMealCalendar();
+}
+
+// Picking a day (here, or from the Today button) shows that day's meals.
+function selectMealDay(date) {
+  $("meal-date").value = date;
+  const [year, month] = date.split("-").map(Number);
+  mealCalendarMonth = { year, month: month - 1 };
+  renderMeals();
+}
+
+// A month of days: every day can be picked, days with meals are filled in, and the picked day has a ring.
+function renderMealCalendar() {
+  const selected = mealDate();
+  if (!mealCalendarMonth) {
+    const [year, month] = selected.split("-").map(Number);
+    mealCalendarMonth = { year, month: month - 1 };
+  }
+  const { year, month } = mealCalendarMonth;
+  const locale = I18n.locale();
+  const weekStart = weekStartDay();
+  const mealDates = new Set(state.meals.map((meal) => meal.date));
+  const todayDate = today();
+  $("meal-calendar-title").textContent = new Intl.DateTimeFormat(locale, { month: "long", year: "numeric" }).format(new Date(year, month, 1));
+  // 4 January 2026 is a Sunday, so it gives the weekday names in order.
+  const weekdays = Array.from({ length: 7 }, (_, i) => {
+    const name = new Intl.DateTimeFormat(locale, { weekday: "narrow" }).format(new Date(2026, 0, 4 + ((weekStart + i) % 7)));
+    return el("span", "weekday", name);
+  });
+  const days = Logic.monthCells(year, month, weekStart).map((date) => {
+    if (!date) return el("span");
+    const cell = el("button", "day-cell", String(Number(date.slice(8))));
+    cell.type = "button";
+    cell.dataset.date = date;
+    const logged = mealDates.has(date);
+    cell.classList.toggle("has-meals", logged);
+    cell.classList.toggle("today", date === todayDate);
+    cell.classList.toggle("selected", date === selected);
+    cell.setAttribute("aria-pressed", String(date === selected));
+    cell.setAttribute("aria-label", t(logged ? "meals.calendarDayMeals" : "meals.calendarDay", { date: I18n.formatDate(date) }));
+    cell.addEventListener("click", () => selectMealDay(date));
+    return cell;
+  });
+  $("meal-calendar-grid").replaceChildren(...weekdays, ...days);
+  $("meal-day-heading").textContent = I18n.formatDate(selected);
+  $("meal-calendar-today").classList.toggle("hidden", selected === todayDate);
+}
+
 // A food as text: name, category and carbs, then calories and protein when they were entered.
 function foodLine(food) {
   const parts = [t("meals.foodLine", { name: food.name, category: t(`meals.category.${food.category}`), grams: food.carbs })];
@@ -2224,6 +2284,7 @@ function renderMeals() {
   $("meal-copy-previous").textContent = t("meals.copyPrevious", { date: I18n.formatShortDate(Logic.dayBefore(mealDate())) });
   renderWater();
   renderFavoriteMeals();
+  renderMealCalendar();
   $("meal-list").replaceChildren(...(meals.length === 0 ? [el("li", "empty", t("meals.empty"))] : meals.map(mealCard)));
 }
 
@@ -2340,6 +2401,7 @@ function onMealEditStart(meal) {
   clearFoodFields();
   $("meal-error").textContent = "";
   $("meal-type").value = meal.type;
+  $("meal-note").value = meal.note || "";
   renderMeals();
   $("meal-form").scrollIntoView({ block: "start" });
 }
@@ -2349,6 +2411,7 @@ function resetMealForm() {
   mealDraft = [];
   editingMealId = null;
   clearFoodFields();
+  $("meal-note").value = "";
   $("meal-error").textContent = "";
 }
 
@@ -2356,6 +2419,9 @@ function onMealEditCancel() {
   resetMealForm();
   renderMeals();
 }
+
+// The saved meals whose details are showing. Everything else shows one line, so a long day stays short.
+const expandedMealIds = new Set();
 
 function mealCard(meal) {
   const label = t(`meals.type.${meal.type}`);
@@ -2376,18 +2442,38 @@ function mealCard(meal) {
   change.type = "button";
   change.setAttribute("aria-label", t("meals.editAria", { meal: label }));
   change.addEventListener("click", () => onMealEditStart(meal));
-  const actions = el("div", "meal-actions");
-  actions.append(change, remove);
-  const head = el("div", "meal-head");
-  head.append(el("strong", "", [label, ...totals].join(" · ")), actions);
-  const foods = el("ul", "meal-foods");
-  foods.append(...meal.foods.map((food) => el("li", "meal-food", foodLine(food))));
-  const favorite = el("button", "secondary", t("meals.favoriteSave"));
+  const favorite = el("button", "meal-favorite secondary", t("meals.favoriteSave"));
   favorite.type = "button";
   favorite.setAttribute("aria-label", t("meals.favoriteSaveAria", { meal: label }));
   favorite.addEventListener("click", () => onFavoriteSave(meal));
+  const actions = el("div", "meal-actions");
+  actions.append(change, remove, favorite);
+
+  // The one line that stays visible: the meal, its calories when entered, and its carbs.
+  const summaryParts = [label, ...(calories === null ? [] : [totals[1]]), totals[0]];
+  const toggle = el("button", "meal-toggle", summaryParts.join(" · "));
+  toggle.type = "button";
+  const body = el("div", "meal-body");
+  const foods = el("ul", "meal-foods");
+  foods.append(...meal.foods.map((food) => el("li", "meal-food", foodLine(food))));
+  body.append(el("p", "meal-totals", totals.join(" · ")), foods);
+  if (meal.note) body.append(el("p", "meal-note", meal.note));
+  body.append(actions);
+
   const card = el("li", "meal");
-  card.append(head, foods, favorite);
+  const setOpen = (open) => {
+    card.classList.toggle("expanded", open);
+    toggle.setAttribute("aria-expanded", String(open));
+    body.hidden = !open;
+  };
+  setOpen(expandedMealIds.has(meal.id));
+  toggle.addEventListener("click", () => {
+    const open = !card.classList.contains("expanded");
+    if (open) expandedMealIds.add(meal.id);
+    else expandedMealIds.delete(meal.id);
+    setOpen(open);
+  });
+  card.append(toggle, body);
   return card;
 }
 
@@ -2439,9 +2525,10 @@ function onMealSave() {
   if (error) return;
   const type = $("meal-type").value;
   const editing = editingMealId !== null;
+  const note = Logic.cleanMealNote($("meal-note").value);
   state.meals = editing
-    ? Logic.replaceMeal(state.meals, editingMealId, { type, foods: mealDraft })
-    : [...state.meals, { id: String(Date.now()), date: mealDate(), type, foods: mealDraft }];
+    ? Logic.replaceMeal(state.meals, editingMealId, { type, foods: mealDraft, note })
+    : [...state.meals, { id: String(Date.now()), date: mealDate(), type, foods: mealDraft, ...(note ? { note } : {}) }];
   for (const food of mealDraft) state.foodLibrary = Logic.rememberFood(state.foodLibrary, food);
   resetMealForm();
   saveState();
@@ -3121,6 +3208,9 @@ function init() {
   $("meal-form").addEventListener("submit", onMealAddFood);
   $("meal-save").addEventListener("click", onMealSave);
   $("meal-copy-previous").addEventListener("click", onMealCopyPrevious);
+  $("meal-calendar-prev").addEventListener("click", () => showMealCalendarMonth(-1));
+  $("meal-calendar-next").addEventListener("click", () => showMealCalendarMonth(1));
+  $("meal-calendar-today").addEventListener("click", () => selectMealDay(today()));
   $("water-minus").addEventListener("click", () => onWaterChange(-1));
   $("water-plus").addEventListener("click", () => onWaterChange(1));
   $("water-goal-form").addEventListener("submit", onWaterGoalSave);

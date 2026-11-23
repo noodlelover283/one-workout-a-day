@@ -503,9 +503,9 @@ I18n.register("pt", {
     "glossary.record.def": "Seu maior peso até agora em um exercício. Levantar mais que isso marca um novo recorde.",
 
     "sample.heading": "Dados de exemplo",
-    "sample.hint": "Adiciona treinos, rotinas e refeições de exemplo para explorar o app. Seus dados continuam e você pode remover os exemplos depois.",
+    "sample.hint": "Adiciona treinos, rotinas, duas semanas de refeições com notas, água, refeições favoritas e, se você ainda não tem, um Plano e metas de exemplo, para explorar o app. Seus dados ficam e você pode remover os exemplos.",
     "sample.remove": "Remover dados de exemplo",
-    "sample.removeConfirm": "Remover os treinos, rotinas e refeições de exemplo? Seus dados continuam.",
+    "sample.removeConfirm": "Remover os treinos, rotinas, refeições, água e favoritas de exemplo, e o Plano e as metas que ele preencheu? Seus dados ficam.",
     "toast.sampleRemoved": "Dados de exemplo removidos.",
 
     "log.back": "Voltar para Registro",
@@ -596,6 +596,11 @@ I18n.register("pt", {
     "meals.copyPrevious": "Copiar as refeições de {date}",
     "meals.copied": "Refeições de {date} copiadas",
     "meals.copyNothing": "Nenhuma refeição foi registrada em {date}, então não há nada para copiar.",
+    "meals.calendarToday": "Hoje",
+    "meals.calendarDay": "{date}",
+    "meals.calendarDayMeals": "{date}, com refeições registradas",
+    "meals.note": "Nota (opcional)",
+    "meals.notePlaceholder": "ex.: Comi fora, estimei as porções",
     "meals.proteinGoalHeading": "Meta diária de proteína",
     "meals.proteinGoalLabel": "Meta diária de proteína (g)",
     "meals.proteinGoalHint": "Deixe em branco e salve para usar a meta da aba Plano.",

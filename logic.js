@@ -583,15 +583,104 @@ const Logic = (() => {
     },
   };
 
-  // Two days of meals, as [daysAgo, meal type, [food, category, carbs in grams, calories, protein in grams, fat in grams]].
+  // The foods the sample meals are made from, as [name, category, carbs in grams, calories, protein in grams, fat in grams].
+  // Chips have only carbs entered, like a food logged in a hurry.
+  const SAMPLE_FOODS = {
+    oats: ["Oats", "carb", 54, 300, 10, 5],
+    eggs: ["Eggs", "protein", 1, 140, 12, 10],
+    banana: ["Banana", "carb", 27, 105, 1, 0],
+    chicken: ["Chicken", "protein", 0, 165, 31, 4],
+    rice: ["Rice", "carb", 45, 205, 4, 0],
+    broccoli: ["Broccoli", "vegetable", 6, 35, 3, 0],
+    salmon: ["Salmon", "protein", 0, 280, 25, 17],
+    sweetPotato: ["Sweet potato", "carb", 40, 170, 4, 0],
+    spinach: ["Spinach", "vegetable", 3, 20, 2, 0],
+    oliveOil: ["Olive oil", "fat", 0, 120, 0, 14],
+    turkeySandwich: ["Turkey sandwich", "carb", 36, 320, 22, 8],
+    apple: ["Apple", "carb", 25, 95, 0, 0],
+    beef: ["Beef", "protein", 0, 300, 26, 20],
+    pasta: ["Pasta", "carb", 60, 300, 11, 1],
+    greenBeans: ["Green beans", "vegetable", 7, 35, 2, 0],
+    yogurt: ["Greek yogurt", "protein", 6, 100, 17, 0],
+    almonds: ["Almonds", "fat", 6, 165, 6, 14],
+    shake: ["Protein shake", "protein", 8, 160, 30, 2],
+    pbToast: ["Peanut butter toast", "carb", 30, 300, 12, 16],
+    bowl: ["Chicken rice bowl", "carb", 85, 720, 52, 12],
+    beefPasta: ["Beef pasta", "carb", 105, 900, 48, 30],
+    burrito: ["Burrito", "carb", 90, 820, 38, 28],
+    pizza: ["Pizza (2 slices)", "carb", 72, 620, 26, 24],
+    chips: ["Chips", "other", 15],
+  };
+
+  // Two weeks of meals, as [daysAgo, meal type, [food keys], optional note]. Day 4 was not logged, today is partly
+  // logged, and the rest run from light days to days near a 3,000 calorie target.
   const SAMPLE_MEALS = [
-    [0, "breakfast", [["Oats", "carb", 54, 300, 10, 5], ["Eggs", "protein", 1, 140, 12, 10], ["Banana", "carb", 27, 105, 1, 0]]],
-    [0, "lunch", [["Chicken", "protein", 0, 165, 31, 4], ["Rice", "carb", 45, 205, 4, 0], ["Broccoli", "vegetable", 6, 35, 3, 0]]],
-    [0, "dinner", [["Salmon", "protein", 0, 280, 25, 17], ["Sweet potato", "carb", 40, 170, 4, 0], ["Spinach", "vegetable", 3, 20, 2, 0], ["Olive oil", "fat", 0, 120, 0, 14]]],
-    [1, "lunch", [["Turkey sandwich", "carb", 36, 320, 22, 8], ["Apple", "carb", 25, 95, 0, 0]]],
-    [1, "dinner", [["Beef", "protein", 0, 300, 26, 20], ["Pasta", "carb", 60, 300, 11, 1], ["Green beans", "vegetable", 7, 35, 2, 0]]],
-    [1, "snack", [["Greek yogurt", "protein", 6, 100, 17, 0], ["Almonds", "fat", 6, 165, 6, 14]]],
+    [0, "breakfast", ["oats", "eggs", "banana"]],
+    [0, "lunch", ["chicken", "rice", "broccoli"]],
+    [0, "dinner", ["salmon", "sweetPotato", "spinach", "oliveOil"]],
+    [1, "lunch", ["turkeySandwich", "apple"]],
+    [1, "dinner", ["beef", "pasta", "greenBeans"]],
+    [1, "snack", ["yogurt", "almonds"]],
+    [2, "breakfast", ["oats", "eggs", "banana", "pbToast"]],
+    [2, "lunch", ["bowl"]],
+    [2, "dinner", ["beefPasta"]],
+    [2, "snack", ["shake", "almonds"]],
+    [3, "breakfast", ["eggs", "pbToast", "banana"]],
+    [3, "lunch", ["turkeySandwich", "apple", "yogurt"]],
+    [3, "dinner", ["burrito"]],
+    [3, "snack", ["shake", "almonds"]],
+    [5, "breakfast", ["oats", "shake", "banana"]],
+    [5, "lunch", ["bowl"]],
+    [5, "dinner", ["salmon", "rice", "broccoli", "oliveOil"]],
+    [5, "snack", ["pbToast", "yogurt"]],
+    [6, "breakfast", ["eggs", "pbToast"]],
+    [6, "lunch", ["burrito"]],
+    [6, "dinner", ["pizza"], "Ate out, guessed the portions"],
+    [6, "snack", ["chips"]],
+    [7, "breakfast", ["oats", "eggs", "banana"]],
+    [7, "lunch", ["bowl"]],
+    [7, "dinner", ["beefPasta"]],
+    [7, "snack", ["shake", "almonds", "yogurt", "pbToast"]],
+    [8, "breakfast", ["oats", "eggs", "banana", "shake"]],
+    [8, "lunch", ["turkeySandwich", "apple"]],
+    [8, "dinner", ["salmon", "sweetPotato", "spinach", "oliveOil"]],
+    [8, "snack", ["pbToast", "almonds"]],
+    [9, "breakfast", ["oats", "eggs", "pbToast"]],
+    [9, "lunch", ["bowl"]],
+    [9, "dinner", ["burrito"]],
+    [9, "snack", ["shake", "almonds"]],
+    [10, "breakfast", ["eggs", "banana", "pbToast"]],
+    [10, "lunch", ["bowl"]],
+    [10, "dinner", ["beefPasta"]],
+    [10, "snack", ["yogurt", "almonds", "shake", "apple"]],
+    [11, "breakfast", ["oats", "banana"], "Light day, skipped the gym"],
+    [11, "lunch", ["turkeySandwich", "yogurt"]],
+    [11, "dinner", ["salmon", "rice", "spinach"]],
+    [11, "snack", ["pbToast"]],
+    [12, "breakfast", ["oats", "eggs", "banana", "pbToast"]],
+    [12, "lunch", ["bowl"], "Meal prepped on Sunday"],
+    [12, "dinner", ["beefPasta"]],
+    [12, "snack", ["shake", "almonds"]],
+    [13, "breakfast", ["oats", "eggs", "banana"]],
+    [13, "lunch", ["burrito"]],
+    [13, "dinner", ["chicken", "sweetPotato", "broccoli", "oliveOil"]],
+    [13, "snack", ["shake", "pbToast", "yogurt"]],
   ];
+
+  // Glasses of water on the days it was counted, as [daysAgo, glasses]. The sample's daily water goal is 8.
+  const SAMPLE_WATER = [[0, 3], [1, 8], [2, 7], [3, 8], [4, 6], [6, 9], [7, 7], [8, 8], [9, 5], [10, 8]];
+
+  // Two meals saved as favorites, as [name, meal type, [food keys]].
+  const SAMPLE_FAVORITES = [
+    ["Usual breakfast", "breakfast", ["oats", "eggs", "banana"]],
+    ["Chicken rice bowl", "lunch", ["bowl"]],
+  ];
+
+  // What the sample fills in when nothing of the kind is set yet: a Plan (a 30-year-old man, 178 cm, active, bulking),
+  // a daily carbs goal and a daily water goal.
+  const SAMPLE_PLAN = { sex: "male", diet: { age: 30, heightCm: 178, activity: "active", goal: "bulk", pace: 1, adjust: 0 } };
+  const SAMPLE_CARB_GOAL = 300;
+  const SAMPLE_WATER_GOAL = 8;
 
   function sampleData(today) {
     const now = new Date(today + "T00:00:00");
@@ -611,7 +700,7 @@ const Logic = (() => {
         }
       }
     }
-    const bodyweights = [[56, 172.0], [42, 173.5], [28, 174.2], [14, 175.8], [1, 176.5]].map(([ago, w]) => ({
+    const bodyweights = [[56, 172.0], [49, 172.6], [42, 173.5], [35, 173.8], [28, 174.2], [21, 175.0], [14, 175.8], [7, 176.1], [1, 176.5]].map(([ago, w]) => ({
       date: dayString(ago),
       weight: w,
       sample: true,
@@ -622,22 +711,57 @@ const Logic = (() => {
       exercises: lifts.map(([exercise]) => exercise),
       targets: Object.fromEntries(lifts.slice(0, 2).map(([exercise, sets, reps]) => [exercise, { sets, reps }])),
     }));
-    const meals = SAMPLE_MEALS.map(([daysAgo, type, foods], index) => ({
+    const toFood = ([name, category, carbs, calories, protein, fat]) => foodFields({ name, category, carbs, calories, protein, fat });
+    const meals = SAMPLE_MEALS.map(([daysAgo, type, foodKeys, note], index) => ({
       id: `sample-meal-${index}`,
       date: dayString(daysAgo),
       type,
-      foods: foods.map(([name, category, carbs, calories, protein, fat]) => ({ name, category, carbs, calories, protein, fat })),
+      foods: foodKeys.map((key) => toFood(SAMPLE_FOODS[key])),
+      ...(note ? { note } : {}),
     }));
-    return { entries, bodyweights, routines, meals };
+    const favoriteMeals = SAMPLE_FAVORITES.map(([name, type, foodKeys], index) => ({
+      id: `sample-favorite-${index}`,
+      name,
+      type,
+      foods: foodKeys.map((key) => toFood(SAMPLE_FOODS[key])),
+    }));
+    const water = Object.fromEntries(SAMPLE_WATER.map(([daysAgo, glasses]) => [dayString(daysAgo), glasses]));
+    return { entries, bodyweights, routines, meals, favoriteMeals, water };
   }
 
-  // The state's lists with the sample added. Anything already added is skipped, so loading twice changes nothing.
+  // The settings the sample can fill in, by name. Each is filled only when nothing of the kind is set yet, and
+  // the names it filled are kept (in sampleSettings) so removing the sample undoes only those.
+  const planUntouched = (data) => !data.diet || (data.diet.age === null && data.diet.heightCm === null && !data.sex);
+
+  // The state's data with the sample added: lists, favorites, water days and, where nothing is set yet, a Plan and
+  // goals. Anything already added is skipped, so loading twice changes nothing. Water days the user already counted
+  // are left as they are.
   function withSampleData(data, sample) {
     const missing = (have, extra) => extra.filter((item) => !have.some((existing) => existing.id === item.id));
+    const favorites = data.favoriteMeals || [];
+    const water = data.water || {};
+    const newWaterDays = Object.keys(sample.water || {}).filter((date) => !(date in water));
+    const settings = [...(data.sampleSettings || [])];
+    const filled = {};
+    const fill = (name, value) => {
+      if (!settings.includes(name)) settings.push(name);
+      Object.assign(filled, value);
+    };
+    if (planUntouched(data)) fill("plan", { sex: SAMPLE_PLAN.sex, diet: { ...SAMPLE_PLAN.diet } });
+    if (data.carbGoal === null || data.carbGoal === undefined) fill("carbGoal", { carbGoal: SAMPLE_CARB_GOAL });
+    if (data.waterGoal === null || data.waterGoal === undefined) fill("waterGoal", { waterGoal: SAMPLE_WATER_GOAL });
     return {
       entries: [...data.entries, ...missing(data.entries, sample.entries)],
       routines: [...data.routines, ...missing(data.routines, sample.routines)],
       meals: [...data.meals, ...missing(data.meals, sample.meals)],
+      favoriteMeals: [
+        ...favorites,
+        ...missing(favorites, sample.favoriteMeals || []).filter((fav) => !favorites.some((known) => known.name.toLowerCase() === fav.name.toLowerCase())),
+      ],
+      water: { ...water, ...Object.fromEntries(newWaterDays.map((date) => [date, sample.water[date]])) },
+      sampleWater: [...new Set([...(data.sampleWater || []), ...newWaterDays])],
+      sampleSettings: settings,
+      ...filled,
       bodyweights: [
         ...data.bodyweights,
         ...sample.bodyweights.filter((weight) => !data.bodyweights.some((existing) => existing.sample && existing.date === weight.date)),
@@ -645,19 +769,37 @@ const Logic = (() => {
     };
   }
 
-  // The state's lists without any sample data. The user's own entries, routines, meals and weights stay.
+  // The state's data without any sample data. The user's own entries, routines, meals, favorites, water and weights
+  // stay, and so do settings the sample did not fill in.
   function withoutSampleData(data) {
     const real = (item) => !isSampleId(item.id);
+    const filled = data.sampleSettings || [];
+    const water = { ...(data.water || {}) };
+    for (const date of data.sampleWater || []) delete water[date];
     return {
       entries: data.entries.filter(real),
       routines: data.routines.filter(real),
       meals: data.meals.filter(real),
+      favoriteMeals: (data.favoriteMeals || []).filter(real),
+      water,
+      sampleWater: [],
+      sampleSettings: [],
+      ...(filled.includes("plan") ? { sex: "", diet: { ...DEFAULT_DIET } } : {}),
+      ...(filled.includes("carbGoal") ? { carbGoal: null } : {}),
+      ...(filled.includes("waterGoal") ? { waterGoal: null } : {}),
       bodyweights: data.bodyweights.filter((weight) => !weight.sample),
     };
   }
 
   const hasSampleData = (data) =>
-    [...data.entries, ...data.routines, ...data.meals].some((item) => isSampleId(item.id)) || data.bodyweights.some((weight) => weight.sample);
+    [...data.entries, ...data.routines, ...data.meals, ...(data.favoriteMeals || [])].some((item) => isSampleId(item.id)) ||
+    data.bodyweights.some((weight) => weight.sample) ||
+    (data.sampleWater || []).length > 0;
+
+  // Keeps only valid saved sample bookkeeping: the dates of water days the sample added, and the names of the
+  // settings it filled in.
+  const sanitizeSampleWater = (saved) => (Array.isArray(saved) ? saved.filter((date) => typeof date === "string" && DATE_PATTERN.test(date)) : []);
+  const sanitizeSampleSettings = (saved) => (Array.isArray(saved) ? saved.filter((name) => ["plan", "carbGoal", "waterGoal"].includes(name)) : []);
 
   // One well-reviewed tutorial video (a YouTube video id) for each built-in exercise.
   const DEMO_VIDEOS = {
@@ -1398,9 +1540,23 @@ const Logic = (() => {
       .map((meal, index) => ({ ...meal, id: `${newIdBase}-${index}`, date: toDate, foods: meal.foods.map((food) => ({ ...food })) }));
   }
 
-  // The meals with one replaced by a new type and foods; it keeps its id and its day. An unknown id changes nothing.
-  function replaceMeal(meals, id, { type, foods }) {
-    return meals.map((meal) => (meal.id === id ? { ...meal, type, foods } : meal));
+  const MAX_MEAL_NOTE_LENGTH = 200;
+
+  // A note typed for a meal, trimmed and cut to the longest allowed. Empty when there is nothing to keep.
+  function cleanMealNote(text) {
+    return typeof text === "string" ? text.trim().slice(0, MAX_MEAL_NOTE_LENGTH) : "";
+  }
+
+  // The meals with one replaced by a new type, foods and note; it keeps its id and its day. An empty note is
+  // not kept. An unknown id changes nothing.
+  function replaceMeal(meals, id, { type, foods, note = "" }) {
+    const kept = cleanMealNote(note);
+    return meals.map((meal) => {
+      if (meal.id !== id) return meal;
+      const replaced = { ...meal, type, foods };
+      delete replaced.note;
+      return kept ? { ...replaced, note: kept } : replaced;
+    });
   }
 
   // How close to the calorie target a day must be to count as on target: within this share of it, either side.
@@ -1525,7 +1681,13 @@ const Logic = (() => {
           meal.foods.length > 0 &&
           meal.foods.every(isValidFood)
       )
-      .map((meal) => ({ id: meal.id, date: meal.date, type: meal.type, foods: meal.foods.map(foodFields) }));
+      .map((meal) => ({
+        id: meal.id,
+        date: meal.date,
+        type: meal.type,
+        foods: meal.foods.map(foodFields),
+        ...(cleanMealNote(meal.note) ? { note: cleanMealNote(meal.note) } : {}),
+      }));
   }
 
   // ---------- Water: glasses drunk per day, with an optional daily goal ----------
@@ -1605,6 +1767,8 @@ const Logic = (() => {
     saveFavoriteMeal,
     mealFromFavorite,
     sanitizeFavoriteMeals,
+    sanitizeSampleWater,
+    sanitizeSampleSettings,
     ACTIVITY_LEVELS,
     DIET_GOALS,
     PACE_LB_PER_WEEK,
@@ -1629,6 +1793,7 @@ const Logic = (() => {
     validateProteinGoal,
     sanitizeProteinGoal,
     averageCalories,
+    cleanMealNote,
     nutrientByDay,
     daysOnTarget,
     ON_TARGET_TOLERANCE,

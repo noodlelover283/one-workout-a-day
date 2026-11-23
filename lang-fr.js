@@ -503,9 +503,9 @@ I18n.register("fr", {
     "glossary.record.def": "Votre charge la plus lourde jusqu'ici pour un exercice. Soulever plus bat le record.",
 
     "sample.heading": "Données d'exemple",
-    "sample.hint": "Ajoute des séances, routines et repas d'exemple pour explorer l'appli. Vos propres données restent, et vous pouvez retirer les exemples ensuite.",
+    "sample.hint": "Ajoute des entraînements, des routines, deux semaines de repas avec notes, de l’eau, des repas favoris et, si vous n’en avez pas encore, un Plan et des objectifs d’exemple, pour explorer l’appli. Vos données restent et vous pouvez retirer les exemples.",
     "sample.remove": "Retirer les données d'exemple",
-    "sample.removeConfirm": "Retirer les séances, routines et repas d'exemple ? Vos propres données restent.",
+    "sample.removeConfirm": "Retirer les entraînements, routines, repas, l’eau et les favoris d’exemple, ainsi que le Plan et les objectifs qu’il a remplis ? Vos données restent.",
     "toast.sampleRemoved": "Données d'exemple retirées.",
 
     "log.back": "Retour à Journal",
@@ -596,6 +596,11 @@ I18n.register("fr", {
     "meals.copyPrevious": "Copier les repas du {date}",
     "meals.copied": "Repas du {date} copiés",
     "meals.copyNothing": "Aucun repas n’a été enregistré le {date}, il n’y a donc rien à copier.",
+    "meals.calendarToday": "Aujourd’hui",
+    "meals.calendarDay": "{date}",
+    "meals.calendarDayMeals": "{date}, repas enregistrés",
+    "meals.note": "Note (facultatif)",
+    "meals.notePlaceholder": "p. ex. Repas au restaurant, portions estimées",
     "meals.proteinGoalHeading": "Objectif de protéines quotidien",
     "meals.proteinGoalLabel": "Objectif de protéines quotidien (g)",
     "meals.proteinGoalHint": "Laissez vide et enregistrez pour utiliser l’objectif de l’onglet Plan.",

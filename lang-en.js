@@ -503,9 +503,9 @@ I18n.register("en", {
     "glossary.record.def": "Your heaviest weight so far for an exercise. Lifting more than that sets a new record.",
 
     "sample.heading": "Sample data",
-    "sample.hint": "Adds example workouts, routines and meals so you can explore the app. Your own data stays, and you can remove the examples again.",
+    "sample.hint": "Adds example workouts, routines, two weeks of meals with notes, water, favorite meals and, if you have none yet, a sample Plan and goals, so you can explore the app. Your own data stays, and you can remove the examples again.",
     "sample.remove": "Remove sample data",
-    "sample.removeConfirm": "Remove the sample workouts, routines and meals? Your own data stays.",
+    "sample.removeConfirm": "Remove the sample workouts, routines, meals, water, favorites and the Plan and goals it filled in? Your own data stays.",
     "toast.sampleRemoved": "Sample data removed.",
 
     "log.back": "Back to Log",
@@ -596,6 +596,11 @@ I18n.register("en", {
     "meals.copyPrevious": "Copy meals from {date}",
     "meals.copied": "Copied the meals from {date}",
     "meals.copyNothing": "No meals were logged on {date}, so there is nothing to copy.",
+    "meals.calendarToday": "Today",
+    "meals.calendarDay": "{date}",
+    "meals.calendarDayMeals": "{date}, meals logged",
+    "meals.note": "Note (optional)",
+    "meals.notePlaceholder": "e.g. Ate out, guessed the portions",
     "meals.proteinGoalHeading": "Daily protein goal",
     "meals.proteinGoalLabel": "Daily protein goal (g)",
     "meals.proteinGoalHint": "Leave it blank and save to use the Plan tab's target instead.",

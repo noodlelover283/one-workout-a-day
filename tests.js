@@ -2576,6 +2576,11 @@ test("the last walkthrough screen can take you to the Workout terms", async () =
 // ---------- Meal tracker ----------
 
 // Fills in the food row and adds it to the meal being built, the way a person would.
+// Saved meals show one line until tapped; this opens them all, so a test can read their foods and notes.
+function expandMeals(doc) {
+  for (const toggle of doc.querySelectorAll("#meal-list .meal-toggle[aria-expanded='false']")) toggle.click();
+}
+
 function addFoodToDraft(app, name, category, carbs, calories = "", protein = "", fat = "") {
   const set = (id, value) => {
     const field = app.doc.getElementById(id);
@@ -2601,6 +2606,7 @@ test("logging lunch with chicken, rice and broccoli shows each food's category a
     addFoodToDraft(app, "Rice", "carb", "45");
     addFoodToDraft(app, "Broccoli", "vegetable", "6");
     app.doc.getElementById("meal-save").click();
+    expandMeals(app.doc);
     const meals = [...app.doc.querySelectorAll("#meal-list .meal")];
     assertEqual(meals.length, 1, "meals listed:");
     const text = meals[0].innerText;
@@ -2986,6 +2992,7 @@ test("the Meals tab copies the day before into the chosen day, keeps meals alrea
 
     copyButton.click();
     assertEqual(mealCount(), 3, "today keeps its own meal and gains the two copies:");
+    expandMeals(doc);
     const text = doc.getElementById("meal-list").innerText;
     for (const expected of ["Toast", "Oats", "Salmon"]) if (!text.includes(expected)) throw new Error(`today's list should show ${expected}`);
     if (!doc.getElementById("meal-day-total").innerText.includes("74")) throw new Error("today's carbs should be 20 + 54 = 74 g");
@@ -3043,7 +3050,7 @@ test("on the Meals tab a meal can be saved as a favorite, added to another day i
     addFoodToDraft(app, "Eggs", "protein", "1", "140", "12");
     doc.getElementById("meal-save").click();
     app.win.prompt = () => "My usual breakfast";
-    doc.querySelector("#meal-list .meal > button").click();
+    doc.querySelector("#meal-list .meal-favorite").click();
     if (doc.getElementById("favorite-meals").classList.contains("hidden")) throw new Error("the favorite should now be listed");
     const favoriteText = doc.getElementById("favorite-list").innerText;
     for (const expected of ["My usual breakfast", "Oats", "Eggs"]) if (!favoriteText.includes(expected)) throw new Error(`the favorite should show ${expected}`);
@@ -3051,7 +3058,7 @@ test("on the Meals tab a meal can be saved as a favorite, added to another day i
 
     // A cancelled name saves nothing.
     app.win.prompt = () => null;
-    doc.querySelector("#meal-list .meal > button").click();
+    doc.querySelector("#meal-list .meal-favorite").click();
     assertEqual(savedData(app).favoriteMeals.length, 1, "cancelling the name adds no favorite:");
 
     chooseDay(tomorrow);
@@ -3268,6 +3275,182 @@ test("the Weekly check says how much you ate over the same days as the weight ch
   }
 });
 
+test("a meal note is trimmed and cut to 200 characters, kept through editing, dropped when emptied, and carried by copies", () => {
+  assertEqual([Logic.cleanMealNote("  Ate out  "), Logic.cleanMealNote("x".repeat(300)).length, Logic.cleanMealNote("   "), Logic.cleanMealNote(undefined)], ["Ate out", 200, "", ""]);
+  const foods = [{ name: "Rice", category: "carb", carbs: 45 }];
+  const meals = [{ id: "a", date: "2026-11-01", type: "lunch", foods, note: "Ate out" }, { id: "b", date: "2026-11-01", type: "dinner", foods }];
+  assertEqual(Logic.replaceMeal(meals, "a", { type: "lunch", foods, note: " Home " })[0].note, "Home", "a changed note:");
+  assertEqual("note" in Logic.replaceMeal(meals, "a", { type: "lunch", foods, note: "" })[0], false, "an emptied note is not kept:");
+  assertEqual(Logic.replaceMeal(meals, "b", { type: "dinner", foods, note: "Late" })[1].note, "Late", "a note added to a meal without one:");
+  assertEqual(Logic.sanitizeMeals(meals).map((meal) => meal.note), ["Ate out", undefined], "notes survive loading:");
+  assertEqual(Logic.sanitizeMeals([{ ...meals[0], note: 5 }])[0].note, undefined, "a note that is not text is dropped:");
+  assertEqual(Logic.copyMealsToDay(meals, "2026-11-01", "2026-11-02", "x").map((meal) => meal.note), ["Ate out", undefined], "copying a day copies its notes:");
+});
+
+test("on the Meals tab a note can be written on a meal, shows on its card, comes back when editing, and can be removed", async () => {
+  const app = await openApp();
+  try {
+    const doc = app.doc;
+    showTab(app, "meals");
+    addFoodToDraft(app, "Rice", "carb", "45");
+    doc.getElementById("meal-note").value = "Ate out, guessed the portions";
+    doc.getElementById("meal-save").click();
+    expandMeals(doc);
+    if (!doc.querySelector("#meal-list .meal-note")?.innerText.includes("Ate out")) throw new Error("the meal card should show its note");
+    assertEqual(doc.getElementById("meal-note").value, "", "the note box is empty for the next meal:");
+
+    doc.querySelector("#meal-list .meal-edit").click();
+    assertEqual(doc.getElementById("meal-note").value, "Ate out, guessed the portions", "editing brings the note back:");
+    doc.getElementById("meal-note").value = "Cooked at home";
+    doc.getElementById("meal-save").click();
+    if (!doc.querySelector("#meal-list .meal-note").innerText.includes("Cooked at home")) throw new Error("the changed note should show");
+    assertEqual(savedData(app).meals.length, 1, "editing keeps one meal:");
+
+    doc.querySelector("#meal-list .meal-edit").click();
+    doc.getElementById("meal-note").value = "";
+    doc.getElementById("meal-save").click();
+    if (doc.querySelector("#meal-list .meal-note")) throw new Error("an emptied note should not show");
+    assertEqual("note" in savedData(app).meals[0], false, "an emptied note is not saved:");
+    if (app.errors.length) throw new Error(`the app raised errors: ${app.errors.join("; ")}`);
+  } finally {
+    closeApp(app);
+  }
+});
+
+test("a saved meal shows one line until it is tapped, then its foods and buttons, and stays open while the list is redrawn", async () => {
+  const app = await openApp();
+  try {
+    const doc = app.doc;
+    showTab(app, "meals");
+    addFoodToDraft(app, "Oats", "carb", "54", "300", "10");
+    addFoodToDraft(app, "Eggs", "protein", "1", "140", "12");
+    doc.getElementById("meal-save").click();
+    const toggle = () => doc.querySelector("#meal-list .meal-toggle");
+    const card = () => doc.querySelector("#meal-list .meal");
+    assertEqual(toggle().getAttribute("aria-expanded"), "false", "a new meal starts closed:");
+    if (!toggle().innerText.includes("440 kcal") || !toggle().innerText.includes("55 g carbs")) throw new Error(`the one line should give calories and carbs: "${toggle().innerText}"`);
+    if (card().innerText.includes("Oats")) throw new Error("a closed meal should not list its foods");
+    if (card().innerText.includes("Edit")) throw new Error("a closed meal should not show its buttons");
+
+    toggle().click();
+    assertEqual(toggle().getAttribute("aria-expanded"), "true", "tapping opens it:");
+    for (const expected of ["Oats", "Eggs", "10 g protein", "Edit", "Delete", "Save as favorite"]) if (!card().innerText.includes(expected)) throw new Error(`an open meal should show "${expected}": ${card().innerText}`);
+
+    addFoodToDraft(app, "Toast", "carb", "20");
+    doc.getElementById("meal-save").click();
+    const cards = [...doc.querySelectorAll("#meal-list .meal")];
+    assertEqual(cards.map((meal) => meal.classList.contains("expanded")), [true, false], "the open meal stays open and the new one starts closed:");
+    toggle().click();
+    assertEqual(toggle().getAttribute("aria-expanded"), "false", "tapping again closes it:");
+    if (app.errors.length) throw new Error(`the app raised errors: ${app.errors.join("; ")}`);
+  } finally {
+    closeApp(app);
+  }
+});
+
+test("the sample data covers two weeks of meals with notes, fat and a gap, plus water, favorites, a Plan and goals, and removing it undoes only what it filled in", async () => {
+  const app = await openApp({ brandNew: true });
+  try {
+    const doc = app.doc;
+    app.win.confirm = () => true;
+    doc.getElementById("display-toggle").click();
+    doc.getElementById("sample-load").click();
+    let data = savedData(app);
+    const days = new Set(data.meals.map((meal) => meal.date));
+    if (days.size < 10) throw new Error(`the sample should log meals on at least 10 days, but has ${days.size}`);
+    const foods = data.meals.flatMap((meal) => meal.foods);
+    if (!data.meals.some((meal) => meal.note)) throw new Error("the sample should include a meal with a note");
+    if (!foods.some((food) => typeof food.fat === "number")) throw new Error("the sample should include foods with fat");
+    if (!foods.some((food) => food.calories === undefined)) throw new Error("the sample should include a food logged without calories");
+    if (!data.meals.some((meal) => meal.type === "snack")) throw new Error("the sample should include snacks");
+    if (data.favoriteMeals.length < 2) throw new Error(`the sample should include favorite meals, but has ${data.favoriteMeals.length}`);
+    if (Object.keys(data.water).length < 7) throw new Error("the sample should count water on at least 7 days");
+    if (!(data.diet.age && data.diet.heightCm && data.sex)) throw new Error("the sample should fill in the Plan when it is empty");
+    assertEqual([typeof data.carbGoal, data.waterGoal], ["number", 8], "the sample's goals:");
+    const todayText = Logic.toDateString(new Date());
+    if (!data.meals.some((meal) => meal.date === todayText)) throw new Error("the sample should have meals today");
+    if (Logic.weightTrend(data.bodyweights, todayText) === null) throw new Error("the sample's weigh-ins should be enough for a trend");
+    for (const meal of data.meals) {
+      if (Logic.sanitizeMeals([meal]).length !== 1) throw new Error(`a sample meal would not survive loading: ${JSON.stringify(meal)}`);
+    }
+    assertEqual(Logic.sanitizeFavoriteMeals(data.favoriteMeals).length, data.favoriteMeals.length, "sample favorites are valid:");
+
+    doc.getElementById("sample-remove").click();
+    data = savedData(app);
+    assertEqual([data.meals.length, data.favoriteMeals.length, Object.keys(data.water).length], [0, 0, 0], "meals, favorites and water are gone:");
+    assertEqual([data.carbGoal, data.waterGoal, data.sex, data.diet.age], [null, null, "", null], "the goals and Plan the sample filled in are cleared:");
+    if (app.errors.length) throw new Error(`the app raised errors: ${app.errors.join("; ")}`);
+  } finally {
+    closeApp(app);
+  }
+});
+
+test("loading the sample leaves your own Plan, goals and water counts alone, and removing it keeps them", async () => {
+  const todayText = Logic.toDateString(new Date());
+  const mine = { ...screenTestData(), carbGoal: 180, waterGoal: 12, water: { [todayText]: 2 } };
+  const app = await openApp({ data: mine });
+  try {
+    const doc = app.doc;
+    app.win.confirm = () => true;
+    doc.getElementById("display-toggle").click();
+    doc.getElementById("sample-load").click();
+    let data = savedData(app);
+    assertEqual([data.carbGoal, data.waterGoal, data.diet.age, data.sex], [180, 12, 30, "male"], "your goals and Plan are untouched:");
+    assertEqual(data.water[todayText], 2, "the day you counted keeps your count:");
+    if (Object.keys(data.water).length < 7) throw new Error("the other sample water days should still be added");
+
+    doc.getElementById("sample-remove").click();
+    data = savedData(app);
+    assertEqual([data.carbGoal, data.waterGoal, data.diet.age, data.sex], [180, 12, 30, "male"], "removing keeps your goals and Plan:");
+    assertEqual(data.water, { [todayText]: 2 }, "removing keeps only your own water count:");
+    if (app.errors.length) throw new Error(`the app raised errors: ${app.errors.join("; ")}`);
+  } finally {
+    closeApp(app);
+  }
+});
+
+test("the Meals tab has a month calendar: days with meals are marked, tapping a day shows that day's meals, and Today comes back", async () => {
+  const app = await openApp();
+  try {
+    const doc = app.doc;
+    showTab(app, "meals");
+    const todayDate = Logic.toDateString(new Date());
+    const dayBeforeDate = Logic.dayBefore(todayDate);
+    const cell = (date) => doc.querySelector(`#meal-calendar-grid button[data-date="${date}"]`);
+    const heading = () => doc.getElementById("meal-day-heading").innerText;
+    const mealCount = () => doc.querySelectorAll("#meal-list .meal").length;
+
+    if (!cell(todayDate)?.classList.contains("selected")) throw new Error("today should start picked");
+    assertEqual(cell(todayDate).getAttribute("aria-pressed"), "true", "today is marked as pressed:");
+    if (cell(todayDate).classList.contains("has-meals")) throw new Error("a day with no meals should not be marked");
+    if (!doc.getElementById("meal-calendar-today").classList.contains("hidden")) throw new Error("Today needs no button while today is picked");
+
+    addFoodToDraft(app, "Toast", "carb", "20");
+    doc.getElementById("meal-save").click();
+    if (!cell(todayDate).classList.contains("has-meals")) throw new Error("saving a meal should mark its day");
+    assertEqual(mealCount(), 1, "today has its meal:");
+
+    // Go to the day before (it may be in the previous month), log a different meal there.
+    if (!cell(dayBeforeDate)) doc.getElementById("meal-calendar-prev").click();
+    cell(dayBeforeDate).click();
+    assertEqual(mealCount(), 0, "the day before starts empty:");
+    if (!cell(dayBeforeDate).classList.contains("selected") || cell(todayDate)?.classList.contains("selected")) throw new Error("the ring should move to the day tapped");
+    if (doc.getElementById("meal-calendar-today").classList.contains("hidden")) throw new Error("Today should offer a way back when another day is picked");
+    addFoodToDraft(app, "Oats", "carb", "54");
+    doc.getElementById("meal-save").click();
+    if (!doc.getElementById("meal-list").innerText.includes("54 g carbs") && !doc.getElementById("meal-day-total").innerText.includes("54")) throw new Error("that day should show its own meal");
+    assertEqual(savedData(app).meals.map((meal) => meal.date).sort(), [dayBeforeDate, todayDate].sort(), "each meal is saved on its own day:");
+
+    doc.getElementById("meal-calendar-today").click();
+    assertEqual(mealCount(), 1, "Today shows today's meal again:");
+    if (!doc.getElementById("meal-day-total").innerText.includes("20")) throw new Error("today's carbs should be 20 g");
+    if (!heading().trim()) throw new Error("the picked day needs a heading");
+    if (app.errors.length) throw new Error(`the app raised errors: ${app.errors.join("; ")}`);
+  } finally {
+    closeApp(app);
+  }
+});
+
 // ---------- Fat ----------
 
 test("fat is an optional food number: checked, kept only when entered, and totalled per meal and per day", () => {
@@ -3298,6 +3481,7 @@ test("on the Meals tab fat can be entered on a food, shows in the totals and the
     doc.getElementById("meal-save").click();
     const dayText = doc.getElementById("meal-day-nutrition").innerText;
     if (!dayText.includes("Fat: 20 g")) throw new Error(`the day should say Fat: 20 g: "${dayText}"`);
+    expandMeals(doc);
     if (!doc.querySelector("#meal-list .meal").innerText.includes("20 g fat")) throw new Error("the meal should say 20 g fat");
     const split = doc.getElementById("meal-macro-split").innerText;
     for (const expected of ["Carbs 42%", "Protein 21%", "Fat 37%", "Other 0%"]) if (!split.includes(expected)) throw new Error(`the split should say ${expected}: "${split}"`);
@@ -3409,6 +3593,7 @@ test("tapping Edit on a saved meal loads it into the form, and Save changes repl
     broccoli.querySelector("button.food-remove").click();
     doc.getElementById("meal-save").click();
     assertEqual(doc.querySelectorAll("#meal-list .meal").length, 1, "still one meal:");
+    expandMeals(doc);
     if (!card().innerText.includes("45 g carbs") || card().innerText.includes("Broccoli")) throw new Error(`the meal reads "${card().innerText}"`);
     if (!total().includes("45")) throw new Error(`the day's total should drop to 45: "${total()}"`);
     const saved = savedData(app).meals;
@@ -3508,6 +3693,7 @@ test("a meal's calories and protein show on its foods and card, and the day show
     addFoodToDraft(app, "Rice", "carb", "45", "205", "4");
     addFoodToDraft(app, "Broccoli", "vegetable", "6", "35", "3");
     doc.getElementById("meal-save").click();
+    expandMeals(doc);
     const lunch = [...doc.querySelectorAll("#meal-list .meal")].find((card) => card.innerText.includes("Lunch"));
     for (const expected of ["405 kcal", "38 g protein", "165 kcal", "31 g protein"]) {
       if (!lunch.innerText.includes(expected)) throw new Error(`the lunch card should show "${expected}": ${lunch.innerText}`);
@@ -3548,6 +3734,7 @@ test("remembered foods fill in calories and protein, editing a food changes them
     doc.getElementById("meal-food-calories").value = "300";
     doc.getElementById("meal-add-food").click();
     doc.getElementById("meal-save").click();
+    expandMeals(doc);
     if (!doc.querySelector("#meal-list .meal").innerText.includes("300 kcal")) throw new Error("the meal should now show 300 kcal");
 
     for (const [field, value] of [["meal-food-calories", "-5"], ["meal-food-protein", "9999"]]) {
