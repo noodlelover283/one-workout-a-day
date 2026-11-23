@@ -1390,6 +1390,14 @@ const Logic = (() => {
     return meals.map((meal) => (meal.id === id ? { ...meal, type, foods } : meal));
   }
 
+  // How close to the calorie target a day must be to count as on target: within this share of it, either side.
+  const ON_TARGET_TOLERANCE = 0.1;
+
+  // How many of the days (from nutrientByDay) were on target. A day with no calories entered (null) is not.
+  function daysOnTarget(days, target) {
+    return days.filter((day) => day.value !== null && Math.abs(day.value - target) <= target * ON_TARGET_TOLERANCE).length;
+  }
+
   const CHART_NUTRIENTS = ["carbs", "protein", "calories", "fat"];
 
   // How much of one nutrient ("carbs", "protein", "calories" or "fat") was eaten on each of the last `days` days
@@ -1405,6 +1413,15 @@ const Logic = (() => {
       return { date, value: dayTotal(meals, date) };
     });
   }
+
+  const MAX_PROTEIN_GOAL = 500;
+
+  // Checks a daily protein goal in grams. null means no goal of your own (the Plan's target is used), which is allowed.
+  function validateProteinGoal(goal) {
+    return goal === null || (goal >= 1 && goal <= MAX_PROTEIN_GOAL) ? "" : "error.proteinGoal";
+  }
+
+  const sanitizeProteinGoal = (saved) => (typeof saved === "number" && validateProteinGoal(saved) === "" ? saved : null);
 
   const MAX_CARB_GOAL = 2000;
 
@@ -1596,7 +1613,11 @@ const Logic = (() => {
     dayProtein,
     foodFields,
     dayCarbs,
+    validateProteinGoal,
+    sanitizeProteinGoal,
     nutrientByDay,
+    daysOnTarget,
+    ON_TARGET_TOLERANCE,
     dayBefore,
     copyMealsToDay,
     CHART_NUTRIENTS,

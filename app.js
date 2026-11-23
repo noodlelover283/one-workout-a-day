@@ -39,6 +39,7 @@ function loadState() {
     water: {},
     waterGoal: null,
     carbGoal: null,
+    proteinGoal: null,
     diet: { ...Logic.DEFAULT_DIET },
     tourDone: false,
     section: "workout",
@@ -67,6 +68,7 @@ function normalizeState(saved) {
   loaded.water = Logic.sanitizeWater(saved.water);
   loaded.waterGoal = Logic.sanitizeWaterGoal(saved.waterGoal);
   loaded.carbGoal = Logic.sanitizeCarbGoal(saved.carbGoal);
+  loaded.proteinGoal = Logic.sanitizeProteinGoal(saved.proteinGoal);
   loaded.diet = Logic.sanitizeDiet(saved.diet);
   loaded.section = saved.section === "diet" ? "diet" : "workout";
   // Anyone with saved data from before the walkthrough existed counts as having seen it.
@@ -2214,6 +2216,9 @@ function renderMeals() {
       ? t("meals.totalOver", { grams: eaten, goal: state.carbGoal, over: status.over })
       : t("meals.totalGoal", { grams: eaten, goal: state.carbGoal, left: status.left });
   if (document.activeElement !== $("carb-goal")) $("carb-goal").value = state.carbGoal === null ? "" : state.carbGoal;
+  if (document.activeElement !== $("protein-goal")) $("protein-goal").value = state.proteinGoal === null ? "" : state.proteinGoal;
+  const planProtein = Logic.calorieTarget(state.diet, state.sex, Logic.latestBodyweight(state.bodyweights));
+  $("protein-goal").placeholder = planProtein ? t("meals.proteinGoalPlan", { grams: planProtein.protein }) : "";
   renderDayNutrition();
   renderCarbChart();
   $("meal-copy-previous").textContent = t("meals.copyPrevious", { date: I18n.formatShortDate(Logic.dayBefore(mealDate())) });
@@ -2223,6 +2228,13 @@ function renderMeals() {
 }
 
 // The day's calories and protein, against the Plan tab's target when there is one.
+// The daily protein goal in grams: the one typed on this tab, otherwise the Plan tab's target, otherwise none.
+function proteinGoal() {
+  if (state.proteinGoal !== null) return state.proteinGoal;
+  const plan = Logic.calorieTarget(state.diet, state.sex, Logic.latestBodyweight(state.bodyweights));
+  return plan ? plan.protein : null;
+}
+
 function renderDayNutrition() {
   const date = mealDate();
   const calories = Logic.dayCalories(state.meals, date);
@@ -2237,7 +2249,8 @@ function renderDayNutrition() {
     else lines.push(t("meals.dayCaloriesTarget", { kcal: number(calories), target: number(plan.target), left: number(status.left) }));
   }
   if (protein !== null) {
-    lines.push(plan ? t("meals.dayProteinGoal", { grams: number(protein), goal: number(plan.protein) }) : t("meals.dayProtein", { grams: number(protein) }));
+    const goal = proteinGoal();
+    lines.push(goal === null ? t("meals.dayProtein", { grams: number(protein) }) : t("meals.dayProteinGoal", { grams: number(protein), goal: number(goal) }));
   }
   const fat = Logic.dayFat(state.meals, date);
   if (fat !== null) lines.push(t("meals.dayFat", { grams: number(fat) }));
@@ -2549,9 +2562,9 @@ const CHART_TEXT = {
 function chartGoal() {
   if (chartNutrient === "carbs") return state.carbGoal;
   if (chartNutrient === "fat") return null;
+  if (chartNutrient === "protein") return proteinGoal();
   const plan = Logic.calorieTarget(state.diet, state.sex, Logic.latestBodyweight(state.bodyweights));
-  if (!plan) return null;
-  return chartNutrient === "protein" ? plan.protein : plan.target;
+  return plan ? plan.target : null;
 }
 
 function renderCarbChart() {
@@ -2568,6 +2581,22 @@ function renderCarbChart() {
     days.some((day) => day.value > 0) ? barChart(days, chartGoal(), picked) : el("p", "empty", t(CHART_TEXT[chartNutrient].empty))
   );
   $("carb-chart-detail").textContent = picked ? carbDayText(picked) : "";
+  renderOnTarget(days);
+}
+
+// Under the chart: how many of the days shown were close to the chart's goal (the carbs goal, or the Plan's
+// protein or calorie target). Fat has no goal, so it shows nothing.
+function renderOnTarget(days) {
+  const goal = chartGoal();
+  const show = goal !== null && days.some((day) => day.value > 0);
+  $("carb-chart-target").classList.toggle("hidden", !show);
+  if (!show) return;
+  $("carb-chart-target").textContent = t(chartNutrient === "calories" ? "meals.onTarget" : "meals.onTargetGrams", {
+    count: Logic.daysOnTarget(days, goal),
+    days: days.length,
+    percent: Logic.ON_TARGET_TOLERANCE * 100,
+    target: goal.toLocaleString(I18n.locale()),
+  });
 }
 
 const carbDayText = (day) =>
@@ -2655,6 +2684,19 @@ function onCarbRangeChange(event) {
 function onChartNutrientChange(event) {
   chartNutrient = event.currentTarget.dataset.nutrient;
   renderCarbChart();
+}
+
+function onProteinGoalSave(event) {
+  event.preventDefault();
+  const text = $("protein-goal").value.trim();
+  const goal = text === "" ? null : Number(text);
+  const error = Logic.validateProteinGoal(goal);
+  $("protein-goal-error").textContent = errorText(error);
+  if (error) return;
+  state.proteinGoal = goal;
+  saveState();
+  renderMeals();
+  showToast(t(goal === null ? "meals.goalRemoved" : "meals.goalSaved"));
 }
 
 function onCarbGoalSave(event) {
@@ -3069,6 +3111,7 @@ function init() {
   $("meal-cancel").addEventListener("click", onMealEditCancel);
   $("meal-food-cancel").addEventListener("click", onFoodEditCancel);
   $("carb-goal-form").addEventListener("submit", onCarbGoalSave);
+  $("protein-goal-form").addEventListener("submit", onProteinGoalSave);
   for (const button of document.querySelectorAll("#tab-meals [data-days]")) button.addEventListener("click", onCarbRangeChange);
   for (const button of document.querySelectorAll("#tab-meals [data-nutrient]")) button.addEventListener("click", onChartNutrientChange);
   $("meal-food-name").addEventListener("input", onMealFoodNameInput);

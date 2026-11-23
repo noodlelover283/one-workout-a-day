@@ -3128,6 +3128,114 @@ test("the Meals tab counts glasses of water for the chosen day, shows the goal, 
   }
 });
 
+// ---------- Days on target ----------
+
+test("a day is on target when its calories are within 10% of the target, either side, and a day with none entered is not", () => {
+  const days = [2200, 2000, 1800, 1799, 2201, 2400, null, 0].map((value, index) => ({ date: `2026-11-0${index + 1}`, value }));
+  assertEqual(Logic.daysOnTarget(days, 2000), 3, "exactly 10% over, exact and exactly 10% under count; just outside, far outside, none and 0 do not:");
+  assertEqual(Logic.daysOnTarget([], 2000), 0, "no days:");
+});
+
+test("under the calories chart, a line says how many of the days shown were on the Plan's calorie target", async () => {
+  const app = await openApp();
+  try {
+    const doc = app.doc;
+    showTab(app, "meals");
+    const data = savedData(app);
+    const plan = Logic.calorieTarget(data.diet, data.sex, Logic.latestBodyweight(data.bodyweights));
+    const line = () => doc.getElementById("carb-chart-target");
+    if (!plan) throw new Error("the test data should have a Plan");
+
+    doc.getElementById("chart-nutrient-calories").click();
+    if (!line().classList.contains("hidden")) throw new Error("with no calories logged there is nothing to count");
+
+    addFoodToDraft(app, "Dinner", "other", "0", String(plan.target), "");
+    doc.getElementById("meal-save").click();
+    if (line().classList.contains("hidden")) throw new Error("a day with calories should show the line");
+    if (!line().innerText.includes("1 of the last 7 days")) throw new Error(`today is on target: "${line().innerText}"`);
+    doc.getElementById("carb-range-30").click();
+    if (!line().innerText.includes("1 of the last 30 days")) throw new Error(`the 30 day range should say so: "${line().innerText}"`);
+
+    doc.getElementById("chart-nutrient-protein").click();
+    if (!line().classList.contains("hidden")) throw new Error("no protein was entered, so the protein chart has nothing to count");
+    doc.getElementById("chart-nutrient-calories").click();
+
+    addFoodToDraft(app, "Feast", "other", "0", String(plan.target));
+    doc.getElementById("meal-save").click();
+    if (!line().innerText.includes("0 of the last 30 days")) throw new Error(`a day at double the target is not on target: "${line().innerText}"`);
+    if (app.errors.length) throw new Error(`the app raised errors: ${app.errors.join("; ")}`);
+  } finally {
+    closeApp(app);
+  }
+});
+
+test("the on-target line also works on the carbs and protein charts, against their own goals, and fat has none", async () => {
+  const app = await openApp();
+  try {
+    const doc = app.doc;
+    showTab(app, "meals");
+    const data = savedData(app);
+    const plan = Logic.calorieTarget(data.diet, data.sex, Logic.latestBodyweight(data.bodyweights));
+    const line = () => doc.getElementById("carb-chart-target");
+    addFoodToDraft(app, "Rice", "carb", "250", "", String(plan.protein), "20");
+    doc.getElementById("meal-save").click();
+
+    doc.getElementById("chart-nutrient-carbs").click();
+    if (!line().classList.contains("hidden")) throw new Error("with no carbs goal set there is nothing to compare against");
+    doc.getElementById("carb-goal-fold").open = true;
+    doc.getElementById("carb-goal").value = "250";
+    doc.getElementById("carb-goal-save").click();
+    if (!line().innerText.includes("1 of the last 7 days") || !line().innerText.includes("250 g")) throw new Error(`carbs: "${line().innerText}"`);
+
+    doc.getElementById("chart-nutrient-protein").click();
+    if (!line().innerText.includes("1 of the last 7 days") || !line().innerText.includes(`${plan.protein} g`)) throw new Error(`protein: "${line().innerText}"`);
+
+    doc.getElementById("chart-nutrient-fat").click();
+    if (!line().classList.contains("hidden")) throw new Error("fat has no goal, so the line should be hidden");
+    if (app.errors.length) throw new Error(`the app raised errors: ${app.errors.join("; ")}`);
+  } finally {
+    closeApp(app);
+  }
+});
+
+test("a protein goal of your own is checked, and replaces the Plan's protein target on the Meals tab until you clear it", async () => {
+  assertEqual([0, 1, 150, 500, 501, -5, NaN].map((goal) => Logic.validateProteinGoal(goal)), ["error.proteinGoal", "", "", "", "error.proteinGoal", "error.proteinGoal", "error.proteinGoal"]);
+  assertEqual([Logic.validateProteinGoal(null), Logic.sanitizeProteinGoal(150), Logic.sanitizeProteinGoal("150"), Logic.sanitizeProteinGoal(-3), Logic.sanitizeProteinGoal(undefined)], ["", 150, null, null, null]);
+  const app = await openApp();
+  try {
+    const doc = app.doc;
+    showTab(app, "meals");
+    const data = savedData(app);
+    const plan = Logic.calorieTarget(data.diet, data.sex, Logic.latestBodyweight(data.bodyweights));
+    const dayText = () => doc.getElementById("meal-day-nutrition").innerText;
+    addFoodToDraft(app, "Chicken", "protein", "0", "165", "31");
+    doc.getElementById("meal-save").click();
+    if (!dayText().includes(`of ${plan.protein} g`)) throw new Error(`without a goal of your own the Plan's ${plan.protein} g applies: "${dayText()}"`);
+    if (!doc.getElementById("protein-goal").placeholder.includes(String(plan.protein))) throw new Error("the box should show the Plan's number as its placeholder");
+
+    doc.getElementById("protein-goal-fold").open = true;
+    doc.getElementById("protein-goal").value = "200";
+    doc.getElementById("protein-goal-save").click();
+    if (!dayText().includes("of 200 g")) throw new Error(`the day should compare with 200 g: "${dayText()}"`);
+    assertEqual(savedData(app).proteinGoal, 200, "saved goal:");
+    doc.getElementById("chart-nutrient-protein").click();
+    if (!doc.querySelector("#carb-chart text.goal-label").textContent.includes("200")) throw new Error("the protein chart's goal line should be 200 g");
+    assertEqual(savedData(app).carbGoal ?? null, null, "the protein goal must not touch the carbs goal:");
+
+    doc.getElementById("protein-goal").value = "9000";
+    doc.getElementById("protein-goal-save").click();
+    if (!doc.getElementById("protein-goal-error").innerText.trim()) throw new Error("an impossible goal needs a message");
+    assertEqual(savedData(app).proteinGoal, 200, "a refused goal keeps the saved one:");
+
+    doc.getElementById("protein-goal").value = "";
+    doc.getElementById("protein-goal-save").click();
+    if (!dayText().includes(`of ${plan.protein} g`)) throw new Error(`clearing the goal goes back to the Plan's: "${dayText()}"`);
+    if (app.errors.length) throw new Error(`the app raised errors: ${app.errors.join("; ")}`);
+  } finally {
+    closeApp(app);
+  }
+});
+
 // ---------- Fat ----------
 
 test("fat is an optional food number: checked, kept only when entered, and totalled per meal and per day", () => {

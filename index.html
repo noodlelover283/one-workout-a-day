@@ -12,7 +12,7 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="theme-color" content="#fafafa" media="(prefers-color-scheme: light)">
   <meta name="theme-color" content="#0a0a0a" media="(prefers-color-scheme: dark)">
-  <link rel="stylesheet" href="style.css?v=b983ae9367">
+  <link rel="stylesheet" href="style.css?v=8c2f0a1511">
 </head>
 <body>
   <!-- Opening screen: a pixel bar fills in, then the whole thing fades away by itself (CSS only). -->
@@ -571,6 +571,16 @@
           <p id="carb-goal-error" class="error" role="alert"></p>
         </form>
       </details>
+      <details id="protein-goal-fold" class="slim-fold">
+        <summary data-i18n="meals.proteinGoalHeading">Daily protein goal</summary>
+        <form id="protein-goal-form" novalidate>
+          <label for="protein-goal" data-i18n="meals.proteinGoalLabel">Daily protein goal (g)</label>
+          <input id="protein-goal" type="number" inputmode="decimal" min="1" max="500" step="any">
+          <p class="hint" data-i18n="meals.proteinGoalHint">Leave it blank and save to use the Plan tab's target instead.</p>
+          <button type="submit" id="protein-goal-save" class="secondary" data-i18n="meals.goalSave">Save goal</button>
+          <p id="protein-goal-error" class="error" role="alert"></p>
+        </form>
+      </details>
       <p class="hint" data-i18n="meals.hint">Add each food with its category and carbs in grams, then save the meal. Foods you have used before are remembered.</p>
       <form id="meal-form" novalidate>
         <p id="meal-editing" class="meal-editing hidden"></p>
@@ -636,6 +646,7 @@
       </div>
       <div id="carb-chart" class="chart"></div>
       <p id="carb-chart-detail" class="meal-total" aria-live="polite"></p>
+      <p id="carb-chart-target" class="meal-total-sub hidden"></p>
     </section>
   </main>
 
@@ -659,17 +670,17 @@
     </div>
   </div>
 
-  <script src="i18n.js?v=b983ae9367"></script>
-  <script src="lang-en.js?v=b983ae9367"></script>
-  <script src="lang-es.js?v=b983ae9367"></script>
-  <script src="lang-zh.js?v=b983ae9367"></script>
-  <script src="lang-hi.js?v=b983ae9367"></script>
-  <script src="lang-ar.js?v=b983ae9367"></script>
-  <script src="lang-fr.js?v=b983ae9367"></script>
-  <script src="lang-pt.js?v=b983ae9367"></script>
-  <script src="lang-ru.js?v=b983ae9367"></script>
-  <script src="strength-data.js?v=b983ae9367"></script>
-  <script src="logic.js?v=b983ae9367"></script>
-  <script src="app.js?v=b983ae9367"></script>
+  <script src="i18n.js?v=8c2f0a1511"></script>
+  <script src="lang-en.js?v=8c2f0a1511"></script>
+  <script src="lang-es.js?v=8c2f0a1511"></script>
+  <script src="lang-zh.js?v=8c2f0a1511"></script>
+  <script src="lang-hi.js?v=8c2f0a1511"></script>
+  <script src="lang-ar.js?v=8c2f0a1511"></script>
+  <script src="lang-fr.js?v=8c2f0a1511"></script>
+  <script src="lang-pt.js?v=8c2f0a1511"></script>
+  <script src="lang-ru.js?v=8c2f0a1511"></script>
+  <script src="strength-data.js?v=8c2f0a1511"></script>
+  <script src="logic.js?v=8c2f0a1511"></script>
+  <script src="app.js?v=8c2f0a1511"></script>
 </body>
 </html>
