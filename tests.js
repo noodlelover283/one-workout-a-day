@@ -3070,6 +3070,63 @@ test("on the Meals tab a meal can be saved as a favorite, added to another day i
   }
 });
 
+// ---------- Water ----------
+
+test("water counts whole glasses per day, never below 0 or above 30, and a goal must be a whole number of glasses", () => {
+  let water = Logic.changeWater({}, "2026-11-01", 1);
+  water = Logic.changeWater(Logic.changeWater(water, "2026-11-01", 1), "2026-11-02", 1);
+  assertEqual(water, { "2026-11-01": 2, "2026-11-02": 1 }, "glasses on two days:");
+  assertEqual(Logic.changeWater(water, "2026-11-02", -1), { "2026-11-01": 2 }, "a day at 0 is left out:");
+  assertEqual(Logic.changeWater({}, "2026-11-01", -1), {}, "taking from an empty day changes nothing:");
+  assertEqual(Logic.changeWater({ "2026-11-01": 30 }, "2026-11-01", 1), { "2026-11-01": 30 }, "30 is the most:");
+  assertEqual(Logic.sanitizeWater({ "2026-11-01": 3, "bad": 2, "2026-11-02": -1, "2026-11-03": 2.5, "2026-11-04": 31 }), { "2026-11-01": 3 }, "only valid days load:");
+  assertEqual([Logic.sanitizeWater(undefined), Logic.sanitizeWater([1])], [{}, {}], "old saved data without water:");
+  assertEqual([0, 1, 8, 30, 31, 2.5, -1, NaN].map((goal) => Logic.validateWaterGoal(goal)), ["error.waterGoal", "", "", "", "error.waterGoal", "error.waterGoal", "error.waterGoal", "error.waterGoal"]);
+  assertEqual([Logic.validateWaterGoal(null), Logic.sanitizeWaterGoal(8), Logic.sanitizeWaterGoal("8"), Logic.sanitizeWaterGoal(99)], ["", 8, null, null]);
+  const merged = Logic.mergeBackup({ ...emptyData(), water: { "2026-11-01": 2 } }, { ...emptyData(), water: { "2026-11-01": 9, "2026-11-02": 4 } }).data.water;
+  assertEqual(merged, { "2026-11-01": 2, "2026-11-02": 4 }, "a backup adds days this device lacks and keeps this device's own:");
+});
+
+test("the Meals tab counts glasses of water for the chosen day, shows the goal, and keeps each day separate", async () => {
+  const app = await openApp();
+  try {
+    const doc = app.doc;
+    showTab(app, "meals");
+    const todayDate = Logic.toDateString(new Date());
+    const tomorrow = Logic.toDateString(new Date(Date.now() + 86400000));
+    const count = () => doc.getElementById("water-count").innerText;
+    if (!count().includes("0")) throw new Error(`a new day starts at 0: "${count()}"`);
+    if (!doc.getElementById("water-minus").disabled) throw new Error("there is nothing to take away at 0");
+
+    doc.getElementById("water-plus").click();
+    doc.getElementById("water-plus").click();
+    if (!count().includes("2")) throw new Error(`two taps should say 2: "${count()}"`);
+    assertEqual(savedData(app).water[todayDate], 2, "saved for today:");
+
+    doc.getElementById("water-goal-fold").open = true;
+    doc.getElementById("water-goal").value = "8";
+    doc.getElementById("water-goal-save").click();
+    if (!count().includes("2 of 8")) throw new Error(`with a goal it should say 2 of 8: "${count()}"`);
+    assertEqual(savedData(app).waterGoal, 8, "goal saved:");
+    doc.getElementById("water-goal").value = "2.5";
+    doc.getElementById("water-goal-save").click();
+    if (!doc.getElementById("water-goal-error").innerText.trim()) throw new Error("a goal that is not a whole number needs a message");
+    assertEqual(savedData(app).waterGoal, 8, "a refused goal keeps the saved one:");
+
+    doc.getElementById("meal-date").value = tomorrow;
+    doc.getElementById("meal-date").dispatchEvent(new Event("change", { bubbles: true }));
+    if (!count().includes("0 of 8")) throw new Error(`tomorrow starts at 0: "${count()}"`);
+    doc.getElementById("water-plus").click();
+    doc.getElementById("water-minus").click();
+    doc.getElementById("water-minus").click();
+    if (!count().includes("0 of 8")) throw new Error(`taking away at 0 stays at 0: "${count()}"`);
+    assertEqual(savedData(app).water[todayDate], 2, "today is unchanged by tomorrow's taps:");
+    if (app.errors.length) throw new Error(`the app raised errors: ${app.errors.join("; ")}`);
+  } finally {
+    closeApp(app);
+  }
+});
+
 // ---------- Macro split ----------
 
 test("the macro split shows where a day's calories come from, adds up to 100, and is empty when no calories were entered", () => {

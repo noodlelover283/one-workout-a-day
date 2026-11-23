@@ -1256,6 +1256,7 @@ const Logic = (() => {
       (favorites, favorite) => (favorites.some((known) => known.name.toLowerCase() === favorite.name.toLowerCase()) ? favorites : [...favorites, favorite]),
       mine.favoriteMeals || []
     );
+    const water = { ...(theirs.water || {}), ...(mine.water || {}) };
     const foodLibrary = (theirs.foodLibrary || []).reduce((library, food) => (library.some((known) => known.name.toLowerCase() === food.name.toLowerCase()) ? library : [...library, food]), mine.foodLibrary || []);
 
     const notes = { ...mine.notes };
@@ -1300,6 +1301,7 @@ const Logic = (() => {
         routines: [...mine.routines, ...newRoutines],
         meals: [...(mine.meals || []), ...newMeals],
         foodLibrary,
+        water,
         favoriteMeals,
         notes,
         customExercises,
@@ -1483,6 +1485,34 @@ const Logic = (() => {
       .map((meal) => ({ id: meal.id, date: meal.date, type: meal.type, foods: meal.foods.map(foodFields) }));
   }
 
+  // ---------- Water: glasses drunk per day, with an optional daily goal ----------
+
+  const MAX_WATER_GLASSES = 30;
+
+  // The water record with some glasses added to (or, if negative, taken from) a day. A day never goes below 0
+  // or above the maximum, and a day at 0 is left out of the record.
+  function changeWater(water, date, change) {
+    const count = Math.min(MAX_WATER_GLASSES, Math.max(0, (water[date] || 0) + change));
+    const updated = { ...water, [date]: count };
+    if (count === 0) delete updated[date];
+    return updated;
+  }
+
+  // Keeps only valid saved water days: a real date and a whole number of glasses from 1 to the maximum.
+  function sanitizeWater(saved) {
+    if (!saved || typeof saved !== "object" || Array.isArray(saved)) return {};
+    return Object.fromEntries(
+      Object.entries(saved).filter(([date, count]) => DATE_PATTERN.test(date) && Number.isInteger(count) && count >= 1 && count <= MAX_WATER_GLASSES)
+    );
+  }
+
+  // Checks a daily water goal in whole glasses. null means no goal, which is allowed.
+  function validateWaterGoal(goal) {
+    return goal === null || (Number.isInteger(goal) && goal >= 1 && goal <= MAX_WATER_GLASSES) ? "" : "error.waterGoal";
+  }
+
+  const sanitizeWaterGoal = (saved) => (typeof saved === "number" && validateWaterGoal(saved) === "" ? saved : null);
+
   // ---------- Favorite meals: a whole meal saved under a name, to add to any day in one tap ----------
 
   const MAX_FAVORITE_NAME = 40;
@@ -1523,6 +1553,10 @@ const Logic = (() => {
   }
 
   return {
+    changeWater,
+    sanitizeWater,
+    validateWaterGoal,
+    sanitizeWaterGoal,
     macroSplit,
     defaultFavoriteName,
     saveFavoriteMeal,

@@ -289,6 +289,8 @@ button.link { min-height: 44px; border: none; background: none; color: var(--acc
 
 .tabbar {
   position: fixed;
+  /* Above the charts and cards that scroll under it; those are positioned too and come later in the page. */
+  z-index: 12;
   left: 0; right: 0; bottom: 0;
   display: flex;
   max-width: 560px;
@@ -317,6 +319,9 @@ button.link { min-height: 44px; border: none; background: none; color: var(--acc
 .meal-actions { display: flex; gap: 8px; }
 #favorite-list .meal-head { flex-wrap: wrap; }
 .meal-food .food-edit { flex: 1; justify-content: flex-start; padding-inline-start: 0; text-align: start; }
+.water-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 8px; }
+.water-row .meal-total-sub { margin: 0; }
+.water-row button { width: 44px; min-height: 44px; margin: 0; padding: 0; font-size: 1.3rem; }
 .macro-split { margin: 8px 0 12px; }
 .macro-bar { display: flex; height: 14px; overflow: hidden; border-radius: 999px; border: 1px solid var(--border); }
 .macro-bar span { display: block; height: 100%; }
@@ -375,6 +380,7 @@ details[open] > summary::after { transform: translateY(2px) rotate(-135deg); }
 
 .toast {
   position: fixed;
+  z-index: 14;
   left: 50%; bottom: 76px;
   transform: translateX(-50%);
   padding: 10px 18px;

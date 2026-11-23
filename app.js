@@ -36,6 +36,8 @@ function loadState() {
     meals: [],
     foodLibrary: [],
     favoriteMeals: [],
+    water: {},
+    waterGoal: null,
     carbGoal: null,
     diet: { ...Logic.DEFAULT_DIET },
     tourDone: false,
@@ -62,6 +64,8 @@ function normalizeState(saved) {
   loaded.meals = Logic.sanitizeMeals(saved.meals);
   loaded.foodLibrary = Logic.sanitizeFoodLibrary(saved.foodLibrary);
   loaded.favoriteMeals = Logic.sanitizeFavoriteMeals(saved.favoriteMeals);
+  loaded.water = Logic.sanitizeWater(saved.water);
+  loaded.waterGoal = Logic.sanitizeWaterGoal(saved.waterGoal);
   loaded.carbGoal = Logic.sanitizeCarbGoal(saved.carbGoal);
   loaded.diet = Logic.sanitizeDiet(saved.diet);
   loaded.section = saved.section === "diet" ? "diet" : "workout";
@@ -2212,6 +2216,7 @@ function renderMeals() {
   renderDayNutrition();
   renderCarbChart();
   $("meal-copy-previous").textContent = t("meals.copyPrevious", { date: I18n.formatShortDate(Logic.dayBefore(mealDate())) });
+  renderWater();
   renderFavoriteMeals();
   $("meal-list").replaceChildren(...(meals.length === 0 ? [el("li", "empty", t("meals.empty"))] : meals.map(mealCard)));
 }
@@ -2420,6 +2425,34 @@ function onMealSave() {
   saveState();
   renderMeals();
   showToast(t(editing ? "meals.updated" : "meals.saved"));
+}
+
+// The day's glasses of water, against the goal when there is one.
+function renderWater() {
+  const glasses = state.water[mealDate()] || 0;
+  $("water-count").textContent =
+    state.waterGoal === null ? t("water.count", { count: glasses }) : t("water.countGoal", { count: glasses, goal: state.waterGoal });
+  $("water-minus").disabled = glasses === 0;
+  if (document.activeElement !== $("water-goal")) $("water-goal").value = state.waterGoal === null ? "" : state.waterGoal;
+}
+
+function onWaterChange(change) {
+  state.water = Logic.changeWater(state.water, mealDate(), change);
+  saveState();
+  renderWater();
+}
+
+function onWaterGoalSave(event) {
+  event.preventDefault();
+  const text = $("water-goal").value.trim();
+  const goal = text === "" ? null : Number(text);
+  const error = Logic.validateWaterGoal(goal);
+  $("water-goal-error").textContent = errorText(error);
+  if (error) return;
+  state.waterGoal = goal;
+  saveState();
+  renderWater();
+  showToast(t(goal === null ? "meals.goalRemoved" : "meals.goalSaved"));
 }
 
 // The saved favorite meals, each with a button that adds it to the chosen day.
@@ -3018,6 +3051,9 @@ function init() {
   $("meal-form").addEventListener("submit", onMealAddFood);
   $("meal-save").addEventListener("click", onMealSave);
   $("meal-copy-previous").addEventListener("click", onMealCopyPrevious);
+  $("water-minus").addEventListener("click", () => onWaterChange(-1));
+  $("water-plus").addEventListener("click", () => onWaterChange(1));
+  $("water-goal-form").addEventListener("submit", onWaterGoalSave);
   $("meal-cancel").addEventListener("click", onMealEditCancel);
   $("meal-food-cancel").addEventListener("click", onFoodEditCancel);
   $("carb-goal-form").addEventListener("submit", onCarbGoalSave);
