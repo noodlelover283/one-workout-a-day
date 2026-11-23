@@ -35,6 +35,7 @@ function loadState() {
     measurements: [],
     meals: [],
     foodLibrary: [],
+    favoriteMeals: [],
     carbGoal: null,
     diet: { ...Logic.DEFAULT_DIET },
     tourDone: false,
@@ -60,6 +61,7 @@ function normalizeState(saved) {
   loaded.measurements = Logic.sanitizeMeasurements(saved.measurements, loaded.customMeasurements);
   loaded.meals = Logic.sanitizeMeals(saved.meals);
   loaded.foodLibrary = Logic.sanitizeFoodLibrary(saved.foodLibrary);
+  loaded.favoriteMeals = Logic.sanitizeFavoriteMeals(saved.favoriteMeals);
   loaded.carbGoal = Logic.sanitizeCarbGoal(saved.carbGoal);
   loaded.diet = Logic.sanitizeDiet(saved.diet);
   loaded.section = saved.section === "diet" ? "diet" : "workout";
@@ -2210,6 +2212,7 @@ function renderMeals() {
   renderDayNutrition();
   renderCarbChart();
   $("meal-copy-previous").textContent = t("meals.copyPrevious", { date: I18n.formatShortDate(Logic.dayBefore(mealDate())) });
+  renderFavoriteMeals();
   $("meal-list").replaceChildren(...(meals.length === 0 ? [el("li", "empty", t("meals.empty"))] : meals.map(mealCard)));
 }
 
@@ -2326,8 +2329,12 @@ function mealCard(meal) {
   head.append(el("strong", "", [label, ...totals].join(" · ")), actions);
   const foods = el("ul", "meal-foods");
   foods.append(...meal.foods.map((food) => el("li", "meal-food", foodLine(food))));
+  const favorite = el("button", "secondary", t("meals.favoriteSave"));
+  favorite.type = "button";
+  favorite.setAttribute("aria-label", t("meals.favoriteSaveAria", { meal: label }));
+  favorite.addEventListener("click", () => onFavoriteSave(meal));
   const card = el("li", "meal");
-  card.append(head, foods);
+  card.append(head, foods, favorite);
   return card;
 }
 
@@ -2385,6 +2392,62 @@ function onMealSave() {
   saveState();
   renderMeals();
   showToast(t(editing ? "meals.updated" : "meals.saved"));
+}
+
+// The saved favorite meals, each with a button that adds it to the chosen day.
+function renderFavoriteMeals() {
+  $("favorite-meals").classList.toggle("hidden", state.favoriteMeals.length === 0);
+  const date = I18n.formatShortDate(mealDate());
+  const sorted = [...state.favoriteMeals].sort((a, b) => a.name.localeCompare(b.name, I18n.locale()));
+  $("favorite-list").replaceChildren(
+    ...sorted.map((favorite) => {
+      const add = el("button", "meal-edit secondary", t("meals.favoriteAdd", { date }));
+      add.type = "button";
+      add.setAttribute("aria-label", t("meals.favoriteAddAria", { name: favorite.name, date }));
+      add.addEventListener("click", () => onFavoriteAdd(favorite.id));
+      const remove = el("button", "secondary", t("meals.favoriteRemove"));
+      remove.type = "button";
+      remove.setAttribute("aria-label", t("meals.favoriteRemoveAria", { name: favorite.name }));
+      remove.addEventListener("click", () => onFavoriteRemove(favorite.id));
+      const actions = el("div", "meal-actions");
+      actions.append(add, remove);
+      const head = el("div", "meal-head");
+      head.append(el("strong", "", `${favorite.name} · ${t(`meals.type.${favorite.type}`)}`), actions);
+      const foods = el("ul", "meal-foods");
+      foods.append(...favorite.foods.map((food) => el("li", "meal-food", foodLine(food))));
+      const card = el("li", "meal");
+      card.append(head, foods);
+      return card;
+    })
+  );
+}
+
+// Asks for a name, then keeps the meal as a favorite. Cancelling or an empty name saves nothing.
+function onFavoriteSave(meal) {
+  const asked = window.prompt(t("meals.favoritePrompt"), Logic.defaultFavoriteName(meal));
+  const name = asked === null ? "" : Logic.normalizeName(asked);
+  if (name === "") return;
+  state.favoriteMeals = Logic.saveFavoriteMeal(state.favoriteMeals, name, meal, String(Date.now()));
+  saveState();
+  renderMeals();
+  showToast(t("meals.favoriteSaved", { name: name.slice(0, 40) }));
+}
+
+function onFavoriteAdd(id) {
+  const favorite = state.favoriteMeals.find((known) => known.id === id);
+  if (!favorite) return;
+  state.meals = [...state.meals, Logic.mealFromFavorite(favorite, mealDate(), String(Date.now()))];
+  saveState();
+  renderMeals();
+  showToast(t("meals.favoriteAdded", { name: favorite.name }));
+}
+
+function onFavoriteRemove(id) {
+  if (!window.confirm(t("meals.favoriteRemoveConfirm"))) return;
+  state.favoriteMeals = state.favoriteMeals.filter((favorite) => favorite.id !== id);
+  saveState();
+  renderMeals();
+  showToast(t("meals.favoriteRemoved"));
 }
 
 // Adds the meals logged the day before the chosen day to the chosen day, for days that repeat. Meals already

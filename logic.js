@@ -1252,6 +1252,10 @@ const Logic = (() => {
     const newMeasurements = addedBy(mine.measurements, theirs.measurements, (a, b) => a.date === b.date && a.name === b.name);
     const newRoutines = addedBy(mine.routines, theirs.routines, (a, b) => a.id === b.id);
     const newMeals = addedBy(mine.meals || [], theirs.meals || [], (a, b) => a.id === b.id);
+    const favoriteMeals = (theirs.favoriteMeals || []).reduce(
+      (favorites, favorite) => (favorites.some((known) => known.name.toLowerCase() === favorite.name.toLowerCase()) ? favorites : [...favorites, favorite]),
+      mine.favoriteMeals || []
+    );
     const foodLibrary = (theirs.foodLibrary || []).reduce((library, food) => (library.some((known) => known.name.toLowerCase() === food.name.toLowerCase()) ? library : [...library, food]), mine.foodLibrary || []);
 
     const notes = { ...mine.notes };
@@ -1296,6 +1300,7 @@ const Logic = (() => {
         routines: [...mine.routines, ...newRoutines],
         meals: [...(mine.meals || []), ...newMeals],
         foodLibrary,
+        favoriteMeals,
         notes,
         customExercises,
         customMeasurements,
@@ -1462,7 +1467,50 @@ const Logic = (() => {
       .map((meal) => ({ id: meal.id, date: meal.date, type: meal.type, foods: meal.foods.map(foodFields) }));
   }
 
+  // ---------- Favorite meals: a whole meal saved under a name, to add to any day in one tap ----------
+
+  const MAX_FAVORITE_NAME = 40;
+
+  // A name for a favorite to start from: the meal's foods, cut to fit.
+  function defaultFavoriteName(meal) {
+    return normalizeName(meal.foods.map((food) => food.name).join(", ")).slice(0, MAX_FAVORITE_NAME);
+  }
+
+  // The favorites with this meal added under a name. A favorite with the same name (any capitals) is replaced.
+  function saveFavoriteMeal(favorites, name, meal, id) {
+    const cleaned = normalizeName(name).slice(0, MAX_FAVORITE_NAME);
+    const others = favorites.filter((favorite) => favorite.name.toLowerCase() !== cleaned.toLowerCase());
+    return [...others, { id, name: cleaned, type: meal.type, foods: meal.foods.map(foodFields) }];
+  }
+
+  // A favorite as a new meal on a date.
+  function mealFromFavorite(favorite, date, id) {
+    return { id, date, type: favorite.type, foods: favorite.foods.map((food) => ({ ...food })) };
+  }
+
+  // Keeps only valid saved favorites: a name, a known type and at least one valid food, one per name.
+  function sanitizeFavoriteMeals(saved) {
+    if (!Array.isArray(saved)) return [];
+    return saved
+      .filter(
+        (favorite) =>
+          favorite &&
+          typeof favorite.id === "string" &&
+          typeof favorite.name === "string" &&
+          normalizeName(favorite.name) !== "" &&
+          MEAL_TYPES.includes(favorite.type) &&
+          Array.isArray(favorite.foods) &&
+          favorite.foods.length > 0 &&
+          favorite.foods.every(isValidFood)
+      )
+      .reduce((favorites, favorite) => saveFavoriteMeal(favorites, favorite.name, favorite, favorite.id), []);
+  }
+
   return {
+    defaultFavoriteName,
+    saveFavoriteMeal,
+    mealFromFavorite,
+    sanitizeFavoriteMeals,
     ACTIVITY_LEVELS,
     DIET_GOALS,
     PACE_LB_PER_WEEK,

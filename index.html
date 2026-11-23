@@ -12,7 +12,7 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="theme-color" content="#fafafa" media="(prefers-color-scheme: light)">
   <meta name="theme-color" content="#0a0a0a" media="(prefers-color-scheme: dark)">
-  <link rel="stylesheet" href="style.css?v=d7e0b2259a">
+  <link rel="stylesheet" href="style.css?v=8f9c65b89d">
 </head>
 <body>
   <!-- Opening screen: a pixel bar fills in, then the whole thing fades away by itself (CSS only). -->
@@ -591,6 +591,10 @@
         <p id="meal-error" class="error" role="alert"></p>
       </form>
       <button type="button" id="meal-copy-previous" class="secondary"></button>
+      <div id="favorite-meals" class="hidden">
+        <h3 data-i18n="meals.favoritesHeading">Favorite meals</h3>
+        <ul id="favorite-list" class="meal-list"></ul>
+      </div>
       <ul id="meal-list" class="meal-list"></ul>
 
       <div class="heading-row">
@@ -630,17 +634,17 @@
     </div>
   </div>
 
-  <script src="i18n.js?v=d7e0b2259a"></script>
-  <script src="lang-en.js?v=d7e0b2259a"></script>
-  <script src="lang-es.js?v=d7e0b2259a"></script>
-  <script src="lang-zh.js?v=d7e0b2259a"></script>
-  <script src="lang-hi.js?v=d7e0b2259a"></script>
-  <script src="lang-ar.js?v=d7e0b2259a"></script>
-  <script src="lang-fr.js?v=d7e0b2259a"></script>
-  <script src="lang-pt.js?v=d7e0b2259a"></script>
-  <script src="lang-ru.js?v=d7e0b2259a"></script>
-  <script src="strength-data.js?v=d7e0b2259a"></script>
-  <script src="logic.js?v=d7e0b2259a"></script>
-  <script src="app.js?v=d7e0b2259a"></script>
+  <script src="i18n.js?v=8f9c65b89d"></script>
+  <script src="lang-en.js?v=8f9c65b89d"></script>
+  <script src="lang-es.js?v=8f9c65b89d"></script>
+  <script src="lang-zh.js?v=8f9c65b89d"></script>
+  <script src="lang-hi.js?v=8f9c65b89d"></script>
+  <script src="lang-ar.js?v=8f9c65b89d"></script>
+  <script src="lang-fr.js?v=8f9c65b89d"></script>
+  <script src="lang-pt.js?v=8f9c65b89d"></script>
+  <script src="lang-ru.js?v=8f9c65b89d"></script>
+  <script src="strength-data.js?v=8f9c65b89d"></script>
+  <script src="logic.js?v=8f9c65b89d"></script>
+  <script src="app.js?v=8f9c65b89d"></script>
 </body>
 </html>

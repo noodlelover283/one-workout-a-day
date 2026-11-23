@@ -2997,6 +2997,79 @@ test("the Meals tab copies the day before into the chosen day, keeps meals alrea
   }
 });
 
+// ---------- Favorite meals ----------
+
+test("a favorite meal keeps its foods under a name, replaces one with the same name, and comes back as a new meal on any day", () => {
+  const meal = { id: "m1", date: "2026-11-01", type: "breakfast", foods: [{ name: "Oats", category: "carb", carbs: 54, calories: 300 }, { name: "Eggs", category: "protein", carbs: 1, protein: 12 }] };
+  assertEqual(Logic.defaultFavoriteName(meal), "Oats, Eggs", "suggested name:");
+  const once = Logic.saveFavoriteMeal([], "  My usual ", meal, "f1");
+  assertEqual([once.length, once[0].name, once[0].type, once[0].foods.length], [1, "My usual", "breakfast", 2], "saved favorite:");
+  const twice = Logic.saveFavoriteMeal(once, "my USUAL", { ...meal, type: "snack" }, "f2");
+  assertEqual(twice.map((favorite) => [favorite.id, favorite.type]), [["f2", "snack"]], "the same name replaces the old favorite:");
+  assertEqual(Logic.saveFavoriteMeal([], "x".repeat(100), meal, "f3")[0].name.length, 40, "a long name is cut to 40:");
+  const added = Logic.mealFromFavorite(once[0], "2026-11-05", "new-id");
+  assertEqual([added.id, added.date, added.type, added.foods.map((food) => food.name)], ["new-id", "2026-11-05", "breakfast", ["Oats", "Eggs"]], "meal from a favorite:");
+  added.foods[0].carbs = 1;
+  assertEqual(once[0].foods[0].carbs, 54, "changing the new meal must not change the favorite:");
+});
+
+test("saved favorites are checked on load and merged from a backup by name, keeping this device's own", () => {
+  const good = { id: "f1", name: "Usual", type: "lunch", foods: [{ name: "Rice", category: "carb", carbs: 45 }] };
+  const loaded = Logic.sanitizeFavoriteMeals([good, { ...good, id: "f2", name: " " }, { ...good, id: "f3", type: "brunch" }, { ...good, id: "f4", foods: [] }, null, "x"]);
+  assertEqual(loaded.map((favorite) => favorite.id), ["f1"], "only the valid favorite is kept:");
+  assertEqual(Logic.sanitizeFavoriteMeals(undefined), [], "old saved data without favorites:");
+  const mine = { ...emptyData(), favoriteMeals: [good] };
+  const theirs = { ...emptyData(), favoriteMeals: [{ ...good, id: "g1", type: "dinner" }, { ...good, id: "g2", name: "Other" }] };
+  const merged = Logic.mergeBackup(mine, theirs).data.favoriteMeals;
+  assertEqual(merged.map((favorite) => [favorite.name, favorite.type]), [["Usual", "lunch"], ["Other", "lunch"]], "merged favorites:");
+});
+
+test("on the Meals tab a meal can be saved as a favorite, added to another day in one tap, and removed without touching logged meals", async () => {
+  const app = await openApp();
+  try {
+    const doc = app.doc;
+    showTab(app, "meals");
+    const todayDate = Logic.toDateString(new Date());
+    const tomorrow = Logic.toDateString(new Date(Date.now() + 86400000));
+    const chooseDay = (date) => {
+      doc.getElementById("meal-date").value = date;
+      doc.getElementById("meal-date").dispatchEvent(new Event("change", { bubbles: true }));
+    };
+    const mealCount = () => doc.querySelectorAll("#meal-list .meal").length;
+    if (!doc.getElementById("favorite-meals").classList.contains("hidden")) throw new Error("with no favorites, the favorites list should be hidden");
+
+    addFoodToDraft(app, "Oats", "carb", "54", "300", "10");
+    addFoodToDraft(app, "Eggs", "protein", "1", "140", "12");
+    doc.getElementById("meal-save").click();
+    app.win.prompt = () => "My usual breakfast";
+    doc.querySelector("#meal-list .meal > button").click();
+    if (doc.getElementById("favorite-meals").classList.contains("hidden")) throw new Error("the favorite should now be listed");
+    const favoriteText = doc.getElementById("favorite-list").innerText;
+    for (const expected of ["My usual breakfast", "Oats", "Eggs"]) if (!favoriteText.includes(expected)) throw new Error(`the favorite should show ${expected}`);
+    assertEqual(savedData(app).favoriteMeals.length, 1, "the favorite is saved:");
+
+    // A cancelled name saves nothing.
+    app.win.prompt = () => null;
+    doc.querySelector("#meal-list .meal > button").click();
+    assertEqual(savedData(app).favoriteMeals.length, 1, "cancelling the name adds no favorite:");
+
+    chooseDay(tomorrow);
+    assertEqual(mealCount(), 0, "tomorrow starts empty:");
+    doc.querySelector("#favorite-list .meal-edit").click();
+    assertEqual(mealCount(), 1, "one tap adds the favorite to the chosen day:");
+    if (!doc.getElementById("meal-day-total").innerText.includes("55")) throw new Error("tomorrow's carbs should be 54 + 1 = 55 g");
+    assertEqual(savedData(app).meals.filter((meal) => meal.date === todayDate).length, 1, "today's meal is unchanged:");
+
+    app.win.confirm = () => true;
+    doc.querySelector("#favorite-list .meal-actions button:last-child").click();
+    if (!doc.getElementById("favorite-meals").classList.contains("hidden")) throw new Error("the removed favorite should be gone");
+    assertEqual(savedData(app).meals.length, 2, "removing a favorite keeps the meals already logged:");
+    if (app.errors.length) throw new Error(`the app raised errors: ${app.errors.join("; ")}`);
+  } finally {
+    closeApp(app);
+  }
+});
+
 // ---------- Editing a saved meal ----------
 
 test("replacing a meal keeps its id and day, and an unknown id changes nothing", () => {
