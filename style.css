@@ -317,6 +317,15 @@ button.link { min-height: 44px; border: none; background: none; color: var(--acc
 .meal-actions { display: flex; gap: 8px; }
 #favorite-list .meal-head { flex-wrap: wrap; }
 .meal-food .food-edit { flex: 1; justify-content: flex-start; padding-inline-start: 0; text-align: start; }
+.macro-split { margin: 8px 0 12px; }
+.macro-bar { display: flex; height: 14px; overflow: hidden; border-radius: 999px; border: 1px solid var(--border); }
+.macro-bar span { display: block; height: 100%; }
+.macro-carbs { background: var(--accent); }
+.macro-protein { background: var(--good); }
+.macro-other { background: var(--muted); }
+.macro-legend { display: flex; flex-wrap: wrap; gap: 4px 14px; margin: 8px 0 0; font-size: 0.9rem; }
+.macro-legend-item { display: inline-flex; align-items: center; gap: 6px; }
+.macro-swatch { display: inline-block; width: 12px; height: 12px; border-radius: 3px; }
 .meal-editing { margin: 12px 0 0; font-weight: 700; color: var(--accent); }
 .meal-head button, .meal-food button { width: auto; min-height: 36px; margin: 0; padding: 0 14px; flex-shrink: 0; }
 .glossary dt { margin-top: 10px; font-weight: 700; }

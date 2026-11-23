@@ -2234,6 +2234,34 @@ function renderDayNutrition() {
     lines.push(plan ? t("meals.dayProteinGoal", { grams: number(protein), goal: number(plan.protein) }) : t("meals.dayProtein", { grams: number(protein) }));
   }
   $("meal-day-nutrition").replaceChildren(...lines.map((line) => el("p", "meal-total-sub", line)));
+  renderMacroSplit(date, calories, protein);
+}
+
+// A bar showing the day's calories as carbs, protein and other, with the percents written out underneath.
+function renderMacroSplit(date, calories, protein) {
+  const split = Logic.macroSplit(Logic.dayCarbs(state.meals, date), protein, calories);
+  $("meal-macro-split").classList.toggle("hidden", split === null);
+  if (split === null) return;
+  const parts = [
+    ["carbs", t("meals.splitCarbs")],
+    ["protein", t("meals.splitProtein")],
+    ["other", t("meals.splitOther")],
+  ];
+  const bar = el("div", "macro-bar");
+  bar.setAttribute("role", "img");
+  bar.setAttribute("aria-label", t("meals.splitAria", split));
+  for (const [key] of parts) {
+    const piece = el("span", `macro-${key}`);
+    piece.style.width = `${split[key]}%`;
+    bar.append(piece);
+  }
+  const legend = el("p", "macro-legend");
+  for (const [key, label] of parts) {
+    const item = el("span", "macro-legend-item");
+    item.append(el("span", `macro-swatch macro-${key}`), `${label} ${split[key]}%`);
+    legend.append(item);
+  }
+  $("meal-macro-split").replaceChildren(el("p", "meal-total-sub", t("meals.splitTitle")), bar, legend);
 }
 
 function mealDraftRow(food, index) {

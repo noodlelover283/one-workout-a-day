@@ -1436,6 +1436,22 @@ const Logic = (() => {
   const dayCalories = (meals, date) => sumOptional(dayFoods(meals, date), "calories");
   const dayProtein = (meals, date) => sumOptional(dayFoods(meals, date), "protein");
 
+  const CALORIES_PER_GRAM = 4;
+
+  // Where a day's calories come from, as whole percents that add up to 100: { carbs, protein, other }.
+  // Carbs and protein are 4 calories a gram; other is what the entered calories leave over. Null when no
+  // calories were entered, since there is then nothing to split. If the carbs and protein of foods without
+  // calories add up to more than the calories entered, the split is of those two alone.
+  function macroSplit(carbs, protein, calories) {
+    if (calories === null || !(calories > 0)) return null;
+    const carbCalories = carbs * CALORIES_PER_GRAM;
+    const proteinCalories = (protein || 0) * CALORIES_PER_GRAM;
+    const total = Math.max(calories, carbCalories + proteinCalories);
+    const carbShare = Math.round((carbCalories / total) * 100);
+    const proteinShare = Math.min(Math.round((proteinCalories / total) * 100), 100 - carbShare);
+    return { carbs: carbShare, protein: proteinShare, other: 100 - carbShare - proteinShare };
+  }
+
   // The remembered foods with this one added, replacing an earlier one with the same name (any capitals),
   // so the next meal starts from the latest category and carbs typed for it.
   function rememberFood(foodLibrary, food) {
@@ -1507,6 +1523,7 @@ const Logic = (() => {
   }
 
   return {
+    macroSplit,
     defaultFavoriteName,
     saveFavoriteMeal,
     mealFromFavorite,

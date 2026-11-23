@@ -3070,6 +3070,44 @@ test("on the Meals tab a meal can be saved as a favorite, added to another day i
   }
 });
 
+// ---------- Macro split ----------
+
+test("the macro split shows where a day's calories come from, adds up to 100, and is empty when no calories were entered", () => {
+  assertEqual(Logic.macroSplit(50, 25, 500), { carbs: 40, protein: 20, other: 40 }, "50 g carbs and 25 g protein in 500 kcal:");
+  assertEqual(Logic.macroSplit(0, 0, 300), { carbs: 0, protein: 0, other: 100 }, "all other:");
+  assertEqual(Logic.macroSplit(100, null, 1000), { carbs: 40, protein: 0, other: 60 }, "no protein entered counts as none:");
+  const odd = Logic.macroSplit(33, 33, 700);
+  assertEqual(odd.carbs + odd.protein + odd.other, 100, "rounded shares still add up to 100:");
+  const over = Logic.macroSplit(100, 50, 200);
+  assertEqual([over.carbs + over.protein + over.other, over.other], [100, 0], "calories lower than carbs and protein leave nothing for other:");
+  assertEqual([Logic.macroSplit(50, 10, null), Logic.macroSplit(50, 10, 0)], [null, null], "no calories, no split:");
+});
+
+test("the Meals tab draws the macro split for a day with calories, and hides it for a day without", async () => {
+  const app = await openApp();
+  try {
+    const doc = app.doc;
+    showTab(app, "meals");
+    const box = doc.getElementById("meal-macro-split");
+    if (!box.classList.contains("hidden")) throw new Error("with no meals, there is nothing to split");
+
+    addFoodToDraft(app, "Rice", "carb", "50", "", "");
+    doc.getElementById("meal-save").click();
+    if (!box.classList.contains("hidden")) throw new Error("a day with no calories entered should not show a split");
+
+    addFoodToDraft(app, "Chicken", "protein", "0", "300", "25");
+    doc.getElementById("meal-save").click();
+    if (box.classList.contains("hidden")) throw new Error("a day with calories should show the split");
+    const text = box.innerText;
+    for (const expected of ["Carbs 67%", "Protein 33%", "Other 0%"]) if (!text.includes(expected)) throw new Error(`the split should say ${expected}: "${text}"`);
+    assertEqual(box.querySelectorAll(".macro-bar span").length, 3, "three pieces in the bar:");
+    if (!box.querySelector(".macro-bar").getAttribute("aria-label").includes("67")) throw new Error("the bar needs a spoken description");
+    if (app.errors.length) throw new Error(`the app raised errors: ${app.errors.join("; ")}`);
+  } finally {
+    closeApp(app);
+  }
+});
+
 // ---------- Editing a saved meal ----------
 
 test("replacing a meal keeps its id and day, and an unknown id changes nothing", () => {
