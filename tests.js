@@ -2932,6 +2932,71 @@ test("a meal logged without protein shows a message on the protein chart instead
   }
 });
 
+// ---------- Copying the day before ----------
+
+test("copying a day's meals gives new meals on the other day with the same foods, and leaves the originals alone", () => {
+  assertEqual(Logic.dayBefore("2026-03-01"), "2026-02-28", "the day before a month start:");
+  assertEqual(Logic.dayBefore("2027-01-01"), "2026-12-31", "the day before a year start:");
+  const meals = [
+    { id: "a", date: "2026-11-01", type: "lunch", foods: [{ name: "Rice", category: "carb", carbs: 45, calories: 205 }] },
+    { id: "b", date: "2026-11-01", type: "dinner", foods: [{ name: "Beef", category: "protein", carbs: 0, protein: 26 }] },
+    { id: "c", date: "2026-10-31", type: "lunch", foods: [{ name: "Pasta", category: "carb", carbs: 60 }] },
+  ];
+  const copies = Logic.copyMealsToDay(meals, "2026-11-01", "2026-11-02", "x");
+  assertEqual(copies.map((meal) => [meal.date, meal.type, meal.foods[0].name]), [["2026-11-02", "lunch", "Rice"], ["2026-11-02", "dinner", "Beef"]], "copied meals:");
+  assertEqual(new Set([...meals, ...copies].map((meal) => meal.id)).size, 5, "every meal has its own id:");
+  copies[0].foods[0].carbs = 1;
+  assertEqual(meals[0].foods[0].carbs, 45, "changing a copy must not change the original:");
+  assertEqual(Logic.copyMealsToDay(meals, "2026-09-01", "2026-11-02", "x"), [], "a day with no meals copies nothing:");
+});
+
+test("the Meals tab copies the day before into the chosen day, keeps meals already there, and says so when there is nothing to copy", async () => {
+  const app = await openApp();
+  try {
+    const doc = app.doc;
+    showTab(app, "meals");
+    const todayDate = Logic.toDateString(new Date());
+    const lastNight = Logic.dayBefore(todayDate);
+    const chooseDay = (date) => {
+      doc.getElementById("meal-date").value = date;
+      doc.getElementById("meal-date").dispatchEvent(new Event("change", { bubbles: true }));
+    };
+    const mealCount = () => doc.querySelectorAll("#meal-list .meal").length;
+    const copyButton = doc.getElementById("meal-copy-previous");
+    const toast = () => doc.getElementById("toast").innerText;
+    if (!copyButton.innerText.trim()) throw new Error("the copy button needs a label");
+
+    // Nothing was logged the day before: pressing the button says so and adds nothing.
+    copyButton.click();
+    assertEqual(mealCount(), 0, "nothing to copy, nothing added:");
+    if (!toast().includes("nothing to copy")) throw new Error(`the empty case should say so: "${toast()}"`);
+
+    // Log two meals for the day before, then go back to today with one meal already there.
+    chooseDay(lastNight);
+    addFoodToDraft(app, "Oats", "carb", "54", "300", "10");
+    doc.getElementById("meal-save").click();
+    doc.getElementById("meal-type").value = "dinner";
+    addFoodToDraft(app, "Salmon", "protein", "0", "280", "25");
+    doc.getElementById("meal-save").click();
+    chooseDay(todayDate);
+    addFoodToDraft(app, "Toast", "carb", "20");
+    doc.getElementById("meal-save").click();
+    assertEqual(mealCount(), 1, "today starts with its own meal:");
+
+    copyButton.click();
+    assertEqual(mealCount(), 3, "today keeps its own meal and gains the two copies:");
+    const text = doc.getElementById("meal-list").innerText;
+    for (const expected of ["Toast", "Oats", "Salmon"]) if (!text.includes(expected)) throw new Error(`today's list should show ${expected}`);
+    if (!doc.getElementById("meal-day-total").innerText.includes("74")) throw new Error("today's carbs should be 20 + 54 = 74 g");
+    const saved = savedData(app).meals;
+    assertEqual(saved.filter((meal) => meal.date === lastNight).length, 2, "the day before is unchanged:");
+    assertEqual(new Set(saved.map((meal) => meal.id)).size, saved.length, "every saved meal has its own id:");
+    if (app.errors.length) throw new Error(`the app raised errors: ${app.errors.join("; ")}`);
+  } finally {
+    closeApp(app);
+  }
+});
+
 // ---------- Editing a saved meal ----------
 
 test("replacing a meal keeps its id and day, and an unknown id changes nothing", () => {

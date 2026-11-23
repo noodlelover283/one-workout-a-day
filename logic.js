@@ -1359,6 +1359,21 @@ const Logic = (() => {
 
   const roundToTenth = (value) => Math.round(value * 10) / 10;
 
+  // The day before a date, as a date string.
+  function dayBefore(date) {
+    const day = new Date(`${date}T00:00:00`);
+    day.setDate(day.getDate() - 1);
+    return toDateString(day);
+  }
+
+  // The meals from one day as new meals on another day: same type and foods, each with its own id.
+  // newIdBase makes the ids (they only need to differ from every other meal's).
+  function copyMealsToDay(meals, fromDate, toDate, newIdBase) {
+    return meals
+      .filter((meal) => meal.date === fromDate)
+      .map((meal, index) => ({ ...meal, id: `${newIdBase}-${index}`, date: toDate, foods: meal.foods.map((food) => ({ ...food })) }));
+  }
+
   // The meals with one replaced by a new type and foods; it keeps its id and its day. An unknown id changes nothing.
   function replaceMeal(meals, id, { type, foods }) {
     return meals.map((meal) => (meal.id === id ? { ...meal, type, foods } : meal));
@@ -1468,6 +1483,8 @@ const Logic = (() => {
     foodFields,
     dayCarbs,
     nutrientByDay,
+    dayBefore,
+    copyMealsToDay,
     CHART_NUTRIENTS,
     replaceMeal,
     rememberFood,

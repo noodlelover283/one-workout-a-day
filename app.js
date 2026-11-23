@@ -2209,6 +2209,7 @@ function renderMeals() {
   if (document.activeElement !== $("carb-goal")) $("carb-goal").value = state.carbGoal === null ? "" : state.carbGoal;
   renderDayNutrition();
   renderCarbChart();
+  $("meal-copy-previous").textContent = t("meals.copyPrevious", { date: I18n.formatShortDate(Logic.dayBefore(mealDate())) });
   $("meal-list").replaceChildren(...(meals.length === 0 ? [el("li", "empty", t("meals.empty"))] : meals.map(mealCard)));
 }
 
@@ -2384,6 +2385,22 @@ function onMealSave() {
   saveState();
   renderMeals();
   showToast(t(editing ? "meals.updated" : "meals.saved"));
+}
+
+// Adds the meals logged the day before the chosen day to the chosen day, for days that repeat. Meals already
+// on the chosen day stay, and pressing it again adds the copies again.
+function onMealCopyPrevious() {
+  const from = Logic.dayBefore(mealDate());
+  const copies = Logic.copyMealsToDay(state.meals, from, mealDate(), String(Date.now()));
+  const date = I18n.formatShortDate(from);
+  if (copies.length === 0) {
+    showToast(t("meals.copyNothing", { date }));
+    return;
+  }
+  state.meals = [...state.meals, ...copies];
+  saveState();
+  renderMeals();
+  showToast(t("meals.copied", { date }));
 }
 
 // The words that change with the chart's nutrient, as translation keys. Carbs keep the keys they always had.
@@ -2909,6 +2926,7 @@ function init() {
   $("diet-weight-form").addEventListener("submit", onDietWeightSubmit);
   $("meal-form").addEventListener("submit", onMealAddFood);
   $("meal-save").addEventListener("click", onMealSave);
+  $("meal-copy-previous").addEventListener("click", onMealCopyPrevious);
   $("meal-cancel").addEventListener("click", onMealEditCancel);
   $("meal-food-cancel").addEventListener("click", onFoodEditCancel);
   $("carb-goal-form").addEventListener("submit", onCarbGoalSave);
