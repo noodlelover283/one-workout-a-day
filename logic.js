@@ -583,14 +583,14 @@ const Logic = (() => {
     },
   };
 
-  // Two days of meals, as [daysAgo, meal type, [food, category, carbs in grams, calories, protein in grams]].
+  // Two days of meals, as [daysAgo, meal type, [food, category, carbs in grams, calories, protein in grams, fat in grams]].
   const SAMPLE_MEALS = [
-    [0, "breakfast", [["Oats", "carb", 54, 300, 10], ["Eggs", "protein", 1, 140, 12], ["Banana", "carb", 27, 105, 1]]],
-    [0, "lunch", [["Chicken", "protein", 0, 165, 31], ["Rice", "carb", 45, 205, 4], ["Broccoli", "vegetable", 6, 35, 3]]],
-    [0, "dinner", [["Salmon", "protein", 0, 280, 25], ["Sweet potato", "carb", 40, 170, 4], ["Spinach", "vegetable", 3, 20, 2], ["Olive oil", "fat", 0, 120, 0]]],
-    [1, "lunch", [["Turkey sandwich", "carb", 36, 320, 22], ["Apple", "carb", 25, 95, 0]]],
-    [1, "dinner", [["Beef", "protein", 0, 300, 26], ["Pasta", "carb", 60, 300, 11], ["Green beans", "vegetable", 7, 35, 2]]],
-    [1, "snack", [["Greek yogurt", "protein", 6, 100, 17], ["Almonds", "fat", 6, 165, 6]]],
+    [0, "breakfast", [["Oats", "carb", 54, 300, 10, 5], ["Eggs", "protein", 1, 140, 12, 10], ["Banana", "carb", 27, 105, 1, 0]]],
+    [0, "lunch", [["Chicken", "protein", 0, 165, 31, 4], ["Rice", "carb", 45, 205, 4, 0], ["Broccoli", "vegetable", 6, 35, 3, 0]]],
+    [0, "dinner", [["Salmon", "protein", 0, 280, 25, 17], ["Sweet potato", "carb", 40, 170, 4, 0], ["Spinach", "vegetable", 3, 20, 2, 0], ["Olive oil", "fat", 0, 120, 0, 14]]],
+    [1, "lunch", [["Turkey sandwich", "carb", 36, 320, 22, 8], ["Apple", "carb", 25, 95, 0, 0]]],
+    [1, "dinner", [["Beef", "protein", 0, 300, 26, 20], ["Pasta", "carb", 60, 300, 11, 1], ["Green beans", "vegetable", 7, 35, 2, 0]]],
+    [1, "snack", [["Greek yogurt", "protein", 6, 100, 17, 0], ["Almonds", "fat", 6, 165, 6, 14]]],
   ];
 
   function sampleData(today) {
@@ -626,7 +626,7 @@ const Logic = (() => {
       id: `sample-meal-${index}`,
       date: dayString(daysAgo),
       type,
-      foods: foods.map(([name, category, carbs, calories, protein]) => ({ name, category, carbs, calories, protein })),
+      foods: foods.map(([name, category, carbs, calories, protein, fat]) => ({ name, category, carbs, calories, protein, fat })),
     }));
     return { entries, bodyweights, routines, meals };
   }
@@ -1330,20 +1330,22 @@ const Logic = (() => {
   const MAX_FOOD_CARBS = 1000;
   const MAX_FOOD_CALORIES = 5000;
   const MAX_FOOD_PROTEIN = 500;
+  const MAX_FOOD_FAT = 500;
 
-  // Checks one food typed into a meal. carbs is grams, or null when left blank (counted as 0); calories and
-  // protein are optional, and null when left blank.
-  function validateFood({ name, carbs, calories = null, protein = null }) {
+  // Checks one food typed into a meal. carbs is grams, or null when left blank (counted as 0); calories,
+  // protein and fat are optional, and null when left blank.
+  function validateFood({ name, carbs, calories = null, protein = null, fat = null }) {
     const clean = normalizeName(name);
     if (!clean) return "error.foodName";
     if (clean.length > FOOD_NAME_MAX_LENGTH) return "error.foodNameLong";
     if (carbs !== null && !(carbs >= 0 && carbs <= MAX_FOOD_CARBS)) return "error.foodCarbs";
     if (calories !== null && !(calories >= 0 && calories <= MAX_FOOD_CALORIES)) return "error.foodCalories";
     if (protein !== null && !(protein >= 0 && protein <= MAX_FOOD_PROTEIN)) return "error.foodProtein";
+    if (fat !== null && !(fat >= 0 && fat <= MAX_FOOD_FAT)) return "error.foodFat";
     return "";
   }
 
-  // A saved food may leave calories and protein out; if they are there they must be sensible numbers.
+  // A saved food may leave calories, protein and fat out; if they are there they must be sensible numbers.
   const isValidOptional = (value, max) => value === undefined || (typeof value === "number" && value >= 0 && value <= max);
 
   const isValidFood = (food) =>
@@ -1353,15 +1355,17 @@ const Logic = (() => {
     typeof food.carbs === "number" &&
     FOOD_CATEGORIES.includes(food.category) &&
     isValidOptional(food.calories, MAX_FOOD_CALORIES) &&
-    isValidOptional(food.protein, MAX_FOOD_PROTEIN);
+    isValidOptional(food.protein, MAX_FOOD_PROTEIN) &&
+    isValidOptional(food.fat, MAX_FOOD_FAT);
 
-  // A food as it is saved: name, category and carbs, plus calories and protein when they were entered.
-  const foodFields = ({ name, category, carbs, calories, protein }) => ({
+  // A food as it is saved: name, category and carbs, plus calories, protein and fat when they were entered.
+  const foodFields = ({ name, category, carbs, calories, protein, fat }) => ({
     name: normalizeName(name),
     category,
     carbs,
     ...(calories === undefined || calories === null ? {} : { calories }),
     ...(protein === undefined || protein === null ? {} : { protein }),
+    ...(fat === undefined || fat === null ? {} : { fat }),
   });
 
   const roundToTenth = (value) => Math.round(value * 10) / 10;
@@ -1386,13 +1390,13 @@ const Logic = (() => {
     return meals.map((meal) => (meal.id === id ? { ...meal, type, foods } : meal));
   }
 
-  const CHART_NUTRIENTS = ["carbs", "protein", "calories"];
+  const CHART_NUTRIENTS = ["carbs", "protein", "calories", "fat"];
 
-  // How much of one nutrient ("carbs", "protein" or "calories") was eaten on each of the last `days` days up
-  // to endDate, oldest first. Carbs are 0 on a day without meals; protein and calories are null on a day where
-  // no food had them entered, so a day that was never counted does not look like a day of eating none.
+  // How much of one nutrient ("carbs", "protein", "calories" or "fat") was eaten on each of the last `days` days
+  // up to endDate, oldest first. Carbs are 0 on a day without meals; the others are null on a day where no food
+  // had them entered, so a day that was never counted does not look like a day of eating none.
   function nutrientByDay(meals, endDate, days, nutrient) {
-    const dayTotal = { carbs: dayCarbs, protein: dayProtein, calories: dayCalories }[nutrient];
+    const dayTotal = { carbs: dayCarbs, protein: dayProtein, calories: dayCalories, fat: dayFat }[nutrient];
     const end = new Date(`${endDate}T00:00:00`);
     return Array.from({ length: days }, (_, index) => {
       const day = new Date(end);
@@ -1426,7 +1430,7 @@ const Logic = (() => {
     return roundToTenth(meals.filter((meal) => meal.date === date).reduce((sum, meal) => sum + mealCarbs(meal), 0));
   }
 
-  // The total of calories or protein over some foods, or null when none of them has the number entered.
+  // The total of calories, protein or fat over some foods, or null when none of them has the number entered.
   function sumOptional(foods, field) {
     const entered = foods.filter((food) => typeof food[field] === "number");
     return entered.length === 0 ? null : roundToTenth(entered.reduce((sum, food) => sum + food[field], 0));
@@ -1434,24 +1438,33 @@ const Logic = (() => {
 
   const mealCalories = (meal) => sumOptional(meal.foods, "calories");
   const mealProtein = (meal) => sumOptional(meal.foods, "protein");
+  const mealFat = (meal) => sumOptional(meal.foods, "fat");
   const dayFoods = (meals, date) => meals.filter((meal) => meal.date === date).flatMap((meal) => meal.foods);
   const dayCalories = (meals, date) => sumOptional(dayFoods(meals, date), "calories");
   const dayProtein = (meals, date) => sumOptional(dayFoods(meals, date), "protein");
+  const dayFat = (meals, date) => sumOptional(dayFoods(meals, date), "fat");
 
   const CALORIES_PER_GRAM = 4;
+  const CALORIES_PER_GRAM_OF_FAT = 9;
 
-  // Where a day's calories come from, as whole percents that add up to 100: { carbs, protein, other }.
-  // Carbs and protein are 4 calories a gram; other is what the entered calories leave over. Null when no
-  // calories were entered, since there is then nothing to split. If the carbs and protein of foods without
-  // calories add up to more than the calories entered, the split is of those two alone.
-  function macroSplit(carbs, protein, calories) {
+  // Where a day's calories come from, as whole percents that add up to 100: { carbs, protein, other }, with
+  // fat between protein and other when fat was entered (fat is null or left out otherwise, and then it stays
+  // part of other). Carbs and protein are 4 calories a gram and fat is 9; other is what the entered calories
+  // leave over. Null when no calories were entered, since there is then nothing to split. If the grams
+  // entered add up to more calories than the calories entered, the split is of those alone.
+  function macroSplit(carbs, protein, calories, fat = null) {
     if (calories === null || !(calories > 0)) return null;
     const carbCalories = carbs * CALORIES_PER_GRAM;
     const proteinCalories = (protein || 0) * CALORIES_PER_GRAM;
-    const total = Math.max(calories, carbCalories + proteinCalories);
+    const fatCalories = (fat || 0) * CALORIES_PER_GRAM_OF_FAT;
+    const total = Math.max(calories, carbCalories + proteinCalories + fatCalories);
     const carbShare = Math.round((carbCalories / total) * 100);
     const proteinShare = Math.min(Math.round((proteinCalories / total) * 100), 100 - carbShare);
-    return { carbs: carbShare, protein: proteinShare, other: 100 - carbShare - proteinShare };
+    const fatShare = Math.min(Math.round((fatCalories / total) * 100), 100 - carbShare - proteinShare);
+    const other = 100 - carbShare - proteinShare - fatShare;
+    return fat === null
+      ? { carbs: carbShare, protein: proteinShare, other }
+      : { carbs: carbShare, protein: proteinShare, fat: fatShare, other };
   }
 
   // The remembered foods with this one added, replacing an earlier one with the same name (any capitals),
@@ -1577,6 +1590,8 @@ const Logic = (() => {
     mealCarbs,
     mealCalories,
     mealProtein,
+    mealFat,
+    dayFat,
     dayCalories,
     dayProtein,
     foodFields,

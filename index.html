@@ -12,7 +12,7 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="theme-color" content="#fafafa" media="(prefers-color-scheme: light)">
   <meta name="theme-color" content="#0a0a0a" media="(prefers-color-scheme: dark)">
-  <link rel="stylesheet" href="style.css?v=8f710c0126">
+  <link rel="stylesheet" href="style.css?v=b983ae9367">
 </head>
 <body>
   <!-- Opening screen: a pixel bar fills in, then the whole thing fades away by itself (CSS only). -->
@@ -599,6 +599,12 @@
             <input id="meal-food-protein" type="number" inputmode="decimal" min="0" step="any" data-i18n-placeholder="meals.carbsPlaceholder" placeholder="optional">
           </div>
         </div>
+        <div class="row">
+          <div>
+            <label for="meal-food-fat" data-i18n="meals.fat">Fat (g)</label>
+            <input id="meal-food-fat" type="number" inputmode="decimal" min="0" step="any" data-i18n-placeholder="meals.carbsPlaceholder" placeholder="optional">
+          </div>
+        </div>
         <button type="submit" id="meal-add-food" class="secondary" data-i18n="meals.addFood">Add food</button>
         <button type="button" id="meal-food-cancel" class="secondary hidden" data-i18n="meals.cancel">Cancel</button>
         <h3 data-i18n="meals.draftHeading">In this meal</h3>
@@ -626,6 +632,7 @@
         <button type="button" id="chart-nutrient-carbs" data-nutrient="carbs" aria-pressed="true" data-i18n="meals.chartShowCarbs">Carbs</button>
         <button type="button" id="chart-nutrient-protein" data-nutrient="protein" aria-pressed="false" data-i18n="meals.chartShowProtein">Protein</button>
         <button type="button" id="chart-nutrient-calories" data-nutrient="calories" aria-pressed="false" data-i18n="meals.chartShowCalories">Calories</button>
+        <button type="button" id="chart-nutrient-fat" data-nutrient="fat" aria-pressed="false" data-i18n="meals.chartShowFat">Fat</button>
       </div>
       <div id="carb-chart" class="chart"></div>
       <p id="carb-chart-detail" class="meal-total" aria-live="polite"></p>
@@ -652,17 +659,17 @@
     </div>
   </div>
 
-  <script src="i18n.js?v=8f710c0126"></script>
-  <script src="lang-en.js?v=8f710c0126"></script>
-  <script src="lang-es.js?v=8f710c0126"></script>
-  <script src="lang-zh.js?v=8f710c0126"></script>
-  <script src="lang-hi.js?v=8f710c0126"></script>
-  <script src="lang-ar.js?v=8f710c0126"></script>
-  <script src="lang-fr.js?v=8f710c0126"></script>
-  <script src="lang-pt.js?v=8f710c0126"></script>
-  <script src="lang-ru.js?v=8f710c0126"></script>
-  <script src="strength-data.js?v=8f710c0126"></script>
-  <script src="logic.js?v=8f710c0126"></script>
-  <script src="app.js?v=8f710c0126"></script>
+  <script src="i18n.js?v=b983ae9367"></script>
+  <script src="lang-en.js?v=b983ae9367"></script>
+  <script src="lang-es.js?v=b983ae9367"></script>
+  <script src="lang-zh.js?v=b983ae9367"></script>
+  <script src="lang-hi.js?v=b983ae9367"></script>
+  <script src="lang-ar.js?v=b983ae9367"></script>
+  <script src="lang-fr.js?v=b983ae9367"></script>
+  <script src="lang-pt.js?v=b983ae9367"></script>
+  <script src="lang-ru.js?v=b983ae9367"></script>
+  <script src="strength-data.js?v=b983ae9367"></script>
+  <script src="logic.js?v=b983ae9367"></script>
+  <script src="app.js?v=b983ae9367"></script>
 </body>
 </html>

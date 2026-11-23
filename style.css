@@ -327,6 +327,7 @@ button.link { min-height: 44px; border: none; background: none; color: var(--acc
 .macro-bar span { display: block; height: 100%; }
 .macro-carbs { background: var(--accent); }
 .macro-protein { background: var(--good); }
+.macro-fat { background: var(--warn); }
 .macro-other { background: var(--muted); }
 .macro-legend { display: flex; flex-wrap: wrap; gap: 4px 14px; margin: 8px 0 0; font-size: 0.9rem; }
 .macro-legend-item { display: inline-flex; align-items: center; gap: 6px; }

@@ -2182,6 +2182,7 @@ function foodLine(food) {
   const parts = [t("meals.foodLine", { name: food.name, category: t(`meals.category.${food.category}`), grams: food.carbs })];
   if (typeof food.calories === "number") parts.push(t("meals.mealCalories", { kcal: food.calories }));
   if (typeof food.protein === "number") parts.push(t("meals.mealProtein", { grams: food.protein }));
+  if (typeof food.fat === "number") parts.push(t("meals.mealFat", { grams: food.fat }));
   return parts.join(" · ");
 }
 
@@ -2238,23 +2239,26 @@ function renderDayNutrition() {
   if (protein !== null) {
     lines.push(plan ? t("meals.dayProteinGoal", { grams: number(protein), goal: number(plan.protein) }) : t("meals.dayProtein", { grams: number(protein) }));
   }
+  const fat = Logic.dayFat(state.meals, date);
+  if (fat !== null) lines.push(t("meals.dayFat", { grams: number(fat) }));
   $("meal-day-nutrition").replaceChildren(...lines.map((line) => el("p", "meal-total-sub", line)));
-  renderMacroSplit(date, calories, protein);
+  renderMacroSplit(date, calories, protein, fat);
 }
 
 // A bar showing the day's calories as carbs, protein and other, with the percents written out underneath.
-function renderMacroSplit(date, calories, protein) {
-  const split = Logic.macroSplit(Logic.dayCarbs(state.meals, date), protein, calories);
+function renderMacroSplit(date, calories, protein, fat) {
+  const split = Logic.macroSplit(Logic.dayCarbs(state.meals, date), protein, calories, fat);
   $("meal-macro-split").classList.toggle("hidden", split === null);
   if (split === null) return;
   const parts = [
     ["carbs", t("meals.splitCarbs")],
     ["protein", t("meals.splitProtein")],
+    ...(split.fat === undefined ? [] : [["fat", t("meals.splitFat")]]),
     ["other", t("meals.splitOther")],
   ];
   const bar = el("div", "macro-bar");
   bar.setAttribute("role", "img");
-  bar.setAttribute("aria-label", t("meals.splitAria", split));
+  bar.setAttribute("aria-label", t(split.fat === undefined ? "meals.splitAria" : "meals.splitAriaFat", split));
   for (const [key] of parts) {
     const piece = el("span", `macro-${key}`);
     piece.style.width = `${split[key]}%`;
@@ -2291,7 +2295,7 @@ function mealDraftRow(food, index) {
 
 function clearFoodFields() {
   editingFoodIndex = null;
-  for (const id of ["meal-food-name", "meal-food-carbs", "meal-food-calories", "meal-food-protein"]) $(id).value = "";
+  for (const id of ["meal-food-name", "meal-food-carbs", "meal-food-calories", "meal-food-protein", "meal-food-fat"]) $(id).value = "";
 }
 
 // Tapping a food in the list puts it back in the food fields, so its category and carbs can be changed.
@@ -2303,6 +2307,7 @@ function onFoodEditStart(index) {
   $("meal-food-carbs").value = food.carbs;
   $("meal-food-calories").value = typeof food.calories === "number" ? food.calories : "";
   $("meal-food-protein").value = typeof food.protein === "number" ? food.protein : "";
+  $("meal-food-fat").value = typeof food.fat === "number" ? food.fat : "";
   $("meal-error").textContent = "";
   renderMeals();
   $("meal-food-carbs").focus();
@@ -2343,10 +2348,12 @@ function mealCard(meal) {
   const label = t(`meals.type.${meal.type}`);
   const calories = Logic.mealCalories(meal);
   const protein = Logic.mealProtein(meal);
+  const fat = Logic.mealFat(meal);
   const totals = [
     t("meals.mealCarbs", { grams: Logic.mealCarbs(meal) }),
     ...(calories === null ? [] : [t("meals.mealCalories", { kcal: calories })]),
     ...(protein === null ? [] : [t("meals.mealProtein", { grams: protein })]),
+    ...(fat === null ? [] : [t("meals.mealFat", { grams: fat })]),
   ];
   const remove = el("button", "secondary", t("meals.delete"));
   remove.type = "button";
@@ -2380,6 +2387,7 @@ function onMealFoodNameInput() {
   $("meal-food-carbs").value = known.carbs;
   $("meal-food-calories").value = typeof known.calories === "number" ? known.calories : "";
   $("meal-food-protein").value = typeof known.protein === "number" ? known.protein : "";
+  $("meal-food-fat").value = typeof known.fat === "number" ? known.fat : "";
 }
 
 // Adds the food in the fields to the meal being built. Returns true when it was added.
@@ -2391,6 +2399,7 @@ function addFoodToMeal() {
     carbs: numberIn("meal-food-carbs"),
     calories: numberIn("meal-food-calories"),
     protein: numberIn("meal-food-protein"),
+    fat: numberIn("meal-food-fat"),
   };
   const error = Logic.validateFood(food);
   $("meal-error").textContent = errorText(error);
@@ -2532,11 +2541,14 @@ const CHART_TEXT = {
   carbs: { heading: "meals.chartHeading", empty: "meals.chartEmpty", aria: "meals.chartAria", goal: "meals.chartGoal", detail: "meals.chartDetail" },
   protein: { heading: "meals.chartHeadingProtein", empty: "meals.chartEmptyProtein", aria: "meals.chartAriaProtein", goal: "meals.chartGoal", detail: "meals.chartDetailProtein" },
   calories: { heading: "meals.chartHeadingCalories", empty: "meals.chartEmptyCalories", aria: "meals.chartAriaCalories", goal: "meals.chartGoalKcal", detail: "meals.chartDetailCalories" },
+  fat: { heading: "meals.chartHeadingFat", empty: "meals.chartEmptyFat", aria: "meals.chartAriaFat", goal: "meals.chartGoal", detail: "meals.chartDetailFat" },
 };
 
 // The goal line for the chart's nutrient: the carbs goal from this tab, or the Plan tab's protein or calorie target.
+// Fat has no goal, since the Plan does not set one.
 function chartGoal() {
   if (chartNutrient === "carbs") return state.carbGoal;
+  if (chartNutrient === "fat") return null;
   const plan = Logic.calorieTarget(state.diet, state.sex, Logic.latestBodyweight(state.bodyweights));
   if (!plan) return null;
   return chartNutrient === "protein" ? plan.protein : plan.target;

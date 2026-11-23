@@ -2576,7 +2576,7 @@ test("the last walkthrough screen can take you to the Workout terms", async () =
 // ---------- Meal tracker ----------
 
 // Fills in the food row and adds it to the meal being built, the way a person would.
-function addFoodToDraft(app, name, category, carbs, calories = "", protein = "") {
+function addFoodToDraft(app, name, category, carbs, calories = "", protein = "", fat = "") {
   const set = (id, value) => {
     const field = app.doc.getElementById(id);
     field.value = value;
@@ -2587,6 +2587,7 @@ function addFoodToDraft(app, name, category, carbs, calories = "", protein = "")
   set("meal-food-carbs", carbs);
   if (calories !== "") set("meal-food-calories", calories);
   if (protein !== "") set("meal-food-protein", protein);
+  if (fat !== "") set("meal-food-fat", fat);
   app.doc.getElementById("meal-add-food").click();
 }
 
@@ -3121,6 +3122,60 @@ test("the Meals tab counts glasses of water for the chosen day, shows the goal, 
     doc.getElementById("water-minus").click();
     if (!count().includes("0 of 8")) throw new Error(`taking away at 0 stays at 0: "${count()}"`);
     assertEqual(savedData(app).water[todayDate], 2, "today is unchanged by tomorrow's taps:");
+    if (app.errors.length) throw new Error(`the app raised errors: ${app.errors.join("; ")}`);
+  } finally {
+    closeApp(app);
+  }
+});
+
+// ---------- Fat ----------
+
+test("fat is an optional food number: checked, kept only when entered, and totalled per meal and per day", () => {
+  assertEqual([Logic.validateFood({ name: "Oil", carbs: 0, fat: 14 }), Logic.validateFood({ name: "Oil", carbs: 0, fat: -1 }), Logic.validateFood({ name: "Oil", carbs: 0, fat: 501 })], ["", "error.foodFat", "error.foodFat"]);
+  assertEqual(Logic.foodFields({ name: "Rice", category: "carb", carbs: 45, fat: null }), { name: "Rice", category: "carb", carbs: 45 }, "blank fat is not saved:");
+  assertEqual(Logic.foodFields({ name: "Oil", category: "fat", carbs: 0, fat: 14 }).fat, 14, "entered fat is saved:");
+  const meals = [
+    { id: "a", date: "2026-11-02", type: "lunch", foods: [{ name: "Oil", category: "fat", carbs: 0, fat: 14 }, { name: "Rice", category: "carb", carbs: 45 }] },
+    { id: "b", date: "2026-11-02", type: "dinner", foods: [{ name: "Salmon", category: "protein", carbs: 0, fat: 17.5 }] },
+    { id: "c", date: "2026-11-01", type: "lunch", foods: [{ name: "Rice", category: "carb", carbs: 45 }] },
+  ];
+  assertEqual([Logic.mealFat(meals[0]), Logic.dayFat(meals, "2026-11-02"), Logic.dayFat(meals, "2026-11-01")], [14, 31.5, null], "meal and day fat, null when none was entered:");
+  assertEqual(Logic.nutrientByDay(meals, "2026-11-02", 2, "fat").map((day) => day.value), [null, 31.5], "fat per day:");
+  assertEqual(Logic.sanitizeMeals([{ ...meals[0], foods: [{ name: "Oil", category: "fat", carbs: 0, fat: "lots" }] }]), [], "a saved food with a bad fat is dropped:");
+  assertEqual(Logic.macroSplit(50, 25, 500, 10), { carbs: 40, protein: 20, fat: 18, other: 22 }, "split with fat (9 calories a gram):");
+  assertEqual(Logic.macroSplit(50, 25, 500), { carbs: 40, protein: 20, other: 40 }, "split without fat is as before:");
+  const odd = Logic.macroSplit(33, 33, 700, 33);
+  assertEqual(odd.carbs + odd.protein + odd.fat + odd.other, 100, "rounded shares with fat still add up to 100:");
+});
+
+test("on the Meals tab fat can be entered on a food, shows in the totals and the chart, and goes into the macro split", async () => {
+  const app = await openApp();
+  try {
+    const doc = app.doc;
+    showTab(app, "meals");
+    addFoodToDraft(app, "Rice", "carb", "50", "", "");
+    addFoodToDraft(app, "Salmon", "protein", "0", "400", "25", "20");
+    doc.getElementById("meal-save").click();
+    const dayText = doc.getElementById("meal-day-nutrition").innerText;
+    if (!dayText.includes("Fat: 20 g")) throw new Error(`the day should say Fat: 20 g: "${dayText}"`);
+    if (!doc.querySelector("#meal-list .meal").innerText.includes("20 g fat")) throw new Error("the meal should say 20 g fat");
+    const split = doc.getElementById("meal-macro-split").innerText;
+    for (const expected of ["Carbs 42%", "Protein 21%", "Fat 37%", "Other 0%"]) if (!split.includes(expected)) throw new Error(`the split should say ${expected}: "${split}"`);
+
+    doc.getElementById("chart-nutrient-fat").click();
+    if (!doc.getElementById("carb-chart-heading").innerText.includes("Fat")) throw new Error("the chart heading should say fat");
+    if (doc.querySelector("#carb-chart line.goal-line")) throw new Error("fat has no goal, so no goal line");
+    doc.querySelector("#carb-chart rect.bar-hit").dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    if (!doc.getElementById("carb-chart-detail").innerText.includes("20 g of fat")) throw new Error("pressing today's bar should say 20 g of fat");
+
+    // Tapping the saved food in a new meal brings its fat back, and typing the name again fills it in.
+    const nameField = doc.getElementById("meal-food-name");
+    nameField.value = "Salmon";
+    nameField.dispatchEvent(new Event("input", { bubbles: true }));
+    assertEqual(doc.getElementById("meal-food-fat").value, "20", "remembered food fills in its fat:");
+    doc.getElementById("meal-food-fat").value = "-3";
+    doc.getElementById("meal-add-food").click();
+    if (!doc.getElementById("meal-error").innerText.trim()) throw new Error("negative fat needs a message");
     if (app.errors.length) throw new Error(`the app raised errors: ${app.errors.join("; ")}`);
   } finally {
     closeApp(app);
