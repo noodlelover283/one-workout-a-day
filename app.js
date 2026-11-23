@@ -2731,6 +2731,21 @@ function renderWeight() {
   renderWeeklyCheck();
 }
 
+// What was eaten over the same stretch of days as the weight trend, so the weight change can be read against it.
+function eatingLine(trend) {
+  const eaten = Logic.averageCalories(state.meals, trend.from, trend.to);
+  if (eaten === null) return el("p", "hint", t("check.eatingNone"));
+  const plan = Logic.calorieTarget(state.diet, state.sex, Logic.latestBodyweight(state.bodyweights));
+  const kcal = eaten.average.toLocaleString(I18n.locale());
+  return el(
+    "p",
+    "",
+    plan
+      ? t("check.eatingTarget", { kcal, days: eaten.days, target: plan.target.toLocaleString(I18n.locale()) })
+      : t("check.eating", { kcal, days: eaten.days })
+  );
+}
+
 function renderWeeklyCheck() {
   const unit = state.unit;
   const trend = Logic.weightTrend(state.bodyweights, today());
@@ -2745,7 +2760,8 @@ function renderWeeklyCheck() {
   const card = el("div", "card plan-card");
   card.append(
     el("p", "", t("check.trend", { days: trend.days, count: trend.count, change: signed(trend.perWeek, rateText(trend.perWeek)), unit })),
-    el("p", "hint", t("check.goal", { goal: goalText }))
+    el("p", "hint", t("check.goal", { goal: goalText })),
+    eatingLine(trend)
   );
   const suggestion = Logic.adjustmentSuggestion(goalPerWeek, trend.perWeek);
   if (suggestion.status === "onTrack") {

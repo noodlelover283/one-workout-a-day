@@ -1261,9 +1261,9 @@ function screenTestData() {
 
 // Loads the app in a hidden frame on throwaway data. Resolves with the frame, its document, and a list
 // that fills with any errors the app raises afterwards.
-function openApp({ brandNew = false } = {}) {
+function openApp({ brandNew = false, data = null } = {}) {
   const storage = `screen-test-${(screenRuns += 1)}`;
-  if (!brandNew) localStorage.setItem(storage, JSON.stringify(screenTestData()));
+  if (!brandNew) localStorage.setItem(storage, JSON.stringify(data || screenTestData()));
   return new Promise((resolve) => {
     const frame = document.createElement("iframe");
     frame.style.cssText = "position: absolute; left: -9999px; width: 375px; height: 812px; border: 0;";
@@ -3230,6 +3230,38 @@ test("a protein goal of your own is checked, and replaces the Plan's protein tar
     doc.getElementById("protein-goal").value = "";
     doc.getElementById("protein-goal-save").click();
     if (!dayText().includes(`of ${plan.protein} g`)) throw new Error(`clearing the goal goes back to the Plan's: "${dayText()}"`);
+    if (app.errors.length) throw new Error(`the app raised errors: ${app.errors.join("; ")}`);
+  } finally {
+    closeApp(app);
+  }
+});
+
+test("the average calories over a stretch of days counts only days with calories entered, and is null when there are none", () => {
+  const meal = (id, date, calories) => ({ id, date, type: "lunch", foods: [{ name: "Food", category: "other", carbs: 0, ...(calories === null ? {} : { calories }) }] });
+  const meals = [meal("a", "2026-11-01", 2000), meal("b", "2026-11-01", 500), meal("c", "2026-11-03", 3000), meal("d", "2026-11-02", null), meal("e", "2026-10-30", 9999)];
+  assertEqual(Logic.averageCalories(meals, "2026-11-01", "2026-11-04"), { average: 2750, days: 2 }, "2,500 on the 1st and 3,000 on the 3rd; the 2nd had no calories, the 30th is outside:");
+  assertEqual(Logic.averageCalories(meals, "2026-11-04", "2026-11-06"), null, "no calories in the stretch:");
+  const trend = Logic.weightTrend([{ date: "2026-10-01", weight: 180 }, { date: "2026-10-08", weight: 181 }, { date: "2026-10-15", weight: 182 }], "2026-10-20");
+  assertEqual([trend.from, trend.to], ["2026-10-01", "2026-10-15"], "the trend says which days it covers:");
+});
+
+test("the Weekly check says how much you ate over the same days as the weight change, or why it cannot", async () => {
+  const daysAgo = (count) => Logic.toDateString(new Date(Date.now() - count * 86400000));
+  const weighIns = [14, 7, 0].map((count, index) => ({ date: daysAgo(count), weight: 180 + index }));
+  const app = await openApp({ data: { ...screenTestData(), bodyweights: weighIns } });
+  try {
+    const doc = app.doc;
+    const check = () => doc.getElementById("diet-check").innerText;
+    showTab(app, "weight");
+    if (!check().includes("is changing by")) throw new Error(`the test data should have a weight trend: "${check()}"`);
+    if (!check().includes("No calories were logged")) throw new Error(`with no calories it should say so: "${check()}"`);
+
+    showTab(app, "meals");
+    addFoodToDraft(app, "Dinner", "other", "0", "2000", "");
+    doc.getElementById("meal-save").click();
+    showTab(app, "weight");
+    if (!check().includes("about 2,000 kcal a day") || !check().includes("days with calories logged: 1")) throw new Error(`it should say 2,000 kcal from 1 day: "${check()}"`);
+    if (!check().includes("your target is")) throw new Error(`with a Plan it should say the target: "${check()}"`);
     if (app.errors.length) throw new Error(`the app raised errors: ${app.errors.join("; ")}`);
   } finally {
     closeApp(app);

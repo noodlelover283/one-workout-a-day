@@ -1186,7 +1186,20 @@ const Logic = (() => {
     const meanX = xs.reduce((sum, x) => sum + x, 0) / xs.length;
     const meanY = recent.reduce((sum, b) => sum + b.weight, 0) / recent.length;
     const slope = xs.reduce((sum, x, i) => sum + (x - meanX) * (recent[i].weight - meanY), 0) / xs.reduce((sum, x) => sum + (x - meanX) ** 2, 0);
-    return { perWeek: slope * 7, count: recent.length, days: span };
+    return { perWeek: slope * 7, count: recent.length, days: span, from: first, to: recent[recent.length - 1].date };
+  }
+
+  // The average calories a day eaten from one date to another, both included, counting only days where some
+  // food had calories entered: { average, days } with days the number of such days. Null when there are none.
+  function averageCalories(meals, from, to) {
+    const totals = [];
+    for (let offset = 0; offset <= daysBetween(from, to); offset += 1) {
+      const day = new Date(`${from}T00:00:00`);
+      day.setDate(day.getDate() + offset);
+      const calories = dayCalories(meals, toDateString(day));
+      if (calories !== null) totals.push(calories);
+    }
+    return totals.length === 0 ? null : { average: Math.round(totals.reduce((sum, value) => sum + value, 0) / totals.length), days: totals.length };
   }
 
   // Compares the real weekly change with the goal's. Returns { status: "onTrack" } or { status: "adjust",
@@ -1615,6 +1628,7 @@ const Logic = (() => {
     dayCarbs,
     validateProteinGoal,
     sanitizeProteinGoal,
+    averageCalories,
     nutrientByDay,
     daysOnTarget,
     ON_TARGET_TOLERANCE,
