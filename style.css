@@ -14,8 +14,6 @@
   --on-solid: #ffffff;
   --radius: 10px;
   --radius-lg: 14px;
-  --font-sans: "DM Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
-  --font-display: "Space Grotesk", "DM Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", "Cascadia Mono", Consolas, monospace;
 }
 
@@ -237,9 +235,9 @@ button.link { min-height: 44px; border: none; background: none; color: var(--acc
 .rest-banner.over { background: var(--good-bg); border-color: var(--good); }
 .rest-banner p { margin: 0; }
 .rest-main { display: flex; align-items: center; gap: 6px; }
-.rest-text { flex: 1; min-width: 0; display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.rest-text { flex: 1; min-width: 0; display: flex; align-items: baseline; gap: 6px; flex-wrap: wrap; }
 .rest-label { font-weight: 600; }
-.rest-clock { font-size: 1.7rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+.rest-clock { font-size: 1.5rem; font-weight: 700; font-variant-numeric: tabular-nums; }
 .rest-main button { min-height: 40px; padding: 0 8px; }
 .rest-adjust { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin: 6px 0 2px; }
 .rest-adjust button { padding: 0 2px; white-space: nowrap; font-size: min(1rem, 4.4vw); }
@@ -464,19 +462,15 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
    display face for headings. Fonts fall back to system fonts, so nothing is downloaded and the app
    still looks right offline. Colours and type apply everywhere; the sidebar layout is computer-only. */
 
-body { font-family: var(--font-sans); }
-h1, h2, h3, .dash-card strong, .stat-figure, .rest-clock, .plan-card .plan-target { font-family: var(--font-display); }
+/* One font everywhere: the evenly spaced one Isaac prefers. Buttons and fields inherit it. */
+body { font-family: var(--font-mono); }
 h2 { font-weight: 600; letter-spacing: -0.025em; }
 h3 { font-weight: 600; letter-spacing: -0.01em; }
 
-label, .hint, .unit, .detail, .dash-stat, .exercise-sets, .tour-step, .badge, .axis, .weekday,
-.rest-label, .meal-total-sub, .plan-protein, .merge-counts, .offline-banner, .toast {
-  font-family: var(--font-mono);
-}
 label { text-transform: uppercase; letter-spacing: 0.06em; font-size: 0.72rem; font-weight: 500; color: var(--muted); }
-.check, label.check, .target-row label { font-family: var(--font-sans); text-transform: none; letter-spacing: 0; font-size: 0.95rem; color: var(--text); }
+.check, label.check, .target-row label { text-transform: none; letter-spacing: 0; font-size: 0.95rem; color: var(--text); }
 .hint, .detail, .dash-stat, .exercise-sets, .unit { font-size: 0.8rem; }
-input, select, textarea { font-family: var(--font-mono); font-size: 1rem; }
+input, select, textarea { font-size: 1rem; }
 input[type="number"], .rest-clock, .stat-figure, .plan-target { font-variant-numeric: tabular-nums; }
 .section-switch button, .unit-toggle button, .range-toggle button, .chip, .pill, .demo summary {
   font-family: var(--font-mono); font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 500;

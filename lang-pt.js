@@ -545,6 +545,8 @@ I18n.register("pt", {
     "meals.editing": "Editando {meal} de {date}",
     "meals.saveChanges": "Salvar alterações",
     "meals.cancel": "Cancelar",
+    "meals.open": "Adicionar uma refeição",
+    "meals.discardConfirm": "Descartar a refeição que você está montando?",
     "meals.updateFood": "Atualizar alimento",
     "meals.editFoodAria": "Alterar {food}",
     "meals.updated": "Refeição atualizada",

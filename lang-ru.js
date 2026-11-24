@@ -549,6 +549,8 @@ I18n.register("ru", {
     "meals.editing": "Изменение: {meal}, {date}",
     "meals.saveChanges": "Сохранить изменения",
     "meals.cancel": "Отмена",
+    "meals.open": "Добавить приём пищи",
+    "meals.discardConfirm": "Отменить приём пищи, который вы составляете?",
     "meals.updateFood": "Обновить продукт",
     "meals.editFoodAria": "Изменить: {food}",
     "meals.updated": "Приём пищи обновлён",

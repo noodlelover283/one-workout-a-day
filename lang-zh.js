@@ -543,6 +543,8 @@ I18n.register("zh", {
     "meals.editing": "正在编辑 {date} 的{meal}",
     "meals.saveChanges": "保存更改",
     "meals.cancel": "取消",
+    "meals.open": "添加一餐",
+    "meals.discardConfirm": "放弃正在填写的这一餐吗？",
     "meals.updateFood": "更新食物",
     "meals.editFoodAria": "修改 {food}",
     "meals.updated": "已更新这一餐",

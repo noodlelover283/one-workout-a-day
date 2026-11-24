@@ -545,6 +545,8 @@ I18n.register("hi", {
     "meals.editing": "{date} का {meal} संपादित हो रहा है",
     "meals.saveChanges": "बदलाव सहेजें",
     "meals.cancel": "रद्द करें",
+    "meals.open": "भोजन जोड़ें",
+    "meals.discardConfirm": "जो भोजन आप बना रहे हैं, उसे हटा दें?",
     "meals.updateFood": "खाना अपडेट करें",
     "meals.editFoodAria": "{food} बदलें",
     "meals.updated": "भोजन अपडेट किया गया",

@@ -2177,6 +2177,8 @@ let mealDraft = [];
 // The saved meal loaded into the form for editing, if any, and the food in the list loaded into the food fields.
 let editingMealId = null;
 let editingFoodIndex = null;
+// The meal form stays folded away behind the Add a meal button until it is opened (or a meal is edited).
+let mealFormOpen = false;
 // How many days the per-day chart covers: 7 or 30, and which nutrient it shows (one of Logic.CHART_NUTRIENTS).
 let carbChartDays = 7;
 let chartNutrient = "carbs";
@@ -2263,7 +2265,8 @@ function renderMeals() {
   const editing = state.meals.find((meal) => meal.id === editingMealId);
   $("meal-editing").classList.toggle("hidden", !editing);
   if (editing) $("meal-editing").textContent = t("meals.editing", { meal: t(`meals.type.${editing.type}`), date: I18n.formatDate(editing.date) });
-  $("meal-cancel").classList.toggle("hidden", !editing);
+  $("meal-form-panel").classList.toggle("hidden", !mealFormOpen);
+  $("meal-open").classList.toggle("hidden", mealFormOpen);
   $("meal-save").textContent = t(editing ? "meals.saveChanges" : "meals.save");
   $("meal-add-food").textContent = t(editingFoodIndex === null ? "meals.addFood" : "meals.updateFood");
   $("meal-food-cancel").classList.toggle("hidden", editingFoodIndex === null);
@@ -2402,12 +2405,20 @@ function onMealEditStart(meal) {
   $("meal-error").textContent = "";
   $("meal-type").value = meal.type;
   $("meal-note").value = meal.note || "";
+  mealFormOpen = true;
   renderMeals();
   $("meal-form").scrollIntoView({ block: "start" });
 }
 
-// Puts the form back to a blank new meal.
+function onMealFormOpen() {
+  mealFormOpen = true;
+  renderMeals();
+  $("meal-food-name").focus();
+}
+
+// Empties the form back to a blank new meal and folds it away.
 function resetMealForm() {
+  mealFormOpen = false;
   mealDraft = [];
   editingMealId = null;
   clearFoodFields();
@@ -2415,7 +2426,9 @@ function resetMealForm() {
   $("meal-error").textContent = "";
 }
 
-function onMealEditCancel() {
+// Cancel asks first when a new meal already has foods, so they are not lost to a stray tap.
+function onMealFormCancel() {
+  if (editingMealId === null && mealDraft.length > 0 && !window.confirm(t("meals.discardConfirm"))) return;
   resetMealForm();
   renderMeals();
 }
@@ -3214,7 +3227,8 @@ function init() {
   $("water-minus").addEventListener("click", () => onWaterChange(-1));
   $("water-plus").addEventListener("click", () => onWaterChange(1));
   $("water-goal-form").addEventListener("submit", onWaterGoalSave);
-  $("meal-cancel").addEventListener("click", onMealEditCancel);
+  $("meal-open").addEventListener("click", onMealFormOpen);
+  $("meal-cancel").addEventListener("click", onMealFormCancel);
   $("meal-food-cancel").addEventListener("click", onFoodEditCancel);
   $("carb-goal-form").addEventListener("submit", onCarbGoalSave);
   $("protein-goal-form").addEventListener("submit", onProteinGoalSave);

@@ -1431,7 +1431,8 @@ test("Progress opens as a dashboard: plateau check, exercise chart and cards tha
     const chart = tab.querySelector("#exercise-chart svg").getBoundingClientRect();
     if (chart.bottom > 812 * 1.5) throw new Error(`the exercise chart ends ${Math.round(chart.bottom)}px down; it should be near the top`);
     const screens = app.doc.documentElement.scrollHeight / 812;
-    if (screens > 2.2) throw new Error(`Progress is ${screens.toFixed(1)} screens tall; it used to be about 3.3`);
+    // 2.4 rather than 2.2 since the app moved to one evenly spaced font, which wraps long lines a little sooner.
+    if (screens > 2.4) throw new Error(`Progress is ${screens.toFixed(1)} screens tall; it used to be about 3.3`);
     // Tapping Bodyweight shows its form and chart in place of the dashboard, and Back returns.
     cards.find((card) => card.dataset.panel === "body").click();
     const panel = app.doc.getElementById("panel-body");
@@ -3558,6 +3559,45 @@ test("replacing a meal keeps its id and day, and an unknown id changes nothing",
   assertEqual(Logic.replaceMeal(meals, "zzz", { type: "snack", foods: [] }), meals, "unknown id:");
 });
 
+test("the meal form stays folded behind Add a meal until opened, and Saving or Cancel folds it again", async () => {
+  const app = await openApp();
+  const doc = app.doc;
+  try {
+    showTab(app, "meals");
+    const formShown = () => isShown(doc.getElementById("meal-form"));
+    const openButton = doc.getElementById("meal-open");
+    if (formShown()) throw new Error("the form should be folded away when the tab opens");
+    if (!isShown(openButton)) throw new Error("Add a meal should show");
+    openButton.click();
+    if (!formShown() || isShown(openButton)) throw new Error("Add a meal should open the form and hide itself");
+
+    // Cancel with a food in the meal asks first; saying no keeps the meal being built.
+    addFoodToDraft(app, "Rice", "carb", "45");
+    let asked = 0;
+    app.win.confirm = () => (asked++, false);
+    doc.getElementById("meal-cancel").click();
+    if (asked !== 1 || !formShown()) throw new Error("Cancel should ask, and keep the form when told no");
+    app.win.confirm = () => true;
+    doc.getElementById("meal-cancel").click();
+    if (formShown() || !isShown(openButton)) throw new Error("Cancel should fold the form away");
+    openButton.click();
+    assertEqual(doc.querySelectorAll("#meal-draft li").length, 0, "the cancelled food is gone:");
+
+    addFoodToDraft(app, "Rice", "carb", "45");
+    doc.getElementById("meal-save").click();
+    if (formShown()) throw new Error("saving should fold the form away");
+    assertEqual(doc.querySelectorAll("#meal-list .meal").length, 1, "the meal is saved:");
+
+    // Edit opens the form with the meal in it.
+    doc.querySelector("#meal-list .meal-toggle").click();
+    doc.querySelector("#meal-list button.meal-edit").click();
+    if (!formShown()) throw new Error("Edit should open the form");
+    if (app.errors.length) throw new Error(`the app raised errors: ${app.errors.join("; ")}`);
+  } finally {
+    closeApp(app);
+  }
+});
+
 // Logs lunch (chicken, rice 45, broccoli 6) and returns the helpers the editing tests share.
 async function openAppWithLunch() {
   const app = await openApp();
@@ -3627,6 +3667,7 @@ test("tapping a food in the list lets its category and carbs be changed in place
     if (!total().includes("36")) throw new Error(`the day's total should be 36: "${total()}"`);
 
     // The same works on a meal that is still being built, and a food edit can be cancelled.
+    doc.getElementById("meal-open").click();
     addFoodToDraft(app, "Cake", "other", "20");
     [...doc.querySelectorAll("#meal-draft li")][0].querySelector("button.food-edit").click();
     if (!isShown(doc.getElementById("meal-food-cancel"))) throw new Error("changing a food should offer Cancel");

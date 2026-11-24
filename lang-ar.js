@@ -554,6 +554,8 @@ I18n.register("ar", {
     "meals.editing": "تعديل {meal} بتاريخ {date}",
     "meals.saveChanges": "احفظ التغييرات",
     "meals.cancel": "إلغاء",
+    "meals.open": "إضافة وجبة",
+    "meals.discardConfirm": "هل تريد تجاهل الوجبة التي تُعدّها؟",
     "meals.updateFood": "حدّث الطعام",
     "meals.editFoodAria": "تغيير {food}",
     "meals.updated": "تم تحديث الوجبة",
