@@ -750,3 +750,26 @@ li.empty { display: flex; align-items: center; gap: 14px; }
 
   .toast { bottom: 104px; left: calc(50% + var(--sidebar-width) / 2); }
 }
+
+/* Focused workout: one routine exercise at a time over the whole screen, with big controls for use
+   mid-workout. It sits above the tab bar and below the messages. */
+html.focus-open { overflow: hidden; }
+.focus { position: fixed; inset: 0; z-index: 13; overflow-y: auto; padding: 16px 16px calc(24px + env(safe-area-inset-bottom)); background: var(--bg); }
+.focus > * { max-width: 520px; margin-inline: auto; }
+.focus-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.focus-top button { width: auto; margin: 0; }
+.focus-position { margin: 0; color: var(--muted); font-size: 0.85rem; }
+.focus-exercise { margin: 20px 0 8px; font-size: 1.8rem; }
+.focus-line { margin: 8px 0 0; }
+.focus-rest { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 16px; padding: 12px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); }
+.focus-rest p { margin: 0; }
+.focus-rest strong { font-size: 2rem; font-variant-numeric: tabular-nums; }
+.focus-rest button { width: auto; margin: 0; flex-shrink: 0; }
+.stepper { display: grid; grid-template-columns: 64px 1fr 64px; gap: 8px; }
+.stepper button { margin: 0; min-height: 64px; font-size: 1.6rem; }
+.stepper input { min-height: 64px; text-align: center; font-size: 1.6rem; font-weight: 700; }
+.focus-done { min-height: 64px; font-size: 1.2rem; }
+.focus-nav { display: flex; gap: 10px; margin-top: 20px; }
+.focus-nav button { flex: 1; margin: 0; }
+.focus-summary { margin: 16px 0 0; padding: 0; list-style: none; }
+.focus-summary li { padding: 8px 0; border-bottom: 1px solid var(--border); }

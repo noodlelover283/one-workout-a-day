@@ -1754,6 +1754,76 @@ test("choosing an exercise shows the sets from last time in plain sight, and not
   }
 });
 
+test("a focused workout steps through a routine one exercise at a time, logs sets with + and −, and ends on a summary", async () => {
+  const app = await openApp();
+  try {
+    const doc = app.doc;
+    const byId = (id) => doc.getElementById(id);
+    // A day with nothing logged, well before anything the sample data can reach.
+    chooseDay(app, "2020-01-09");
+    if (isShown(byId("focus-start"))) throw new Error("Start focused workout should wait until a routine is chosen");
+    byId("routine-select").value = "r1";
+    fireEvent(byId("routine-select"), "change");
+    byId("focus-start").click();
+    if (!isShown(byId("focus"))) throw new Error("the focused screen should open");
+    assertEqual(byId("focus-exercise").innerText.trim(), "Bench Press", "first exercise:");
+    if (!byId("focus-position").innerText.includes("1") || !byId("focus-position").innerText.includes("2")) {
+      throw new Error(`the position should read 1 of 2: "${byId("focus-position").innerText}"`);
+    }
+    if (!byId("focus-prev").disabled) throw new Error("Previous should be off on the first exercise");
+
+    // Chest moves by 5 lb a step; reps by one.
+    byId("focus-weight").value = "100";
+    byId("focus-reps").value = "8";
+    doc.querySelector('#focus [data-step="weight"][data-direction="1"]').click();
+    doc.querySelector('#focus [data-step="reps"][data-direction="-1"]').click();
+    assertEqual([byId("focus-weight").value, byId("focus-reps").value], ["105", "7"], "after + weight and − reps:");
+    byId("focus-done").click();
+    const saved = savedData(app).entries.filter((e) => e.date === "2020-01-09");
+    assertEqual(saved.map((e) => [e.exercise, e.weight, e.reps]), [["Bench Press", 105, 7]], "the set is saved:");
+    if (!byId("focus-sets").innerText.includes("1 of 3") || !byId("focus-sets").innerText.includes("105×7")) throw new Error(`the set should show: "${byId("focus-sets").innerText}"`);
+    if (!isShown(byId("focus-rest"))) throw new Error("the rest timer should show in the focused screen");
+
+    byId("focus-next").click();
+    assertEqual(byId("focus-exercise").innerText.trim(), "Overhead Press", "second exercise:");
+    assertEqual(byId("focus-next").innerText.trim(), "Finish", "the last exercise offers Finish:");
+    byId("focus-next").click();
+    const summary = byId("focus-summary").innerText;
+    // The test data already has heavier Bench Press sets, so 105 lb is not a record.
+    for (const expected of ["Workout done", "Sets: 1", "Volume: 735 lb", "New records: 0", "Bench Press: 105×7 lb"]) {
+      if (!summary.includes(expected)) throw new Error(`the summary should include "${expected}": ${summary}`);
+    }
+    byId("focus-summary-close").click();
+    if (isShown(byId("focus"))) throw new Error("Back to Log should close the focused screen");
+    if (!byId("today-list").innerText.includes("Bench Press")) throw new Error("the set should be in the day's list");
+    if (app.errors.length) throw new Error(`the app raised errors: ${app.errors.join("; ")}`);
+  } finally {
+    closeApp(app);
+  }
+});
+
+test("a focused workout starts at the routine's first exercise not done yet, and fills in the last set done", async () => {
+  const app = await openApp();
+  try {
+    const doc = app.doc;
+    const byId = (id) => doc.getElementById(id);
+    chooseDay(app, "2020-01-09");
+    // Bench Press has a target of 3 sets in this routine, so three sets finish it.
+    for (let set = 0; set < 3; set += 1) logSetInApp(app, "Bench Press", 95, 10);
+    byId("routine-select").value = "r1";
+    fireEvent(byId("routine-select"), "change");
+    byId("focus-start").click();
+    assertEqual(byId("focus-exercise").innerText.trim(), "Overhead Press", "Bench Press is done, so it starts on:");
+    byId("focus-prev").click();
+    assertEqual([byId("focus-weight").value, byId("focus-reps").value], ["95", "10"], "Bench Press starts from today's last set:");
+    byId("focus-exit").click();
+    if (isShown(byId("focus"))) throw new Error("Exit should close the focused screen");
+    if (app.errors.length) throw new Error(`the app raised errors: ${app.errors.join("; ")}`);
+  } finally {
+    closeApp(app);
+  }
+});
+
 // Picks a file in the backup chooser and waits until the app has answered: either the panel with the
 // choices, or an error message. Reading a file takes a moment, so this waits for the answer instead of
 // guessing how long it takes.

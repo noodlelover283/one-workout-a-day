@@ -448,7 +448,8 @@ function newEntryId() {
 }
 
 // Saves one set (the weight in pounds) and everything that follows from it: the lists, the routine
-// chip, the rest timer and the message. Used by the Add set form and by the Repeat button.
+// chip, the rest timer and the message. Used by the Add set form, the Repeat button and focused workouts.
+// Returns the new set's id and whether it was a new weight record.
 function addSet(date, exercise, weight, reps) {
   const previousBest = Logic.bestWeight(workingEntries(), exercise);
   const id = newEntryId();
@@ -463,13 +464,15 @@ function addSet(date, exercise, weight, reps) {
   if (state.rest.autoStart) startRest(state.rest.seconds);
   const setNumber = workingEntries().filter((e) => e.date === date && e.exercise === exercise).length;
   const name = exerciseLabel(exercise);
-  if (Logic.isNewRecord(previousBest, weight)) {
+  const record = Logic.isNewRecord(previousBest, weight);
+  if (record) {
     const shown = Logic.formatWeight(weight, state.unit);
     const previous = Logic.formatWeight(previousBest, state.unit);
     showToast(t("toast.record", { exercise: name, weight: shown, previous, unit: state.unit }), { celebrate: true });
   } else {
     showToast(t("toast.saved", { exercise: name, n: setNumber }));
   }
+  return { id, record };
 }
 
 // Saves one warm-up set. It is marked so it never counts toward records, volume or plateaus, and it
@@ -531,6 +534,7 @@ function updateRest() {
     return;
   }
   $("rest-clock").textContent = Logic.formatClock(secondsLeft);
+  renderFocusRest();
 }
 
 function adjustRest(deltaSeconds) {
@@ -544,6 +548,7 @@ function finishRest() {
   restEndsAt = null;
   $("rest-banner").classList.add("over");
   renderRestLabels();
+  renderFocusRest();
   showToast(t("toast.restOver"));
   if (state.rest.sound) {
     beep();
@@ -556,6 +561,7 @@ function dismissRest() {
   restEndsAt = null;
   $("rest-banner").classList.add("hidden");
   setRestAdjustOpen(false);
+  renderFocusRest();
 }
 
 // The ±15s and ±5s buttons stay tucked away until Adjust is tapped.
@@ -777,6 +783,34 @@ function activeRoutineTarget(exercise) {
   return slot ? routine.targets[slot.original] : undefined;
 }
 
+// What to lift next for an exercise, from the sessions before the given day (so it stays put while you
+// log sets): the plain suggestion, and a lighter deload set when its muscle group has stalled. Null for an
+// exercise never logged before that day.
+function nextSetAdvice(exercise, date) {
+  const history = workingEntries().filter((e) => e.date < date);
+  const group = muscleOf(exercise);
+  const repGoal = (activeRoutineTarget(exercise) || {}).reps || state.progression.repGoal;
+  const jump = Logic.toLb(jumpOf(group), state.unit);
+  const suggestion = Logic.suggestNext(history, exercise, repGoal, jump);
+  if (!suggestion) return null;
+  const status = Logic.plateauStatus(workingEntries(), muscleOf, today(), stallDaysOf).find((s) => s.group === group);
+  const stalled = Boolean(status && status.state === "stalled");
+  const deload = stalled && Logic.deloadNext(history, exercise, repGoal, jump);
+  return { suggestion, deload, stalled, group, repGoal, shown: deload || suggestion };
+}
+
+// "Last time (Nov 19): 140×8 (×3) lb." for a suggestion's session.
+function lastTimeText(suggestion) {
+  return t("suggest.last", { date: I18n.formatShortDate(suggestion.sessionDate), sets: groupedSetsText(suggestion.session), unit: state.unit });
+}
+
+// The suggestion line itself: the deload set when there is one, otherwise the plain suggestion.
+function adviceText(advice) {
+  const { shown, deload } = advice;
+  const values = { weight: Logic.formatWeight(shown.weight, state.unit), unit: state.unit, reps: repsText(shown.reps) };
+  return t(deload ? "suggest.deloadText" : "suggest.text", values);
+}
+
 function renderSuggestion() {
   const box = $("suggestion");
   const exercise = resolveExercise($("exercise").value);
@@ -788,16 +822,11 @@ function renderSuggestion() {
     box.classList.add("hidden");
     return;
   }
-  const date = $("date").value || today();
-  // Only sessions before the chosen day count, so the suggestion stays put while you log sets.
-  const history = workingEntries().filter((e) => e.date < date);
-  const group = muscleOf(exercise);
+  const advice = nextSetAdvice(exercise, $("date").value || today());
   const unit = state.unit;
-  const repGoal = (activeRoutineTarget(exercise) || {}).reps || state.progression.repGoal;
-  const suggestion = Logic.suggestNext(history, exercise, repGoal, Logic.toLb(jumpOf(group), unit));
   box.classList.remove("hidden");
   const useButton = $("use-suggestion");
-  if (!suggestion) {
+  if (!advice) {
     $("suggestion-text").textContent = t("suggest.none", { exercise: exerciseLabel(exercise) });
     $("suggestion-detail").textContent = t("suggest.noneDetail");
     $("suggestion-note").textContent = "";
@@ -805,16 +834,13 @@ function renderSuggestion() {
     useButton.classList.add("hidden");
     return;
   }
-  const status = Logic.plateauStatus(workingEntries(), muscleOf, today(), stallDaysOf).find((s) => s.group === group);
-  const stalled = Boolean(status && status.state === "stalled");
-  const deload = stalled && Logic.deloadNext(history, exercise, repGoal, Logic.toLb(jumpOf(group), unit));
-  const shown = deload || suggestion;
+  const { suggestion, deload, stalled, group, repGoal, shown } = advice;
   const weight = Logic.formatWeight(shown.weight, unit);
   const goal = repsText(repGoal);
   // The last session's sets show in plain sight, so you can match or beat them without opening anything.
-  $("last-time").textContent = t("suggest.last", { date: I18n.formatShortDate(suggestion.sessionDate), sets: groupedSetsText(suggestion.session), unit });
+  $("last-time").textContent = lastTimeText(suggestion);
+  $("suggestion-text").textContent = adviceText(advice);
   if (deload) {
-    $("suggestion-text").textContent = t("suggest.deloadText", { weight, unit, reps: repsText(shown.reps) });
     const reason = t("suggest.deloadReason", {
       group: muscleLabel(group),
       percent: Logic.DELOAD_PERCENT,
@@ -824,7 +850,6 @@ function renderSuggestion() {
     $("suggestion-detail").textContent = reason;
     $("suggestion-note").textContent = "";
   } else {
-    $("suggestion-text").textContent = t("suggest.text", { weight, unit, reps: repsText(suggestion.reps) });
     const reason = suggestion.increased
       ? t("suggest.reasonUp", { goal, jump: jumpOf(group), unit })
       : t("suggest.reasonRepeat", { goal, target: repsText(suggestion.reps) });
@@ -908,6 +933,7 @@ function renderRoutinePicker() {
 function renderRoutineChecklist(todaysEntries) {
   const routine = state.routines.find((r) => r.id === $("routine-select").value);
   const list = $("routine-checklist");
+  $("focus-start").classList.toggle("hidden", !routine);
   if (!routine) {
     list.replaceChildren();
     renderSwap();
@@ -1022,6 +1048,163 @@ function pickRoutineExercise(exercise) {
   updateMuscleRow();
   renderRoutineChecklist(workingEntries().filter((e) => e.date === ($("date").value || today())));
   $("weight").focus();
+}
+
+// ---------- Focused workout ----------
+
+// While focused mode is open: the routine, which of its exercises is showing, when it started, and the
+// sets and records logged since, for the summary at the end. Null when it is closed.
+let focus = null;
+let wakeLock = null;
+
+const focusDate = () => $("date").value || today();
+const focusRoutine = () => state.routines.find((r) => r.id === focus.routineId);
+const focusSlots = () => routineSlotsFor(focusRoutine(), focusDate());
+const todaysWorkingSets = () => Logic.workingSets(state.entries.filter((e) => e.date === focusDate()));
+
+// Starts at the routine's first exercise not done yet today, or the first one when all are done.
+function startFocus() {
+  const routine = state.routines.find((r) => r.id === $("routine-select").value);
+  if (!routine) return;
+  focus = { routineId: routine.id, index: 0, startedAt: Date.now(), entryIds: [], records: 0 };
+  const done = todaysWorkingSets();
+  const firstOpen = focusSlots().findIndex(
+    ({ exercise, original }) => !Logic.routineProgress(done, exercise, routine.targets && routine.targets[original]).done
+  );
+  document.documentElement.classList.add("focus-open");
+  $("focus").classList.remove("hidden");
+  $("focus-step").classList.remove("hidden");
+  $("focus-exit").classList.remove("hidden");
+  $("focus-summary").classList.add("hidden");
+  keepScreenOn(true);
+  showFocusExercise(Math.max(0, firstOpen));
+}
+
+// Shows one exercise and fills in where to start: the last set done today, else the suggestion.
+function showFocusExercise(index) {
+  focus.index = index;
+  const { exercise } = focusSlots()[index];
+  const lastToday = Logic.lastSet(todaysWorkingSets(), exercise);
+  const advice = nextSetAdvice(exercise, focusDate());
+  const start = lastToday || (advice && advice.shown);
+  const target = activeRoutineTarget(exercise);
+  $("focus-weight").value = start ? Logic.formatWeight(start.weight, state.unit) : "";
+  $("focus-reps").value = start ? start.reps : (target && target.reps) || state.progression.repGoal;
+  $("focus-error").textContent = "";
+  renderFocus();
+  $("focus").scrollTop = 0;
+}
+
+function renderFocus() {
+  if (!focus) return;
+  const slots = focusSlots();
+  const { exercise, original } = slots[focus.index];
+  const routine = focusRoutine();
+  $("focus-position").textContent = t("focus.position", { routine: routine.name, n: focus.index + 1, total: slots.length });
+  $("focus-exercise").textContent = exerciseLabel(exercise);
+  const advice = nextSetAdvice(exercise, focusDate());
+  $("focus-suggestion").textContent = advice ? adviceText(advice) : t("suggest.none", { exercise: exerciseLabel(exercise) });
+  $("focus-last").textContent = advice ? lastTimeText(advice.suggestion) : "";
+  $("focus-weight-label").textContent = t("log.weight", { unit: state.unit });
+
+  const sets = todaysWorkingSets().filter((e) => e.exercise === exercise);
+  const target = routine.targets && routine.targets[original];
+  const values = { sets: groupedSetsText(sets), unit: state.unit, count: sets.length, goal: target ? target.sets : 0 };
+  const key = sets.length ? (target ? "focus.setsGoal" : "focus.sets") : target ? "focus.setsNoneGoal" : "focus.setsNone";
+  $("focus-sets").textContent = t(key, values);
+
+  $("focus-prev").disabled = focus.index === 0;
+  $("focus-next").textContent = t(focus.index === slots.length - 1 ? "focus.finish" : "focus.next");
+  renderFocusRest();
+}
+
+// The rest timer, shown large in focused mode while it runs or has just finished.
+function renderFocusRest() {
+  if (!focus) return;
+  const banner = $("rest-banner");
+  const showing = !banner.classList.contains("hidden");
+  $("focus-rest").classList.toggle("hidden", !showing);
+  if (!showing) return;
+  const over = banner.classList.contains("over");
+  $("focus-rest-label").textContent = over ? t("rest.over") : t("rest.label");
+  $("focus-rest-clock").textContent = over ? "" : $("rest-clock").textContent;
+  $("focus-rest-skip").textContent = over ? t("rest.dismiss") : t("rest.skip");
+}
+
+// The + and − buttons: weight moves by the muscle group's weight jump, reps by one.
+function onFocusStep(event) {
+  const { step, direction } = event.currentTarget.dataset;
+  const sign = Number(direction);
+  if (step === "weight") {
+    const { exercise } = focusSlots()[focus.index];
+    const next = (parseFloat($("focus-weight").value) || 0) + sign * jumpOf(muscleOf(exercise));
+    $("focus-weight").value = String(Math.max(0, Math.round(next * 100) / 100));
+  } else {
+    const next = (parseInt($("focus-reps").value, 10) || 0) + sign;
+    $("focus-reps").value = String(Math.min(100, Math.max(1, next)));
+  }
+}
+
+function onFocusDone() {
+  const { exercise } = focusSlots()[focus.index];
+  const input = { exercise, weight: parseFloat($("focus-weight").value), reps: parseInt($("focus-reps").value, 10) };
+  const error = Logic.validateEntry(input);
+  $("focus-error").textContent = errorText(error);
+  if (error) return;
+  const { id, record } = addSet(focusDate(), exercise, Logic.toLb(input.weight, state.unit), input.reps);
+  focus.entryIds.push(id);
+  if (record) focus.records += 1;
+  renderFocus();
+}
+
+function onFocusNext() {
+  if (focus.index < focusSlots().length - 1) showFocusExercise(focus.index + 1);
+  else showFocusSummary();
+}
+
+// The end of the workout: how long it took and what was done, from the sets logged in focused mode.
+function showFocusSummary() {
+  const sets = state.entries.filter((e) => focus.entryIds.includes(e.id));
+  const minutes = Math.max(1, Math.round((Date.now() - focus.startedAt) / 60000));
+  const exercises = [...new Set(sets.map((e) => e.exercise))];
+  const volume = sets.reduce((sum, e) => sum + e.weight * e.reps, 0);
+  const lines = [
+    t("focus.summaryTime", { minutes }),
+    t("focus.summarySets", { count: sets.length }),
+    t("focus.summaryVolume", { volume: Logic.formatWeight(volume, state.unit), unit: state.unit }),
+    t("focus.summaryRecords", { count: focus.records }),
+    ...exercises.map((name) => `${exerciseLabel(name)}: ${groupedSetsText(sets.filter((e) => e.exercise === name))} ${state.unit}`),
+  ];
+  $("focus-summary-list").replaceChildren(...lines.map((line) => el("li", "", line)));
+  $("focus-step").classList.add("hidden");
+  // Back to Log does what Exit would, so only one way out shows.
+  $("focus-exit").classList.add("hidden");
+  $("focus-summary").classList.remove("hidden");
+  $("focus-position").textContent = focusRoutine().name;
+  $("focus").scrollTop = 0;
+}
+
+// Leaving keeps every set: they were saved as they were logged.
+function closeFocus() {
+  focus = null;
+  document.documentElement.classList.remove("focus-open");
+  $("focus").classList.add("hidden");
+  keepScreenOn(false);
+  renderToday();
+}
+
+// Asks the phone not to dim the screen during a focused workout, where it supports that.
+async function keepScreenOn(on) {
+  try {
+    if (on && navigator.wakeLock) {
+      wakeLock = await navigator.wakeLock.request("screen");
+    } else if (!on && wakeLock) {
+      await wakeLock.release();
+      wakeLock = null;
+    }
+  } catch (error) {
+    wakeLock = null;
+  }
 }
 
 // ---------- Routines tab ----------
@@ -3221,6 +3404,18 @@ function init() {
     renderSuggestion();
   });
   $("use-suggestion").addEventListener("click", onUseSuggestion);
+  $("focus-start").addEventListener("click", startFocus);
+  $("focus-exit").addEventListener("click", closeFocus);
+  $("focus-summary-close").addEventListener("click", closeFocus);
+  $("focus-done").addEventListener("click", onFocusDone);
+  $("focus-prev").addEventListener("click", () => showFocusExercise(focus.index - 1));
+  $("focus-next").addEventListener("click", onFocusNext);
+  $("focus-rest-skip").addEventListener("click", dismissRest);
+  for (const button of document.querySelectorAll("#focus [data-step]")) button.addEventListener("click", onFocusStep);
+  // The phone lets go of the screen lock when the app is hidden, so it is asked for again on return.
+  document.addEventListener("visibilitychange", () => {
+    if (focus && document.visibilityState === "visible") keepScreenOn(true);
+  });
   $("measure-custom-form").addEventListener("submit", onCustomMeasureSubmit);
   for (const button of document.querySelectorAll(".section-switch button")) {
     button.addEventListener("click", () => showSection(button.dataset.section));
