@@ -214,7 +214,7 @@ button.link { min-height: 44px; border: none; background: none; color: var(--acc
 .suggestion-main { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .suggestion p { margin: 0; }
 .suggestion-main button { width: auto; flex-shrink: 0; margin: 0; padding: 0 18px; }
-.suggestion-note:empty, #suggestion-note:empty { display: none; }
+.suggestion-note:empty, #suggestion-note:empty, #last-time:empty { display: none; }
 .suggestion-why summary, .note-fold summary { display: flex; align-items: center; min-height: 36px; color: var(--muted); font-size: 0.9rem; }
 .suggestion-why summary::after, .note-fold summary::after { margin-inline-start: 10px; width: 7px; height: 7px; border-width: 2px; }
 .suggestion-why p { margin: 0 0 4px; }

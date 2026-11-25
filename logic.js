@@ -1757,6 +1757,18 @@ const Logic = (() => {
       .reduce((favorites, favorite) => saveFavoriteMeal(favorites, favorite.name, favorite, favorite.id), []);
   }
 
+  // Runs of the same weight and reps in a row become one item with a count, so three sets of 140x8
+  // can be written once: [{ weight: 140, reps: 8, count: 3 }].
+  function groupRepeatedSets(sets) {
+    const groups = [];
+    for (const set of sets) {
+      const previous = groups[groups.length - 1];
+      if (previous && previous.weight === set.weight && previous.reps === set.reps) previous.count += 1;
+      else groups.push({ weight: set.weight, reps: set.reps, count: 1 });
+    }
+    return groups;
+  }
+
   return {
     changeWater,
     sanitizeWater,
@@ -1921,5 +1933,6 @@ const Logic = (() => {
     withSampleData,
     withoutSampleData,
     hasSampleData,
+    groupRepeatedSets,
   };
 })();

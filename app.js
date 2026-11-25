@@ -758,6 +758,16 @@ function setsText(sets) {
   return sets.map((e) => `${Logic.formatWeight(e.weight, state.unit)}×${e.reps}`).join(", ");
 }
 
+// Sets as short text with repeats written once, like "140×8 (×3), 135×6", to fit on one line.
+function groupedSetsText(sets) {
+  return Logic.groupRepeatedSets(sets)
+    .map((set) => {
+      const one = `${Logic.formatWeight(set.weight, state.unit)}×${set.reps}`;
+      return set.count > 1 ? `${one} (×${set.count})` : one;
+    })
+    .join(", ");
+}
+
 // The target a routine gives an exercise, for the routine currently chosen on the Log tab.
 function activeRoutineTarget(exercise) {
   const routine = state.routines.find((r) => r.id === $("routine-select").value);
@@ -791,6 +801,7 @@ function renderSuggestion() {
     $("suggestion-text").textContent = t("suggest.none", { exercise: exerciseLabel(exercise) });
     $("suggestion-detail").textContent = t("suggest.noneDetail");
     $("suggestion-note").textContent = "";
+    $("last-time").textContent = "";
     useButton.classList.add("hidden");
     return;
   }
@@ -800,8 +811,8 @@ function renderSuggestion() {
   const shown = deload || suggestion;
   const weight = Logic.formatWeight(shown.weight, unit);
   const goal = repsText(repGoal);
-  const sets = setsText(suggestion.session);
-  const last = t("suggest.last", { date: I18n.formatDate(suggestion.sessionDate), sets, unit });
+  // The last session's sets show in plain sight, so you can match or beat them without opening anything.
+  $("last-time").textContent = t("suggest.last", { date: I18n.formatShortDate(suggestion.sessionDate), sets: groupedSetsText(suggestion.session), unit });
   if (deload) {
     $("suggestion-text").textContent = t("suggest.deloadText", { weight, unit, reps: repsText(shown.reps) });
     const reason = t("suggest.deloadReason", {
@@ -810,14 +821,14 @@ function renderSuggestion() {
       top: Logic.formatWeight(deload.topWeight, unit),
       unit,
     });
-    $("suggestion-detail").textContent = `${reason} ${last}`;
+    $("suggestion-detail").textContent = reason;
     $("suggestion-note").textContent = "";
   } else {
     $("suggestion-text").textContent = t("suggest.text", { weight, unit, reps: repsText(suggestion.reps) });
     const reason = suggestion.increased
       ? t("suggest.reasonUp", { goal, jump: jumpOf(group), unit })
       : t("suggest.reasonRepeat", { goal, target: repsText(suggestion.reps) });
-    $("suggestion-detail").textContent = `${reason} ${last}`;
+    $("suggestion-detail").textContent = reason;
     $("suggestion-note").textContent = stalled ? t("suggest.stalled", { group: muscleLabel(group) }) : "";
   }
   useButton.classList.remove("hidden");

@@ -1702,6 +1702,58 @@ function chooseDay(app, date) {
   fireEvent(box, "change");
 }
 
+test("repeated sets in a row are grouped with a count, and a change of weight or reps starts a new group", () => {
+  const sets = [
+    { weight: 140, reps: 8 },
+    { weight: 140, reps: 8 },
+    { weight: 140, reps: 6 },
+    { weight: 135, reps: 6 },
+    { weight: 140, reps: 8 },
+  ];
+  assertEqual(
+    Logic.groupRepeatedSets(sets),
+    [
+      { weight: 140, reps: 8, count: 2 },
+      { weight: 140, reps: 6, count: 1 },
+      { weight: 135, reps: 6, count: 1 },
+      { weight: 140, reps: 8, count: 1 },
+    ],
+    "groups:"
+  );
+  assertEqual(Logic.groupRepeatedSets([]), [], "no sets:");
+});
+
+test("choosing an exercise shows the sets from last time in plain sight, and nothing for a first try", async () => {
+  const app = await openApp();
+  try {
+    const doc = app.doc;
+    const lastTime = () => doc.getElementById("last-time");
+    // Days well before anything the sample data can reach.
+    chooseDay(app, "2020-01-02");
+    logSetInApp(app, "Bicep Curl", 30, 10);
+    logSetInApp(app, "Bicep Curl", 30, 8);
+    logSetInApp(app, "Bicep Curl", 30, 8);
+    chooseDay(app, "2020-01-09");
+    const exerciseBox = doc.getElementById("exercise");
+    exerciseBox.value = "Bicep Curl";
+    fireEvent(exerciseBox, "input");
+    if (!isShown(lastTime())) throw new Error("the last-time line should show without opening anything");
+    const text = lastTime().innerText;
+    for (const expected of ["30×10", "30×8 (×2)", "lb"]) {
+      if (!text.includes(expected)) throw new Error(`the last-time line should include "${expected}": "${text}"`);
+    }
+    if (doc.getElementById("suggestion-detail").textContent.includes("30×10")) throw new Error("the sets should not be repeated under Why?");
+    // On the first day there is nothing before it, so no line.
+    chooseDay(app, "2020-01-02");
+    exerciseBox.value = "Bicep Curl";
+    fireEvent(exerciseBox, "input");
+    if (isShown(lastTime())) throw new Error(`no line on a first try, but it reads "${lastTime().innerText}"`);
+    if (app.errors.length) throw new Error(`the app raised errors: ${app.errors.join("; ")}`);
+  } finally {
+    closeApp(app);
+  }
+});
+
 // Picks a file in the backup chooser and waits until the app has answered: either the panel with the
 // choices, or an error message. Reading a file takes a moment, so this waits for the answer instead of
 // guessing how long it takes.
