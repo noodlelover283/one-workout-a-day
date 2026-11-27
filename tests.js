@@ -206,6 +206,46 @@ test("a routine needs a name and at least one exercise", () => {
   assertEqual(Logic.validateRoutine({ name: "Legs", exercises: ["Squat"] }), "");
 });
 
+// ---------- Program ----------
+
+test("a saved program is cleaned up: bad data becomes none, and counts and dates are kept only when valid", () => {
+  assertEqual(Logic.sanitizeProgram(null), null);
+  assertEqual(Logic.sanitizeProgram({ routineIds: [] }), null);
+  assertEqual(Logic.sanitizeProgram({ routineIds: "a" }), null);
+  assertEqual(Logic.sanitizeProgram({ routineIds: ["a", 3, "", "b"], completed: 4, lastDate: "2026-11-02" }), { routineIds: ["a", "b"], completed: 4, lastDate: "2026-11-02" });
+  assertEqual(Logic.sanitizeProgram({ routineIds: ["a"], completed: -2, lastDate: "soon" }), { routineIds: ["a"], completed: 0, lastDate: "" });
+  assertEqual(Logic.sanitizeProgram({ routineIds: ["a"], completed: 1.5 }).completed, 0, "a count that is not a whole number:");
+});
+
+test("the program's week, day and next routine follow how many workouts are done, counting only routines that exist", () => {
+  const program = { routineIds: ["push", "pull", "legs"], completed: 0, lastDate: "" };
+  const all = ["push", "pull", "legs"];
+  assertEqual(Logic.programStatus(program, all), { routineIds: all, completed: 0, week: 1, day: 1, daysPerWeek: 3, nextRoutineId: "push" });
+  const status = Logic.programStatus({ ...program, completed: 4 }, all);
+  assertEqual([status.week, status.day, status.nextRoutineId], [2, 2, "pull"], "after four workouts:");
+  assertEqual(Logic.programStatus({ ...program, completed: 3 }, all).week, 2, "three workouts finish week 1:");
+  // A deleted routine drops out of the week.
+  const without = Logic.programStatus({ ...program, completed: 2 }, ["push", "legs"]);
+  assertEqual([without.daysPerWeek, without.week, without.nextRoutineId], [2, 2, "push"], "without Pull:");
+  assertEqual(Logic.programStatus(program, ["other"]), null, "none of its routines remain:");
+  assertEqual(Logic.programStatus(null, all), null);
+  // A routine may appear twice in a week.
+  const twice = Logic.programStatus({ routineIds: ["push", "legs", "push"], completed: 2, lastDate: "" }, ["push", "legs"]);
+  assertEqual(twice.nextRoutineId, "push", "the repeat counts as its own day:");
+});
+
+test("a finished workout counts once a day, and a deleted routine is removed from the program", () => {
+  const program = { routineIds: ["a", "b"], completed: 0, lastDate: "" };
+  const first = Logic.completeProgramWorkout(program, "2026-11-02");
+  assertEqual([first.completed, first.lastDate], [1, "2026-11-02"], "first workout:");
+  assertEqual(Logic.completeProgramWorkout(first, "2026-11-02"), first, "a second one the same day does not count:");
+  assertEqual(Logic.completeProgramWorkout(first, "2026-11-03").completed, 2, "the next day counts:");
+  assertEqual(Logic.removeRoutineFromProgram(program, "a").routineIds, ["b"]);
+  assertEqual(Logic.removeRoutineFromProgram({ routineIds: ["a"], completed: 3, lastDate: "" }, "a"), null, "nothing left:");
+  assertEqual(Logic.validateProgram([]) !== "", true);
+  assertEqual(Logic.validateProgram(["a"]), "");
+});
+
 // ---------- Saved data and helpers ----------
 
 test("old '3 sets of 8' entries are split into separate sets", () => {
@@ -2161,6 +2201,121 @@ test("a routine exercise can be swapped inside focused mode for today only, keep
     if (app.errors.length) throw new Error(`the app raised errors: ${app.errors.join("; ")}`);
   } finally {
     if (again) again.frame.remove();
+    closeApp(app);
+  }
+});
+
+function programTestData(program) {
+  const data = screenTestData();
+  data.routines.push({ id: "r2", name: "Legs", exercises: ["Squat"] });
+  data.program = program;
+  return data;
+}
+
+test("a program is built on the Routines tab, reordered and saved, and the Log tab then opens on the routine due next", async () => {
+  const app = await openApp({ data: programTestData(null) });
+  let again;
+  try {
+    const doc = app.doc;
+    const byId = (id) => doc.getElementById(id);
+    showTab(app, "routines");
+    assertEqual(byId("dash-stat-program").innerText.trim(), "Not set up", "before:");
+    doc.querySelector('#routines-home .dash-card[data-panel="program"]').click();
+    if (!isShown(byId("panel-program"))) throw new Error("the Program card should open its panel");
+
+    // Saving with nothing in it is refused with a message.
+    fireEvent(byId("program-form"), "submit");
+    if (!byId("program-error").innerText.trim()) throw new Error("an empty program should be refused");
+    assertEqual(byId("program-save").innerText.trim(), "Start program", "first save button:");
+
+    byId("program-routine-select").value = "r1";
+    byId("program-add").click();
+    byId("program-routine-select").value = "r2";
+    byId("program-add").click();
+    const rows = () => [...doc.querySelectorAll("#program-draft li")].map((row) => row.innerText.split("\n")[0].trim());
+    assertEqual(rows(), ["1. Push", "2. Legs"], "added in order:");
+    // Move Legs up.
+    doc.querySelectorAll("#program-draft li")[1].querySelector("button").click();
+    assertEqual(rows(), ["1. Legs", "2. Push"], "after moving Legs up:");
+    fireEvent(byId("program-form"), "submit");
+    assertEqual(savedData(app).program, { routineIds: ["r2", "r1"], completed: 0, lastDate: "" }, "saved:");
+    assertEqual(byId("dash-stat-program").innerText.trim(), "Week 1 · Legs", "the card:");
+    if (!byId("program-status").innerText.includes("Week 1, day 1 of 2. Next: Legs")) throw new Error(`the panel status reads "${byId("program-status").innerText}"`);
+    assertEqual(byId("program-save").innerText.trim(), "Save changes", "once saved:");
+
+    // After a reload the Log tab has the next routine selected, and says where the program stands.
+    again = await reopenApp(app);
+    assertEqual(again.doc.getElementById("routine-select").value, "r2", "the routine due next is chosen:");
+    if (!again.doc.getElementById("program-line").innerText.includes("week 1, day 1 of 2. Next: Legs")) throw new Error(`the Log line reads "${again.doc.getElementById("program-line").innerText}"`);
+    const label = [...again.doc.querySelectorAll("#routine-select option")].find((option) => option.value === "r2").text;
+    assertEqual(label, "Legs (next in program)", "the drop-down marks it:");
+    if (!isShown(again.doc.getElementById("focus-start"))) throw new Error("the chosen routine should offer Start focused workout");
+    if (app.errors.length) throw new Error(`the app raised errors: ${app.errors.join("; ")}`);
+  } finally {
+    if (again) again.frame.remove();
+    closeApp(app);
+  }
+});
+
+test("finishing the routine due next counts the workout, once a day, and the week moves on", async () => {
+  const app = await openApp({ data: programTestData({ routineIds: ["r1", "r2"], completed: 0, lastDate: "" }) });
+  try {
+    const doc = app.doc;
+    const byId = (id) => doc.getElementById(id);
+    const line = () => byId("program-line").innerText;
+    chooseDay(app, "2020-01-09");
+    // Push is Bench Press (3 sets) and Overhead Press: not finished until all of it is done.
+    logSetInApp(app, "Overhead Press", 60, 8);
+    for (let set = 0; set < 2; set += 1) logSetInApp(app, "Bench Press", 100, 8);
+    assertEqual(savedData(app).program.completed, 0, "two of three bench sets is not finished:");
+    logSetInApp(app, "Bench Press", 100, 8);
+    assertEqual(savedData(app).program, { routineIds: ["r1", "r2"], completed: 1, lastDate: "2020-01-09" }, "Push counted:");
+    if (!line().includes("week 1, day 2 of 2. Next: Legs")) throw new Error(`the line reads "${line()}"`);
+    if (!byId("toast").innerText.includes("Program workout done")) throw new Error(`the message reads "${byId("toast").innerText}"`);
+
+    // A second workout the same day does not count.
+    logSetInApp(app, "Squat", 200, 5);
+    assertEqual(savedData(app).program.completed, 1, "one workout a day:");
+    // The next day it does, and Legs finishes week 1.
+    chooseDay(app, "2020-01-10");
+    logSetInApp(app, "Squat", 200, 5);
+    assertEqual(savedData(app).program.completed, 2, "Legs counted the next day:");
+    if (!line().includes("week 2, day 1 of 2. Next: Push")) throw new Error(`the line reads "${line()}"`);
+
+    // A set of an exercise outside the routine due next counts for nothing.
+    chooseDay(app, "2020-01-11");
+    logSetInApp(app, "Bicep Curl", 30, 10);
+    assertEqual(savedData(app).program.completed, 2, "an exercise outside the routine:");
+    if (app.errors.length) throw new Error(`the app raised errors: ${app.errors.join("; ")}`);
+  } finally {
+    closeApp(app);
+  }
+});
+
+test("a program can be restarted at week 1 or stopped, and deleting a routine takes it out of the program", async () => {
+  const app = await openApp({ data: programTestData({ routineIds: ["r1", "r2"], completed: 5, lastDate: "2026-11-02" }) });
+  try {
+    const doc = app.doc;
+    const byId = (id) => doc.getElementById(id);
+    app.win.confirm = () => true;
+    showTab(app, "routines");
+    assertEqual(byId("dash-stat-program").innerText.trim(), "Week 3 · Legs", "after five workouts:");
+    doc.querySelector('#routines-home .dash-card[data-panel="program"]').click();
+    byId("program-restart").click();
+    assertEqual(savedData(app).program.completed, 0, "restarted:");
+    assertEqual(byId("dash-stat-program").innerText.trim(), "Week 1 · Push", "back at week 1:");
+
+    // Deleting Legs leaves a program of one routine.
+    app.win.eval("deleteRoutine(state.routines.find((r) => r.id === 'r2'))");
+    assertEqual(savedData(app).program.routineIds, ["r1"], "Legs is out of the program:");
+    showTab(app, "routines");
+    doc.querySelector('#routines-home .dash-card[data-panel="program"]').click();
+    byId("program-stop").click();
+    assertEqual(savedData(app).program, null, "stopped:");
+    assertEqual(byId("dash-stat-program").innerText.trim(), "Not set up", "after stopping:");
+    if (isShown(byId("program-line"))) throw new Error("the Log tab line should go away");
+    if (app.errors.length) throw new Error(`the app raised errors: ${app.errors.join("; ")}`);
+  } finally {
     closeApp(app);
   }
 });

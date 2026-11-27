@@ -31,6 +31,7 @@ function loadState() {
     exerciseNotes: {},
     barbellExercises: {},
     routineSwaps: {},
+    program: null,
     customMeasurements: [],
     measurements: [],
     meals: [],
@@ -62,6 +63,7 @@ function normalizeState(saved) {
   loaded.exerciseNotes = Logic.sanitizeExerciseNotes(saved.exerciseNotes);
   loaded.barbellExercises = Logic.sanitizeBarbellExercises(saved.barbellExercises);
   loaded.routineSwaps = Logic.sanitizeRoutineSwaps(saved.routineSwaps);
+  loaded.program = Logic.sanitizeProgram(saved.program);
   loaded.customMeasurements = Logic.sanitizeCustomMeasurements(saved.customMeasurements);
   loaded.measurements = Logic.sanitizeMeasurements(saved.measurements, loaded.customMeasurements);
   loaded.meals = Logic.sanitizeMeals(saved.meals);
@@ -455,6 +457,7 @@ function addSet(date, exercise, weight, reps) {
   const id = newEntryId();
   state.entries.push({ id, date, exercise, weight, reps });
   saveState();
+  const advanced = syncProgram(date, exercise);
 
   justAddedEntryId = id;
   justLoggedExercise = exercise;
@@ -469,6 +472,8 @@ function addSet(date, exercise, weight, reps) {
     const shown = Logic.formatWeight(weight, state.unit);
     const previous = Logic.formatWeight(previousBest, state.unit);
     showToast(t("toast.record", { exercise: name, weight: shown, previous, unit: state.unit }), { celebrate: true });
+  } else if (advanced) {
+    showToast(t("program.workoutDone", { next: routineName(advanced.nextRoutineId) }));
   } else {
     showToast(t("toast.saved", { exercise: name, n: setNumber }));
   }
@@ -943,9 +948,10 @@ const FREE_WORKOUT = "__free__";
 function renderRoutinePicker() {
   const select = $("routine-select");
   const previous = select.value;
+  const nextInProgram = (programStatusNow() || {}).nextRoutineId;
   const options = [
     option("", t("routine.choose")),
-    ...state.routines.map((routine) => option(routine.id, routine.name)),
+    ...state.routines.map((routine) => option(routine.id, routine.id === nextInProgram ? `${routine.name} (${t("program.nextTag")})` : routine.name)),
     option(FREE_WORKOUT, t("routine.free")),
   ];
   select.replaceChildren(...options);
@@ -1074,6 +1080,148 @@ function pickRoutineExercise(exercise) {
   updateMuscleRow();
   renderRoutineChecklist(workingEntries().filter((e) => e.date === ($("date").value || today())));
   $("weight").focus();
+}
+
+// ---------- Program ----------
+
+// The routines in the program being built on the Program panel, in order, until it is saved.
+let programDraft = [];
+
+const programStatusNow = () => Logic.programStatus(state.program, state.routines.map((r) => r.id));
+const routineName = (id) => (state.routines.find((r) => r.id === id) || { name: "" }).name;
+
+// The Program card, the line under the routine drop-down, the panel, and the drop-down's "next" tag.
+function renderProgram() {
+  const status = programStatusNow();
+  $("program-line").classList.toggle("hidden", !status);
+  $("program-restart").classList.toggle("hidden", !status);
+  $("program-stop").classList.toggle("hidden", !state.program);
+  $("program-save").textContent = t(state.program ? "program.saveChanges" : "program.start");
+  if (status) {
+    const values = { week: status.week, day: status.day, days: status.daysPerWeek, next: routineName(status.nextRoutineId), done: status.completed };
+    $("program-line").textContent = t("program.logLine", values);
+    $("program-status").textContent = t("program.status", values);
+    $("dash-stat-program").textContent = t("program.cardStat", values);
+  } else {
+    $("program-status").textContent = t("program.none");
+    $("dash-stat-program").textContent = t("program.cardNone");
+  }
+  renderRoutinePicker();
+  renderProgramDraft();
+}
+
+function renderProgramDraft() {
+  const noRoutines = state.routines.length === 0;
+  $("program-routine-select").replaceChildren(...state.routines.map((routine) => option(routine.id, routine.name)));
+  $("program-routine-select").disabled = noRoutines;
+  $("program-add").disabled = noRoutines;
+  $("program-no-routines").classList.toggle("hidden", !noRoutines);
+  if (programDraft.length === 0) {
+    $("program-draft").replaceChildren(el("li", "empty", t("program.draftEmpty")));
+    return;
+  }
+  const button = (text, aria, action, disabled = false) => {
+    const node = el("button", "link", text);
+    node.type = "button";
+    node.setAttribute("aria-label", aria);
+    node.disabled = disabled;
+    node.addEventListener("click", action);
+    return node;
+  };
+  $("program-draft").replaceChildren(
+    ...programDraft.map((id, index) => {
+      const name = routineName(id);
+      const item = el("li", "entry draft-item");
+      item.append(
+        el("span", "", `${index + 1}. ${name}`),
+        button("↑", t("program.moveUp", { name }), () => moveProgramRoutine(index, -1), index === 0),
+        button("↓", t("program.moveDown", { name }), () => moveProgramRoutine(index, 1), index === programDraft.length - 1),
+        button(t("routines.remove"), t("program.removeAria", { name }), () => {
+          programDraft.splice(index, 1);
+          renderProgramDraft();
+        })
+      );
+      return item;
+    })
+  );
+}
+
+function moveProgramRoutine(index, offset) {
+  const [id] = programDraft.splice(index, 1);
+  programDraft.splice(index + offset, 0, id);
+  renderProgramDraft();
+}
+
+// Opening the panel starts from the saved program, so changes only count once saved.
+function loadProgramDraft() {
+  const known = state.routines.map((r) => r.id);
+  programDraft = state.program ? state.program.routineIds.filter((id) => known.includes(id)) : [];
+  $("program-error").textContent = "";
+  renderProgramDraft();
+}
+
+function onProgramAdd() {
+  if (!$("program-routine-select").value) return;
+  programDraft.push($("program-routine-select").value);
+  $("program-error").textContent = "";
+  renderProgramDraft();
+}
+
+function onProgramSubmit(event) {
+  event.preventDefault();
+  const error = Logic.validateProgram(programDraft);
+  $("program-error").textContent = errorText(error);
+  if (error) return;
+  // Changing the list keeps the workouts already counted.
+  state.program = Logic.sanitizeProgram({ completed: 0, lastDate: "", ...state.program, routineIds: [...programDraft] });
+  saveState();
+  renderProgram();
+  showToast(t("program.saved"));
+}
+
+function onProgramRestart() {
+  if (!state.program || !window.confirm(t("program.restartConfirm"))) return;
+  state.program = { ...state.program, completed: 0, lastDate: "" };
+  saveState();
+  renderProgram();
+  showToast(t("program.restarted"));
+}
+
+function onProgramStop() {
+  if (!state.program || !window.confirm(t("program.stopConfirm"))) return;
+  state.program = null;
+  programDraft = [];
+  saveState();
+  renderProgram();
+  showToast(t("program.stopped"));
+}
+
+// After a set is logged: when it finishes the routine that is next in the program that day, the workout
+// counts and the program moves on. Returns the program's new status, or null when nothing counted.
+function syncProgram(date, exercise) {
+  const status = programStatusNow();
+  if (!status) return null;
+  const routine = state.routines.find((r) => r.id === status.nextRoutineId);
+  const slots = routineSlotsFor(routine, date);
+  if (!slots.some((slot) => slot.exercise === exercise)) return null;
+  const doneSets = Logic.workingSets(state.entries.filter((e) => e.date === date));
+  const finished = slots.every((slot) => Logic.routineProgress(doneSets, slot.exercise, routine.targets && routine.targets[slot.original]).done);
+  if (!finished) return null;
+  const updated = Logic.completeProgramWorkout(state.program, date);
+  if (updated === state.program) return null;
+  state.program = updated;
+  saveState();
+  renderProgram();
+  return programStatusNow();
+}
+
+// With a program, the Log tab opens on the routine that is next in it.
+function preselectProgramRoutine() {
+  const status = programStatusNow();
+  if (!status || $("routine-select").value) return;
+  $("routine-select").value = status.nextRoutineId;
+  renderToday();
+  renderSuggestion();
 }
 
 // ---------- Focused workout ----------
@@ -1454,11 +1602,13 @@ function renderRoutines() {
   renderRoutineFormText();
   renderRoutineDraft();
   renderMyExercises();
+  renderProgram();
 }
 
 // The New routine card starts a blank form, unless a routine is half-edited (then Back and return keeps it).
 function onRoutinesCard(panel) {
   if (panel === "routine-form" && editingRoutineId) resetRoutineForm();
+  if (panel === "program") loadProgramDraft();
   showPanel("routines", panel);
 }
 
@@ -1697,8 +1847,10 @@ function startEditingRoutine(routine) {
 
 function deleteRoutine(routine) {
   state.routines = state.routines.filter((r) => r.id !== routine.id);
+  state.program = Logic.removeRoutineFromProgram(state.program, routine.id);
   if (editingRoutineId === routine.id) resetRoutineForm();
   saveState();
+  renderProgram();
   closePanel("routines");
   showToast(t("toast.routineDeleted", { name: routine.name }));
 }
@@ -3629,6 +3781,10 @@ function init() {
   $("focus-finish").addEventListener("click", showFocusSummary);
   $("focus-swap").addEventListener("click", () => openFocusPicker("swap"));
   $("focus-search").addEventListener("input", renderFocusPicker);
+  $("program-add").addEventListener("click", onProgramAdd);
+  $("program-form").addEventListener("submit", onProgramSubmit);
+  $("program-restart").addEventListener("click", onProgramRestart);
+  $("program-stop").addEventListener("click", onProgramStop);
   $("focus-pick-cancel").addEventListener("click", onFocusPickCancel);
   $("focus-rest-skip").addEventListener("click", dismissRest);
   for (const button of document.querySelectorAll("#focus [data-step]")) button.addEventListener("click", onFocusStep);
@@ -3715,6 +3871,8 @@ function init() {
   for (const slot of document.querySelectorAll(".ascii-slot")) slot.replaceChildren(asciiLifter());
   applyLanguage();
   showSection(state.section);
+  renderProgram();
+  preselectProgramRoutine();
   resumeFocus();
   window.addEventListener("online", updateOfflineNotice);
   window.addEventListener("offline", updateOfflineNotice);

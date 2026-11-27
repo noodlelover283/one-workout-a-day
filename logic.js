@@ -222,6 +222,55 @@ const Logic = (() => {
     return clean;
   }
 
+  // ---------- Program: your routines run in order, and one pass through the list is a week ----------
+
+  // The program is { routineIds: [routine ids in order, a routine may repeat], completed: how many workouts
+  // are done, lastDate: the day the last one counted } or null. A workout counts when its routine is
+  // finished, and at most one counts a day.
+  const MAX_PROGRAM_WORKOUTS = 100000;
+
+  function sanitizeProgram(saved) {
+    if (!saved || typeof saved !== "object" || !Array.isArray(saved.routineIds)) return null;
+    const routineIds = saved.routineIds.filter((id) => typeof id === "string" && id !== "");
+    if (routineIds.length === 0) return null;
+    const completed = Number.isInteger(saved.completed) && saved.completed > 0 ? Math.min(saved.completed, MAX_PROGRAM_WORKOUTS) : 0;
+    const lastDate = typeof saved.lastDate === "string" && DATE_PATTERN.test(saved.lastDate) ? saved.lastDate : "";
+    return { routineIds, completed, lastDate };
+  }
+
+  function validateProgram(routineIds) {
+    return routineIds.length === 0 ? "error.programEmpty" : "";
+  }
+
+  // Where the program stands, counting only routines that still exist: the week, the day in it, how many days
+  // a week has and the routine due next. Null when there is no program or none of its routines remain.
+  function programStatus(program, knownRoutineIds) {
+    if (!program) return null;
+    const routineIds = program.routineIds.filter((id) => knownRoutineIds.includes(id));
+    if (routineIds.length === 0) return null;
+    const { completed } = program;
+    return {
+      routineIds,
+      completed,
+      week: Math.floor(completed / routineIds.length) + 1,
+      day: (completed % routineIds.length) + 1,
+      daysPerWeek: routineIds.length,
+      nextRoutineId: routineIds[completed % routineIds.length],
+    };
+  }
+
+  // Counts one more finished workout on `date`, unless one already counted that day.
+  function completeProgramWorkout(program, date) {
+    if (program.lastDate === date) return program;
+    return { ...program, completed: Math.min(program.completed + 1, MAX_PROGRAM_WORKOUTS), lastDate: date };
+  }
+
+  // The program without a deleted routine, or null when that was all it had.
+  function removeRoutineFromProgram(program, routineId) {
+    if (!program) return null;
+    return sanitizeProgram({ ...program, routineIds: program.routineIds.filter((id) => id !== routineId) });
+  }
+
   // Renaming a custom exercise (and optionally changing its muscle group) has to update everything
   // that uses the name. If the new name is another exercise that already exists (a typo fixed into a
   // real name, say), the two are merged: the sets move over and the existing exercise keeps its group.
@@ -1464,6 +1513,8 @@ const Logic = (() => {
         exerciseNotes,
         barbellExercises: { ...theirs.barbellExercises, ...mine.barbellExercises },
         routineSwaps,
+        // This device's program stays; one is taken from the backup only when this device has none.
+        program: mine.program || theirs.program || null,
       },
       counts: {
         sets: newSets.length,
@@ -1896,6 +1947,11 @@ const Logic = (() => {
     routineSlots,
     setRoutineSwap,
     sanitizeRoutineSwaps,
+    sanitizeProgram,
+    validateProgram,
+    programStatus,
+    completeProgramWorkout,
+    removeRoutineFromProgram,
     renameExercise,
     deleteExercise,
     exerciseUsage,
