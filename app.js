@@ -828,6 +828,17 @@ function lastTimeText(suggestion) {
   return t("suggest.last", { date: I18n.formatShortDate(suggestion.sessionDate), sets: groupedSetsText(suggestion.session), unit: state.unit });
 }
 
+// For an exercise with nothing logged yet: the empty bar for a barbell lift, otherwise words about going
+// light. A barbell's advice carries its weight (in the unit shown) so Use can fill it in.
+function firstTimeAdvice(exercise) {
+  const reps = (activeRoutineTarget(exercise) || {}).reps || state.progression.repGoal;
+  if (Logic.usesBarbell(exercise, state.barbellExercises)) {
+    const weight = state.barWeight[state.unit];
+    return { text: t("suggest.firstBar", { weight, unit: state.unit, reps: repsText(reps) }), weight, reps };
+  }
+  return { text: t("suggest.firstOther", { reps }), weight: null, reps };
+}
+
 // The suggestion line itself: the deload set when there is one, otherwise the plain suggestion.
 function adviceText(advice) {
   const { shown, deload } = advice;
@@ -851,11 +862,16 @@ function renderSuggestion() {
   box.classList.remove("hidden");
   const useButton = $("use-suggestion");
   if (!advice) {
-    $("suggestion-text").textContent = t("suggest.none", { exercise: exerciseLabel(exercise) });
+    const first = firstTimeAdvice(exercise);
+    $("suggestion-text").textContent = first.text;
     $("suggestion-detail").textContent = t("suggest.noneDetail");
     $("suggestion-note").textContent = "";
     $("last-time").textContent = "";
-    useButton.classList.add("hidden");
+    useButton.classList.toggle("hidden", first.weight === null);
+    if (first.weight !== null) {
+      useButton.dataset.weight = String(first.weight);
+      useButton.dataset.reps = first.reps;
+    }
     return;
   }
   const { suggestion, deload, stalled, group, repGoal, shown, fromProgram } = advice;
@@ -1121,6 +1137,35 @@ function renderProgram() {
   renderRoutinePicker();
   renderProgramDraft();
   renderProgramDeloadChoice();
+  renderStarterPrograms();
+}
+
+// The ready-made programs, each with a button that adds its routines and starts it.
+function renderStarterPrograms() {
+  $("starter-list").replaceChildren(
+    ...Object.keys(Logic.STARTER_PROGRAMS).map((key) => {
+      const use = el("button", "secondary", t("starter.use"));
+      use.type = "button";
+      use.addEventListener("click", () => onStarterUse(key));
+      const item = el("li");
+      item.append(el("strong", "", t(`starter.${key}.name`)), el("p", "hint", t(`starter.${key}.description`)), use);
+      return item;
+    })
+  );
+}
+
+// Adds the starter's routines (any it made before are kept as they are) and makes it the program.
+function onStarterUse(key) {
+  if (state.program && !window.confirm(t("starter.replaceConfirm"))) return;
+  const names = Object.fromEntries(Logic.STARTER_PROGRAMS[key].days.map((day) => [day.key, t(`starter.routine.${day.key}`)]));
+  const { routines, program } = Logic.starterProgram(key, names);
+  const have = new Set(state.routines.map((routine) => routine.id));
+  state.routines = [...state.routines, ...routines.filter((routine) => !have.has(routine.id))];
+  state.program = program;
+  saveState();
+  renderRoutines();
+  loadProgramDraft();
+  showToast(t("starter.added", { name: t(`starter.${key}.name`), first: routines[0].name }));
 }
 
 // The "lighter week" drop-down: never, or every 3 to 6 weeks.
@@ -1181,6 +1226,8 @@ function loadProgramDraft() {
   const known = state.routines.map((r) => r.id);
   programDraft = state.program ? state.program.routineIds.filter((id) => known.includes(id)) : [];
   $("program-deload").value = String(state.program ? state.program.deloadEvery : Logic.DEFAULT_PROGRAM_DELOAD);
+  // The ready-made programs are open for someone with no program yet, and folded away otherwise.
+  $("starter-programs").open = !state.program;
   $("program-error").textContent = "";
   renderProgramDraft();
 }
@@ -1446,7 +1493,8 @@ function showFocusExercise(index) {
   const advice = nextSetAdvice(exercise, focusDate());
   const start = lastToday || (advice && advice.shown);
   const target = activeRoutineTarget(exercise);
-  $("focus-weight").value = start ? Logic.formatWeight(start.weight, state.unit) : "";
+  const first = advice ? null : firstTimeAdvice(exercise);
+  $("focus-weight").value = start ? Logic.formatWeight(start.weight, state.unit) : first && first.weight !== null ? String(first.weight) : "";
   $("focus-reps").value = start ? start.reps : (target && target.reps) || state.progression.repGoal;
   $("focus-error").textContent = "";
   renderFocus();
@@ -1465,7 +1513,7 @@ function renderFocus() {
   const advice = nextSetAdvice(exercise, focusDate());
   $("focus-deload").textContent = advice && advice.fromProgram ? t("program.deloadNote", { percent: Logic.DELOAD_PERCENT }) : "";
   $("focus-deload").classList.toggle("hidden", !(advice && advice.fromProgram));
-  $("focus-suggestion").textContent = advice ? adviceText(advice) : t("suggest.none", { exercise: exerciseLabel(exercise) });
+  $("focus-suggestion").textContent = advice ? adviceText(advice) : firstTimeAdvice(exercise).text;
   $("focus-last").textContent = advice ? lastTimeText(advice.suggestion) : "";
   $("focus-weight-label").textContent = t("log.weight", { unit: state.unit });
 

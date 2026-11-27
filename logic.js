@@ -273,6 +273,35 @@ const Logic = (() => {
     return { ...program, completed: Math.min(program.completed + 1, MAX_PROGRAM_WORKOUTS), lastDate: date };
   }
 
+  // ---------- Starter programs: ready-made routines and a program to run them ----------
+
+  // Each starter is a few days; each day becomes a routine, its lifts given as [exercise, sets, reps]. They
+  // use only the built-in exercises, so the demos and weight jumps already apply. A common beginner shape:
+  // three sets a lift, compound lifts first, no max-effort deadlifts to start with.
+  const STARTER_PROGRAMS = {
+    ppl: {
+      days: [
+        { key: "push", lifts: [["Bench Press", 3, 8], ["Overhead Press", 3, 8], ["Incline Dumbbell Press", 3, 10], ["Tricep Pushdown", 3, 12]] },
+        { key: "pull", lifts: [["Barbell Row", 3, 8], ["Lat Pulldown", 3, 10], ["Bicep Curl", 3, 12]] },
+        { key: "legs", lifts: [["Squat", 3, 8], ["Leg Press", 3, 10], ["Romanian Deadlift", 3, 10]] },
+      ],
+    },
+  };
+
+  // The routines and the program for a starter. `names` gives each day's routine name by its key, in the
+  // language shown. Routine ids are fixed, so adding a starter again finds the routines it made before.
+  function starterProgram(starterKey, names) {
+    const starter = STARTER_PROGRAMS[starterKey];
+    const routines = starter.days.map((day) => ({
+      id: `starter-${starterKey}-${day.key}`,
+      name: names[day.key],
+      exercises: day.lifts.map(([exercise]) => exercise),
+      targets: Object.fromEntries(day.lifts.map(([exercise, sets, reps]) => [exercise, { sets, reps }])),
+    }));
+    const program = { routineIds: routines.map((routine) => routine.id), completed: 0, lastDate: "", deloadEvery: DEFAULT_PROGRAM_DELOAD };
+    return { routines, program };
+  }
+
   // The sets that suggestions are worked out from: working sets before `date`, leaving out the lighter sets of
   // deload weeks (saved with deload: true), so the week after a deload goes back to where you were.
   function suggestionHistory(entries, date) {
@@ -1962,6 +1991,8 @@ const Logic = (() => {
     setRoutineSwap,
     sanitizeRoutineSwaps,
     sanitizeProgram,
+    STARTER_PROGRAMS,
+    starterProgram,
     PROGRAM_DELOAD_CHOICES,
     DEFAULT_PROGRAM_DELOAD,
     suggestionHistory,

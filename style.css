@@ -771,6 +771,10 @@ html.focus-open { overflow: hidden; }
 .focus-done { min-height: 64px; font-size: 1.2rem; }
 .focus-nav { display: flex; gap: 10px; margin-top: 20px; }
 .focus-nav button { flex: 1; margin: 0; }
+.starter-list { margin: 0; padding: 0; list-style: none; }
+.starter-list li { padding: 12px 0; border-bottom: 1px solid var(--border); }
+.starter-list p { margin: 4px 0 8px; }
+.starter-list button { margin-top: 0; }
 .focus-pick-list { margin: 12px 0 0; padding: 0; list-style: none; }
 .focus-pick-list button { margin: 6px 0 0; min-height: 56px; text-align: start; }
 #focus-finish { margin-top: 12px; }

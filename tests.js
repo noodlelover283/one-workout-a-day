@@ -268,6 +268,27 @@ test("a finished workout counts once a day, and a deleted routine is removed fro
   assertEqual(Logic.validateProgram(["a"]), "");
 });
 
+test("every starter program uses only built-in exercises, has real targets, and builds routines with fixed ids", () => {
+  const names = { push: "Push", pull: "Pull", legs: "Legs" };
+  for (const [key, starter] of Object.entries(Logic.STARTER_PROGRAMS)) {
+    const { routines, program } = Logic.starterProgram(key, names);
+    assertEqual(routines.length, starter.days.length, `${key} routines:`);
+    for (const routine of routines) {
+      assertEqual(Logic.validateRoutine({ name: routine.name, exercises: routine.exercises }), "", `${key}: ${routine.name} is a valid routine:`);
+      for (const exercise of routine.exercises) {
+        if (!Logic.DEFAULT_EXERCISES[exercise]) throw new Error(`${key} uses "${exercise}", which is not a built-in exercise`);
+        const target = routine.targets[exercise];
+        if (!target || !(target.sets >= 1 && target.reps >= 1)) throw new Error(`${key}: ${exercise} needs a target`);
+      }
+      assertEqual(Logic.sanitizeTargets(routine.targets, routine.exercises), routine.targets, `${key}: the targets are the kind that is saved:`);
+    }
+    assertEqual(routines.map((routine) => routine.id), starter.days.map((day) => `starter-${key}-${day.key}`), `${key} ids:`);
+    assertEqual(program.routineIds, routines.map((routine) => routine.id), `${key} program:`);
+    assertEqual([program.completed, program.lastDate], [0, ""], `${key} starts fresh:`);
+    assertEqual(Logic.sanitizeProgram(program), program, `${key}: the program is the kind that is saved:`);
+  }
+});
+
 // ---------- Saved data and helpers ----------
 
 test("old '3 sets of 8' entries are split into separate sets", () => {
@@ -2436,6 +2457,93 @@ test("focused mode says it is a deload week and shows the lighter weight", async
     assertEqual(doc.getElementById("focus-weight").value, "90", "the weight starts at the lighter one:");
     doc.getElementById("focus-done").click();
     assertEqual(savedData(app).entries.filter((entry) => entry.deload).length, 1, "the set is marked:");
+    if (app.errors.length) throw new Error(`the app raised errors: ${app.errors.join("; ")}`);
+  } finally {
+    closeApp(app);
+  }
+});
+
+test("a ready-made program adds its routines and starts it, asks before replacing a program, and never doubles the routines", async () => {
+  const data = screenTestData();
+  data.routines = [];
+  data.program = null;
+  const app = await openApp({ data });
+  let again;
+  try {
+    const doc = app.doc;
+    const byId = (id) => doc.getElementById(id);
+    app.win.confirm = () => true;
+    showTab(app, "routines");
+    doc.querySelector('#routines-home .dash-card[data-panel="program"]').click();
+    if (!byId("starter-programs").open) throw new Error("the ready-made programs should be open when there is no program yet");
+    assertEqual(doc.querySelectorAll("#starter-list li").length, Object.keys(Logic.STARTER_PROGRAMS).length, "one entry for each starter:");
+    if (!byId("starter-list").innerText.includes("Push / Pull / Legs")) throw new Error("the starter should be named");
+
+    doc.querySelector("#starter-list button").click();
+    const saved = savedData(app);
+    assertEqual(saved.routines.map((routine) => routine.name), ["Starter Push", "Starter Pull", "Starter Legs"], "routines added:");
+    assertEqual(saved.routines[0].exercises, ["Bench Press", "Overhead Press", "Incline Dumbbell Press", "Tricep Pushdown"], "Push:");
+    assertEqual(saved.routines[0].targets["Bench Press"], { sets: 3, reps: 8 }, "Push's targets:");
+    assertEqual(saved.program, { routineIds: saved.routines.map((routine) => routine.id), completed: 0, lastDate: "", deloadEvery: 4 }, "the program:");
+    if (!byId("toast").innerText.includes("Starter Push")) throw new Error(`the message reads "${byId("toast").innerText}"`);
+    assertEqual(byId("dash-stat-program").innerText.trim(), "Week 1 · Starter Push", "the card:");
+    assertEqual(doc.querySelectorAll("#routine-list .dash-card").length, 3, "the routines are listed:");
+
+    // With a program running, using it again asks first; saying no changes nothing.
+    app.win.eval("state.program.completed = 2; saveState();");
+    let asked = 0;
+    app.win.confirm = () => (asked++, false);
+    doc.querySelector("#starter-list button").click();
+    assertEqual([asked, savedData(app).program.completed], [1, 2], "declined:");
+    // Saying yes starts over, without a second copy of the routines.
+    app.win.confirm = () => true;
+    doc.querySelector("#starter-list button").click();
+    assertEqual([savedData(app).routines.length, savedData(app).program.completed], [3, 0], "accepted:");
+
+    // After a reload the Log tab opens on the first routine, which asks for sets of the empty bar.
+    again = await reopenApp(app);
+    assertEqual(again.doc.getElementById("routine-select").value, "starter-ppl-push", "the routine due next:");
+    if (app.errors.length) throw new Error(`the app raised errors: ${app.errors.join("; ")}`);
+  } finally {
+    if (again) again.frame.remove();
+    closeApp(app);
+  }
+});
+
+test("an exercise never logged before suggests the empty bar for a barbell lift, and going light for the rest", async () => {
+  // The test data comes from the sample data, so take these two exercises' sets out of it.
+  const data = screenTestData();
+  data.entries = data.entries.filter((entry) => !["Barbell Row", "Lat Pulldown"].includes(entry.exercise));
+  const app = await openApp({ data });
+  try {
+    const doc = app.doc;
+    const byId = (id) => doc.getElementById(id);
+    const choose = (name) => {
+      const box = byId("exercise");
+      box.value = name;
+      fireEvent(box, "input");
+    };
+    choose("Barbell Row");
+    assertEqual(byId("suggestion-text").innerText.trim(), "First time? Start with the empty bar: 45 lb × 8 reps", "a barbell lift:");
+    if (!isShown(byId("use-suggestion"))) throw new Error("the empty bar should have a Use button");
+    byId("use-suggestion").click();
+    assertEqual([byId("weight").value, byId("reps").value], ["45", "8"], "Use fills in the bar:");
+
+    choose("Lat Pulldown");
+    assertEqual(byId("suggestion-text").innerText.trim(), "First time? Start with a weight you can lift 8 times easily.", "a machine:");
+    if (isShown(byId("use-suggestion"))) throw new Error("there is no number to fill in for a machine");
+
+    // Focused mode starts a barbell lift on the empty bar, in the unit shown.
+    app.win.eval("setUnit('kg')");
+    choose("Barbell Row");
+    if (!byId("suggestion-text").innerText.includes("20 kg")) throw new Error(`in kilograms the bar is 20: "${byId("suggestion-text").innerText}"`);
+    app.win.eval("setUnit('lb')");
+    byId("routine-select").value = "__free__";
+    fireEvent(byId("routine-select"), "change");
+    byId("focus-start").click();
+    [...doc.querySelectorAll("#focus-pick-list button")].find((button) => button.innerText.startsWith("Barbell Row")).click();
+    assertEqual(byId("focus-weight").value, "45", "focused mode starts at the empty bar:");
+    if (!byId("focus-suggestion").innerText.includes("empty bar")) throw new Error(`focused mode says "${byId("focus-suggestion").innerText}"`);
     if (app.errors.length) throw new Error(`the app raised errors: ${app.errors.join("; ")}`);
   } finally {
     closeApp(app);
