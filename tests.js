@@ -1721,6 +1721,12 @@ const fireEvent = (node, type) => node.dispatchEvent(new Event(type, { bubbles: 
 const savedData = (app) => JSON.parse(app.win.localStorage.getItem(app.storage));
 const setsOnQuietDay = (app) => savedData(app).entries.filter((entry) => entry.date === QUIET_DAY);
 
+function chooseFreeWorkout(app) {
+  const select = app.doc.getElementById("routine-select");
+  select.value = "__free__";
+  fireEvent(select, "change");
+}
+
 function chooseDay(app, date) {
   const box = app.doc.getElementById("date");
   box.value = date;
@@ -1786,9 +1792,10 @@ test("a focused workout steps through a routine one exercise at a time, logs set
     const byId = (id) => doc.getElementById(id);
     // A day with nothing logged, well before anything the sample data can reach.
     chooseDay(app, "2020-01-09");
-    if (isShown(byId("focus-start"))) throw new Error("Start focused workout should wait until a routine is chosen");
+    if (isShown(byId("focus-start"))) throw new Error("Start focused workout should wait until a routine or the free workout is chosen");
     byId("routine-select").value = "r1";
     fireEvent(byId("routine-select"), "change");
+    assertEqual(byId("focus-start").innerText.trim(), "Start focused workout", "with a routine chosen:");
     byId("focus-start").click();
     if (!isShown(byId("focus"))) throw new Error("the focused screen should open");
     assertEqual(byId("focus-exercise").innerText.trim(), "Bench Press", "first exercise:");
@@ -1975,6 +1982,133 @@ test("an old, broken or orphaned focused workout record is ignored instead of re
     assertEqual(again.doc.getElementById("focus-exercise").innerText.trim(), "Overhead Press", "an index past the end:");
   } finally {
     for (const frame of frames) frame.frame.remove();
+    closeApp(app);
+  }
+});
+
+test("a free workout picks exercises from a searchable list as it goes, can go back, and ends on the summary", async () => {
+  const app = await openApp();
+  try {
+    const doc = app.doc;
+    const byId = (id) => doc.getElementById(id);
+    const choices = () => [...doc.querySelectorAll("#focus-pick-list button")].map((button) => button.innerText.split(" · ")[0]);
+    const pick = (name) => [...doc.querySelectorAll("#focus-pick-list button")].find((button) => button.innerText.startsWith(name)).click();
+    chooseDay(app, "2020-01-09");
+    chooseFreeWorkout(app);
+    assertEqual(byId("focus-start").innerText.trim(), "Start free workout", "the free workout's button:");
+    byId("focus-start").click();
+    if (!isShown(byId("focus-pick")) || isShown(byId("focus-step"))) throw new Error("a free workout should open on the list of exercises");
+    assertEqual(byId("focus-position").innerText.trim(), "Free workout", "heading:");
+    // The exercise done most recently comes first.
+    if (choices().length < 10) throw new Error(`the list should hold every exercise, but has ${choices().length}`);
+    // Exercises done on the same day are listed by name, so compare days rather than names.
+    const entries = savedData(app).entries;
+    const lastDay = (name) => entries.filter((entry) => entry.exercise === name).map((entry) => entry.date).sort().pop() || "";
+    const newestDay = entries.map((entry) => entry.date).sort().pop();
+    assertEqual(lastDay(choices()[0]), newestDay, "the first exercise was done on the newest day:");
+    const days = choices().map(lastDay);
+    assertEqual(days, [...days].sort().reverse(), "the list runs from recent to old:");
+
+    // Typing narrows the list; nothing matching says so.
+    const search = byId("focus-search");
+    search.value = "squ";
+    fireEvent(search, "input");
+    assertEqual(choices(), ["Squat"], "search results:");
+    search.value = "zzzz";
+    fireEvent(search, "input");
+    if (!byId("focus-pick-list").innerText.includes("No exercise matches")) throw new Error("an empty search should say so");
+    search.value = "";
+    fireEvent(search, "input");
+
+    pick("Squat");
+    assertEqual(byId("focus-exercise").innerText.trim(), "Squat", "picked:");
+    assertEqual(byId("focus-position").innerText.trim(), "Free workout · 1 of 1", "position:");
+    if (!isShown(byId("focus-finish"))) throw new Error("a free workout should offer Finish workout");
+    assertEqual(byId("focus-next").innerText.trim(), "Add exercise", "on the last exercise Next adds another:");
+    byId("focus-weight").value = "225";
+    byId("focus-reps").value = "5";
+    byId("focus-done").click();
+
+    byId("focus-next").click();
+    if (!isShown(byId("focus-pick"))) throw new Error("Add exercise should open the list");
+    pick("Bench Press");
+    assertEqual(byId("focus-position").innerText.trim(), "Free workout · 2 of 2", "second exercise:");
+    byId("focus-prev").click();
+    assertEqual(byId("focus-exercise").innerText.trim(), "Squat", "Previous goes back:");
+    assertEqual(byId("focus-next").innerText.trim(), "Next", "not on the last exercise any more:");
+    byId("focus-next").click();
+    byId("focus-next").click();
+    // Picking an exercise already in the workout goes back to it instead of adding it twice.
+    pick("Squat");
+    assertEqual(byId("focus-position").innerText.trim(), "Free workout · 1 of 2", "no duplicate:");
+
+    // Cancel from the list returns to the exercise.
+    byId("focus-prev").click();
+    byId("focus-next").click();
+    byId("focus-next").click();
+    byId("focus-pick-cancel").click();
+    if (!isShown(byId("focus-step"))) throw new Error("Cancel should go back to the exercise");
+
+    byId("focus-finish").click();
+    const summary = byId("focus-summary").innerText;
+    for (const expected of ["Workout done", "Sets: 1", "Squat: 225×5 lb"]) {
+      if (!summary.includes(expected)) throw new Error(`the summary should include "${expected}": ${summary}`);
+    }
+    byId("focus-summary-close").click();
+    if (isShown(byId("focus"))) throw new Error("Back to Log should close the focused screen");
+    if (app.errors.length) throw new Error(`the app raised errors: ${app.errors.join("; ")}`);
+  } finally {
+    closeApp(app);
+  }
+});
+
+test("cancelling the first list of a free workout leaves it, and a reload keeps a free workout's exercises", async () => {
+  const app = await openApp();
+  const frames = [];
+  try {
+    const byId = (doc, id) => doc.getElementById(id);
+    const doc = app.doc;
+    chooseDay(app, "2020-01-09");
+    chooseFreeWorkout(app);
+    byId(doc, "focus-start").click();
+    // A reload on the empty list reopens the list.
+    let again = await reopenApp(app);
+    frames.push(again);
+    if (!isShown(byId(again.doc, "focus-pick"))) throw new Error("a reload on the empty list should reopen it");
+    byId(again.doc, "focus-pick-cancel").click();
+    if (isShown(byId(again.doc, "focus"))) throw new Error("cancelling an empty free workout should leave it");
+
+    byId(doc, "focus-pick-list").querySelector("button").click();
+    const first = byId(doc, "focus-exercise").innerText.trim();
+    byId(doc, "focus-weight").value = "100";
+    byId(doc, "focus-reps").value = "8";
+    byId(doc, "focus-done").click();
+    again = await reopenApp(app);
+    frames.push(again);
+    if (!isShown(byId(again.doc, "focus-step"))) throw new Error("a reload should reopen the free workout");
+    assertEqual(byId(again.doc, "focus-exercise").innerText.trim(), first, "same exercise after the reload:");
+    assertEqual(byId(again.doc, "focus-position").innerText.trim(), "Free workout · 1 of 1", "position:");
+    byId(again.doc, "focus-finish").click();
+    if (!byId(again.doc, "focus-summary").innerText.includes("Sets: 1")) throw new Error("the set logged before the reload should count");
+  } finally {
+    for (const frame of frames) frame.frame.remove();
+    closeApp(app);
+  }
+});
+
+test("after a reload a routine workout shows its routine again, so its rep targets still apply", async () => {
+  const app = await openApp();
+  let again;
+  try {
+    const doc = app.doc;
+    chooseDay(app, "2020-01-09");
+    doc.getElementById("routine-select").value = "r1";
+    fireEvent(doc.getElementById("routine-select"), "change");
+    doc.getElementById("focus-start").click();
+    again = await reopenApp(app);
+    assertEqual(again.doc.getElementById("routine-select").value, "r1", "the routine is chosen again:");
+  } finally {
+    if (again) again.frame.remove();
     closeApp(app);
   }
 });

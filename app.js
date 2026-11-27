@@ -935,21 +935,31 @@ function onRepGoalChange() {
 
 // ---------- Starting a routine (Log tab) ----------
 
+// The drop-down's last choice is a free workout, which has no routine behind it. Its value cannot be
+// the id of a routine.
+const FREE_WORKOUT = "__free__";
+
+// The drop-down is always shown, since even with no routines it offers the free workout.
 function renderRoutinePicker() {
   const select = $("routine-select");
   const previous = select.value;
-  const options = [option("", t("routine.choose")), ...state.routines.map((routine) => option(routine.id, routine.name))];
+  const options = [
+    option("", t("routine.choose")),
+    ...state.routines.map((routine) => option(routine.id, routine.name)),
+    option(FREE_WORKOUT, t("routine.free")),
+  ];
   select.replaceChildren(...options);
-  if (state.routines.some((r) => r.id === previous)) select.value = previous;
-  select.classList.toggle("hidden", state.routines.length === 0);
+  if (previous === FREE_WORKOUT || state.routines.some((r) => r.id === previous)) select.value = previous;
   $("routine-hint").classList.toggle("hidden", state.routines.length > 0);
-  document.querySelector('label[for="routine-select"]').classList.toggle("hidden", state.routines.length === 0);
 }
 
 function renderRoutineChecklist(todaysEntries) {
   const routine = state.routines.find((r) => r.id === $("routine-select").value);
   const list = $("routine-checklist");
-  $("focus-start").classList.toggle("hidden", !routine);
+  // The Start button shows once a routine or the free workout is chosen.
+  const free = $("routine-select").value === FREE_WORKOUT;
+  $("focus-start").classList.toggle("hidden", !routine && !free);
+  $("focus-start").textContent = t(routine ? "focus.start" : "focus.startFree");
   if (!routine) {
     list.replaceChildren();
     renderSwap();
@@ -1074,8 +1084,12 @@ let focus = null;
 let wakeLock = null;
 
 const focusDate = () => $("date").value || today();
+// A free workout has no routine (routineId is null) and grows as exercises are picked.
+const focusIsFree = () => focus.routineId === null;
 const focusRoutine = () => state.routines.find((r) => r.id === focus.routineId);
-const focusSlots = () => routineSlotsFor(focusRoutine(), focusDate());
+const focusName = () => (focusIsFree() ? t("focus.freeName") : focusRoutine().name);
+const focusSlots = () =>
+  focusIsFree() ? focus.exercises.map((exercise) => ({ exercise, original: exercise, swapped: false })) : routineSlotsFor(focusRoutine(), focusDate());
 const todaysWorkingSets = () => Logic.workingSets(state.entries.filter((e) => e.date === focusDate()));
 
 // The workout's progress is kept under its own key, apart from the main data, so a phone that reloads
@@ -1105,58 +1119,120 @@ function resumeFocus() {
     saved = null;
   }
   const fresh = saved && Date.now() - saved.startedAt < FOCUS_RESUME_HOURS * 3600 * 1000;
-  const routine = fresh && state.routines.find((r) => r.id === saved.routineId);
-  if (!routine || !Array.isArray(saved.entryIds) || !/^\d{4}-\d{2}-\d{2}$/.test(saved.date)) {
+  const free = Boolean(fresh) && saved.routineId === null;
+  const routine = fresh && !free && state.routines.find((r) => r.id === saved.routineId);
+  if (!(routine || free) || !Array.isArray(saved.entryIds) || !/^\d{4}-\d{2}-\d{2}$/.test(saved.date)) {
     localStorage.removeItem(FOCUS_KEY);
     return;
   }
   $("date").value = saved.date;
   focus = {
-    routineId: routine.id,
+    routineId: free ? null : routine.id,
+    // A free workout's exercises, kept only if they still exist.
+    exercises: free && Array.isArray(saved.exercises) ? saved.exercises.filter((name) => typeof name === "string").map(resolveExercise).filter(Boolean) : [],
     index: 0,
     startedAt: saved.startedAt,
     entryIds: saved.entryIds,
     records: Number(saved.records) || 0,
     finishedAt: saved.finishedAt,
   };
+  // The Log tab shows the same routine again, which also gives the suggestions its rep targets.
+  renderRoutinePicker();
+  $("routine-select").value = routine ? routine.id : FREE_WORKOUT;
   // The routine may have lost exercises since; stay inside it.
-  const index = Math.min(Math.max(0, Number(saved.index) || 0), focusSlots().length - 1);
+  const index = Math.min(Math.max(0, Number(saved.index) || 0), Math.max(0, focusSlots().length - 1));
   document.documentElement.classList.add("focus-open");
   $("focus").classList.remove("hidden");
   keepScreenOn(true);
   if (focus.finishedAt) {
     showFocusSummary();
   } else {
-    $("focus-step").classList.remove("hidden");
     $("focus-exit").classList.remove("hidden");
     $("focus-summary").classList.add("hidden");
-    showFocusExercise(index);
+    // A free workout that had no exercise yet is still at the list.
+    if (free && focus.exercises.length === 0) openFocusPicker();
+    else showFocusExercise(index);
   }
   if (saved.restEndsAt > Date.now()) resumeRest(saved.restEndsAt);
-  renderFocus();
+  if (focus.exercises.length || routine) renderFocus();
 }
 
-// Starts at the routine's first exercise not done yet today, or the first one when all are done.
+// With a routine chosen, starts at its first exercise not done yet today (or the first one when all are
+// done). With the free workout chosen, the exercises are picked as you go.
 function startFocus() {
   const routine = state.routines.find((r) => r.id === $("routine-select").value);
-  if (!routine) return;
-  focus = { routineId: routine.id, index: 0, startedAt: Date.now(), entryIds: [], records: 0 };
+  if (!routine && $("routine-select").value !== FREE_WORKOUT) return;
+  focus = { routineId: routine ? routine.id : null, exercises: [], index: 0, startedAt: Date.now(), entryIds: [], records: 0 };
+  document.documentElement.classList.add("focus-open");
+  $("focus").classList.remove("hidden");
+  $("focus-exit").classList.remove("hidden");
+  $("focus-summary").classList.add("hidden");
+  keepScreenOn(true);
+  if (!routine) {
+    openFocusPicker();
+    return;
+  }
   const done = todaysWorkingSets();
   const firstOpen = focusSlots().findIndex(
     ({ exercise, original }) => !Logic.routineProgress(done, exercise, routine.targets && routine.targets[original]).done
   );
-  document.documentElement.classList.add("focus-open");
-  $("focus").classList.remove("hidden");
-  $("focus-step").classList.remove("hidden");
-  $("focus-exit").classList.remove("hidden");
-  $("focus-summary").classList.add("hidden");
-  keepScreenOn(true);
   showFocusExercise(Math.max(0, firstOpen));
+}
+
+// The list a free workout picks its next exercise from: the ones done most recently first, then the rest
+// by name, narrowed by what is typed in the search box.
+function openFocusPicker() {
+  $("focus-step").classList.add("hidden");
+  $("focus-summary").classList.add("hidden");
+  $("focus-pick").classList.remove("hidden");
+  $("focus-position").textContent = focusName();
+  $("focus-search").value = "";
+  renderFocusPicker();
+  $("focus").scrollTop = 0;
+  saveFocus();
+}
+
+function renderFocusPicker() {
+  const query = $("focus-search").value.trim().toLowerCase();
+  const lastDone = new Map();
+  for (const entry of state.entries) {
+    if (!lastDone.has(entry.exercise) || entry.date > lastDone.get(entry.exercise)) lastDone.set(entry.exercise, entry.date);
+  }
+  const names = allExerciseNames()
+    .filter((name) => !query || name.toLowerCase().includes(query) || exerciseLabel(name).toLowerCase().includes(query))
+    .sort((a, b) => (lastDone.get(b) || "").localeCompare(lastDone.get(a) || "") || exerciseLabel(a).localeCompare(exerciseLabel(b), I18n.locale()));
+  const rows = names.map((name) => {
+    const button = el("button", "secondary", `${exerciseLabel(name)} · ${muscleLabel(muscleOf(name))}`);
+    button.type = "button";
+    button.addEventListener("click", () => onFocusPick(name));
+    const item = el("li");
+    item.append(button);
+    return item;
+  });
+  $("focus-pick-list").replaceChildren(...(rows.length ? rows : [el("li", "hint", t("focus.pickEmpty"))]));
+}
+
+// Picking an exercise already in the workout goes back to it instead of adding it twice.
+function onFocusPick(name) {
+  let index = focus.exercises.indexOf(name);
+  if (index === -1) {
+    focus.exercises.push(name);
+    index = focus.exercises.length - 1;
+  }
+  showFocusExercise(index);
+}
+
+// Cancelling the list goes back to the exercise before it, or leaves when the workout has none yet.
+function onFocusPickCancel() {
+  if (focus.exercises.length === 0) closeFocus();
+  else showFocusExercise(focus.index);
 }
 
 // Shows one exercise and fills in where to start: the last set done today, else the suggestion.
 function showFocusExercise(index) {
   focus.index = index;
+  $("focus-pick").classList.add("hidden");
+  $("focus-step").classList.remove("hidden");
   const { exercise } = focusSlots()[index];
   const lastToday = Logic.lastSet(todaysWorkingSets(), exercise);
   const advice = nextSetAdvice(exercise, focusDate());
@@ -1173,8 +1249,8 @@ function renderFocus() {
   if (!focus) return;
   const slots = focusSlots();
   const { exercise, original } = slots[focus.index];
-  const routine = focusRoutine();
-  $("focus-position").textContent = t("focus.position", { routine: routine.name, n: focus.index + 1, total: slots.length });
+  const routine = focusIsFree() ? null : focusRoutine();
+  $("focus-position").textContent = t("focus.position", { routine: focusName(), n: focus.index + 1, total: slots.length });
   $("focus-exercise").textContent = exerciseLabel(exercise);
   const advice = nextSetAdvice(exercise, focusDate());
   $("focus-suggestion").textContent = advice ? adviceText(advice) : t("suggest.none", { exercise: exerciseLabel(exercise) });
@@ -1182,13 +1258,16 @@ function renderFocus() {
   $("focus-weight-label").textContent = t("log.weight", { unit: state.unit });
 
   const sets = todaysWorkingSets().filter((e) => e.exercise === exercise);
-  const target = routine.targets && routine.targets[original];
+  const target = routine && routine.targets && routine.targets[original];
   const values = { sets: groupedSetsText(sets), unit: state.unit, count: sets.length, goal: target ? target.sets : 0 };
   const key = sets.length ? (target ? "focus.setsGoal" : "focus.sets") : target ? "focus.setsNoneGoal" : "focus.setsNone";
   $("focus-sets").textContent = t(key, values);
 
   $("focus-prev").disabled = focus.index === 0;
-  $("focus-next").textContent = t(focus.index === slots.length - 1 ? "focus.finish" : "focus.next");
+  const last = focus.index === slots.length - 1;
+  // A free workout has no end to step towards: after the last exercise, Next adds another one.
+  $("focus-next").textContent = t(last ? (focusIsFree() ? "focus.addExercise" : "focus.finish") : "focus.next");
+  $("focus-finish").classList.toggle("hidden", !focusIsFree());
   renderFocusRest();
   saveFocus();
 }
@@ -1234,6 +1313,7 @@ function onFocusDone() {
 
 function onFocusNext() {
   if (focus.index < focusSlots().length - 1) showFocusExercise(focus.index + 1);
+  else if (focusIsFree()) openFocusPicker();
   else showFocusSummary();
 }
 
@@ -1252,12 +1332,12 @@ function showFocusSummary() {
     ...exercises.map((name) => `${exerciseLabel(name)}: ${groupedSetsText(sets.filter((e) => e.exercise === name))} ${state.unit}`),
   ];
   $("focus-summary-list").replaceChildren(...lines.map((line) => el("li", "", line)));
-  focus.summaryText = [t("focus.shareHeading", { routine: focusRoutine().name, date: I18n.formatDate(focusDate()) }), ...lines].join("\n");
+  focus.summaryText = [t("focus.shareHeading", { routine: focusName(), date: I18n.formatDate(focusDate()) }), ...lines].join("\n");
   $("focus-step").classList.add("hidden");
   // Back to Log does what Exit would, so only one way out shows.
   $("focus-exit").classList.add("hidden");
   $("focus-summary").classList.remove("hidden");
-  $("focus-position").textContent = focusRoutine().name;
+  $("focus-position").textContent = focusName();
   $("focus").scrollTop = 0;
   saveFocus();
 }
@@ -1285,6 +1365,7 @@ function closeFocus() {
   saveFocus();
   document.documentElement.classList.remove("focus-open");
   $("focus").classList.add("hidden");
+  $("focus-pick").classList.add("hidden");
   keepScreenOn(false);
   renderToday();
 }
@@ -3507,6 +3588,9 @@ function init() {
   $("focus-done").addEventListener("click", onFocusDone);
   $("focus-prev").addEventListener("click", () => showFocusExercise(focus.index - 1));
   $("focus-next").addEventListener("click", onFocusNext);
+  $("focus-finish").addEventListener("click", showFocusSummary);
+  $("focus-search").addEventListener("input", renderFocusPicker);
+  $("focus-pick-cancel").addEventListener("click", onFocusPickCancel);
   $("focus-rest-skip").addEventListener("click", dismissRest);
   for (const button of document.querySelectorAll("#focus [data-step]")) button.addEventListener("click", onFocusStep);
   // The phone lets go of the screen lock when the app is hidden, so it is asked for again on return.

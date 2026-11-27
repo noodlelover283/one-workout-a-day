@@ -12,7 +12,7 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="theme-color" content="#fafafa" media="(prefers-color-scheme: light)">
   <meta name="theme-color" content="#0a0a0a" media="(prefers-color-scheme: dark)">
-  <link rel="stylesheet" href="style.css?v=fa0076f1e1">
+  <link rel="stylesheet" href="style.css?v=038be6e7a9">
 </head>
 <body>
   <!-- Opening screen: a pixel bar fills in, then the whole thing fades away by itself (CSS only). -->
@@ -134,7 +134,7 @@
         <select id="routine-select"></select>
         <p id="routine-hint" class="hint hidden" data-i18n="routine.hint">Create routines on the Routines tab to start a workout with one tap.</p>
         <ul id="routine-checklist" class="chip-list"></ul>
-        <button type="button" id="focus-start" class="primary hidden" data-i18n="focus.start">Start focused workout</button>
+        <button type="button" id="focus-start" class="primary hidden">Start focused workout</button>
         <details id="swap" class="slim-fold hidden">
           <summary id="swap-summary" data-i18n="swap.title">Swap this exercise</summary>
           <label for="swap-select" data-i18n="swap.label">Do this instead today</label>
@@ -674,6 +674,13 @@
       <p id="focus-position" class="focus-position"></p>
       <button type="button" id="focus-exit" class="secondary" data-i18n="focus.exit">Exit</button>
     </div>
+    <div id="focus-pick" class="hidden">
+      <h2 data-i18n="focus.pickHeading">Pick an exercise</h2>
+      <label for="focus-search" class="sr-only" data-i18n="focus.pickSearch">Search exercises</label>
+      <input id="focus-search" type="search" data-i18n-placeholder="focus.pickSearch" placeholder="Search exercises" autocomplete="off">
+      <button type="button" id="focus-pick-cancel" class="secondary" data-i18n="focus.pickCancel">Cancel</button>
+      <ul id="focus-pick-list" class="focus-pick-list"></ul>
+    </div>
     <div id="focus-step">
       <h2 id="focus-exercise" class="focus-exercise"></h2>
       <p id="focus-suggestion" class="focus-line"></p>
@@ -701,6 +708,7 @@
         <button type="button" id="focus-prev" class="secondary" data-i18n="focus.prev">Previous</button>
         <button type="button" id="focus-next" class="secondary"></button>
       </div>
+      <button type="button" id="focus-finish" class="secondary hidden" data-i18n="focus.finishWorkout">Finish workout</button>
     </div>
     <div id="focus-summary" class="hidden">
       <h2 data-i18n="focus.summaryHeading">Workout done</h2>
@@ -727,17 +735,17 @@
     </div>
   </div>
 
-  <script src="i18n.js?v=fa0076f1e1"></script>
-  <script src="lang-en.js?v=fa0076f1e1"></script>
-  <script src="lang-es.js?v=fa0076f1e1"></script>
-  <script src="lang-zh.js?v=fa0076f1e1"></script>
-  <script src="lang-hi.js?v=fa0076f1e1"></script>
-  <script src="lang-ar.js?v=fa0076f1e1"></script>
-  <script src="lang-fr.js?v=fa0076f1e1"></script>
-  <script src="lang-pt.js?v=fa0076f1e1"></script>
-  <script src="lang-ru.js?v=fa0076f1e1"></script>
-  <script src="strength-data.js?v=fa0076f1e1"></script>
-  <script src="logic.js?v=fa0076f1e1"></script>
-  <script src="app.js?v=fa0076f1e1"></script>
+  <script src="i18n.js?v=038be6e7a9"></script>
+  <script src="lang-en.js?v=038be6e7a9"></script>
+  <script src="lang-es.js?v=038be6e7a9"></script>
+  <script src="lang-zh.js?v=038be6e7a9"></script>
+  <script src="lang-hi.js?v=038be6e7a9"></script>
+  <script src="lang-ar.js?v=038be6e7a9"></script>
+  <script src="lang-fr.js?v=038be6e7a9"></script>
+  <script src="lang-pt.js?v=038be6e7a9"></script>
+  <script src="lang-ru.js?v=038be6e7a9"></script>
+  <script src="strength-data.js?v=038be6e7a9"></script>
+  <script src="logic.js?v=038be6e7a9"></script>
+  <script src="app.js?v=038be6e7a9"></script>
 </body>
 </html>
