@@ -237,6 +237,12 @@ I18n.register("fr", {
     "program.workoutDone": "Séance du programme terminée. Suivante : {next}.",
     "program.cardNone": "Non configuré",
     "program.cardStat": "Semaine {week} · {next}",
+    "program.deloadLabel": "Semaine légère",
+    "program.deloadNever": "Jamais",
+    "program.deloadEvery": "Toutes les {n} semaines",
+    "program.deloadHint": "Une semaine légère de temps en temps permet de récupérer. Les charges sont environ {percent} % plus légères, et la semaine suivante reprend là où vous en étiez.",
+    "program.deloadNote": "Semaine de décharge : les charges sont environ {percent} % plus légères.",
+    "program.deloadReason": "Votre programme a une semaine légère toutes les {n} semaines. C'est environ {percent} % de moins que votre charge maximale de {top} {unit}.",
     "error.programEmpty": "Ajoutez au moins une routine au programme.",
 
     "routines.startOnLog": "Commencer dans l'onglet Journal",

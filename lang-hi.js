@@ -237,6 +237,12 @@ I18n.register("hi", {
     "program.workoutDone": "प्रोग्राम का वर्कआउट पूरा हुआ। अगला: {next}।",
     "program.cardNone": "सेट नहीं है",
     "program.cardStat": "सप्ताह {week} · {next}",
+    "program.deloadLabel": "हल्का सप्ताह",
+    "program.deloadNever": "कभी नहीं",
+    "program.deloadEvery": "हर {n} सप्ताह में",
+    "program.deloadHint": "बीच-बीच में एक हल्का सप्ताह रिकवरी में मदद करता है। वज़न लगभग {percent}% हल्के आते हैं, और अगले सप्ताह आप वहीं लौट जाते हैं जहाँ थे।",
+    "program.deloadNote": "डीलोड सप्ताह: वज़न लगभग {percent}% हल्के हैं।",
+    "program.deloadReason": "आपके प्रोग्राम में हर {n} सप्ताह में एक हल्का सप्ताह है। यह आपके अधिकतम वज़न {top} {unit} से लगभग {percent}% कम है।",
     "error.programEmpty": "प्रोग्राम में कम से कम एक रूटीन जोड़ें।",
 
     "routines.startOnLog": "लॉग टैब में शुरू करें",

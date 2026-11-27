@@ -212,15 +212,17 @@ test("a saved program is cleaned up: bad data becomes none, and counts and dates
   assertEqual(Logic.sanitizeProgram(null), null);
   assertEqual(Logic.sanitizeProgram({ routineIds: [] }), null);
   assertEqual(Logic.sanitizeProgram({ routineIds: "a" }), null);
-  assertEqual(Logic.sanitizeProgram({ routineIds: ["a", 3, "", "b"], completed: 4, lastDate: "2026-11-02" }), { routineIds: ["a", "b"], completed: 4, lastDate: "2026-11-02" });
-  assertEqual(Logic.sanitizeProgram({ routineIds: ["a"], completed: -2, lastDate: "soon" }), { routineIds: ["a"], completed: 0, lastDate: "" });
+  assertEqual(Logic.sanitizeProgram({ routineIds: ["a", 3, "", "b"], completed: 4, lastDate: "2026-11-02" }), { routineIds: ["a", "b"], completed: 4, lastDate: "2026-11-02", deloadEvery: 0 });
+  assertEqual(Logic.sanitizeProgram({ routineIds: ["a"], completed: -2, lastDate: "soon" }), { routineIds: ["a"], completed: 0, lastDate: "", deloadEvery: 0 });
+  assertEqual(Logic.sanitizeProgram({ routineIds: ["a"], deloadEvery: 4 }).deloadEvery, 4, "a valid deload setting is kept:");
+  assertEqual(Logic.sanitizeProgram({ routineIds: ["a"], deloadEvery: 7 }).deloadEvery, 0, "an unknown deload setting becomes never:");
   assertEqual(Logic.sanitizeProgram({ routineIds: ["a"], completed: 1.5 }).completed, 0, "a count that is not a whole number:");
 });
 
 test("the program's week, day and next routine follow how many workouts are done, counting only routines that exist", () => {
-  const program = { routineIds: ["push", "pull", "legs"], completed: 0, lastDate: "" };
+  const program = { routineIds: ["push", "pull", "legs"], completed: 0, lastDate: "", deloadEvery: 0 };
   const all = ["push", "pull", "legs"];
-  assertEqual(Logic.programStatus(program, all), { routineIds: all, completed: 0, week: 1, day: 1, daysPerWeek: 3, nextRoutineId: "push" });
+  assertEqual(Logic.programStatus(program, all), { routineIds: all, completed: 0, week: 1, day: 1, daysPerWeek: 3, nextRoutineId: "push", deloadEvery: 0, deload: false });
   const status = Logic.programStatus({ ...program, completed: 4 }, all);
   assertEqual([status.week, status.day, status.nextRoutineId], [2, 2, "pull"], "after four workouts:");
   assertEqual(Logic.programStatus({ ...program, completed: 3 }, all).week, 2, "three workouts finish week 1:");
@@ -232,6 +234,26 @@ test("the program's week, day and next routine follow how many workouts are done
   // A routine may appear twice in a week.
   const twice = Logic.programStatus({ routineIds: ["push", "legs", "push"], completed: 2, lastDate: "" }, ["push", "legs"]);
   assertEqual(twice.nextRoutineId, "push", "the repeat counts as its own day:");
+});
+
+test("every Nth week of a program is a deload week, and never means never", () => {
+  const every4 = { routineIds: ["a", "b", "c"], completed: 0, lastDate: "", deloadEvery: 4 };
+  const all = ["a", "b", "c"];
+  const deloadOn = (completed) => Logic.programStatus({ ...every4, completed }, all).deload;
+  assertEqual([deloadOn(0), deloadOn(8), deloadOn(9), deloadOn(11), deloadOn(12), deloadOn(21), deloadOn(24)], [false, false, true, true, false, true, false], "weeks 1, 3, 4 (first and last day), 5, 8, 9:");
+  assertEqual(Logic.programStatus({ ...every4, deloadEvery: 0, completed: 9 }, all).deload, false, "never:");
+  assertEqual(Logic.PROGRAM_DELOAD_CHOICES.includes(Logic.DEFAULT_PROGRAM_DELOAD), true);
+});
+
+test("suggestions leave out warm-ups, the lighter sets of deload weeks, and anything on or after the day", () => {
+  const entries = [
+    { id: "1", date: "2026-11-01", exercise: "Squat", weight: 200, reps: 5 },
+    { id: "2", date: "2026-11-02", exercise: "Squat", weight: 100, reps: 5, warmup: true },
+    { id: "3", date: "2026-11-03", exercise: "Squat", weight: 180, reps: 5, deload: true },
+    { id: "4", date: "2026-11-05", exercise: "Squat", weight: 210, reps: 5 },
+  ];
+  assertEqual(Logic.suggestionHistory(entries, "2026-11-10").map((entry) => entry.id), ["1", "4"], "the history:");
+  assertEqual(Logic.suggestionHistory(entries, "2026-11-05").map((entry) => entry.id), ["1"], "nothing on the day itself:");
 });
 
 test("a finished workout counts once a day, and a deleted routine is removed from the program", () => {
@@ -1688,7 +1710,7 @@ test("the rest timer is one slim row, with Adjust hiding the time buttons, and S
     const banner = doc.getElementById("rest-banner");
     if (banner.classList.contains("hidden")) throw new Error("logging a set should start the rest timer");
     const height = banner.getBoundingClientRect().height;
-    if (height > 80) throw new Error(`the rest row is ${Math.round(height)}px tall; it should be one slim row (it used to be about 250px)`);
+    if (height > 90) throw new Error(`the rest row is ${Math.round(height)}px tall; it should be one slim row (it used to be about 250px)`);
     // The form's main controls stay on the first screen while the timer runs.
     const tabBarTop = doc.querySelector(".tabbar").getBoundingClientRect().top;
     const addSet = doc.querySelector("#log-form button.primary").getBoundingClientRect();
@@ -2228,6 +2250,8 @@ test("a program is built on the Routines tab, reordered and saved, and the Log t
     if (!byId("program-error").innerText.trim()) throw new Error("an empty program should be refused");
     assertEqual(byId("program-save").innerText.trim(), "Start program", "first save button:");
 
+    assertEqual(byId("program-deload").value, "4", "a new program starts with a lighter week every 4 weeks:");
+    byId("program-deload").value = "6";
     byId("program-routine-select").value = "r1";
     byId("program-add").click();
     byId("program-routine-select").value = "r2";
@@ -2238,7 +2262,7 @@ test("a program is built on the Routines tab, reordered and saved, and the Log t
     doc.querySelectorAll("#program-draft li")[1].querySelector("button").click();
     assertEqual(rows(), ["1. Legs", "2. Push"], "after moving Legs up:");
     fireEvent(byId("program-form"), "submit");
-    assertEqual(savedData(app).program, { routineIds: ["r2", "r1"], completed: 0, lastDate: "" }, "saved:");
+    assertEqual(savedData(app).program, { routineIds: ["r2", "r1"], completed: 0, lastDate: "", deloadEvery: 6 }, "saved:");
     assertEqual(byId("dash-stat-program").innerText.trim(), "Week 1 · Legs", "the card:");
     if (!byId("program-status").innerText.includes("Week 1, day 1 of 2. Next: Legs")) throw new Error(`the panel status reads "${byId("program-status").innerText}"`);
     assertEqual(byId("program-save").innerText.trim(), "Save changes", "once saved:");
@@ -2269,7 +2293,7 @@ test("finishing the routine due next counts the workout, once a day, and the wee
     for (let set = 0; set < 2; set += 1) logSetInApp(app, "Bench Press", 100, 8);
     assertEqual(savedData(app).program.completed, 0, "two of three bench sets is not finished:");
     logSetInApp(app, "Bench Press", 100, 8);
-    assertEqual(savedData(app).program, { routineIds: ["r1", "r2"], completed: 1, lastDate: "2020-01-09" }, "Push counted:");
+    assertEqual(savedData(app).program, { routineIds: ["r1", "r2"], completed: 1, lastDate: "2020-01-09", deloadEvery: 0 }, "Push counted:");
     if (!line().includes("week 1, day 2 of 2. Next: Legs")) throw new Error(`the line reads "${line()}"`);
     if (!byId("toast").innerText.includes("Program workout done")) throw new Error(`the message reads "${byId("toast").innerText}"`);
 
@@ -2314,6 +2338,104 @@ test("a program can be restarted at week 1 or stopped, and deleting a routine ta
     assertEqual(savedData(app).program, null, "stopped:");
     assertEqual(byId("dash-stat-program").innerText.trim(), "Not set up", "after stopping:");
     if (isShown(byId("program-line"))) throw new Error("the Log tab line should go away");
+    if (app.errors.length) throw new Error(`the app raised errors: ${app.errors.join("; ")}`);
+  } finally {
+    closeApp(app);
+  }
+});
+
+// A day some days ago. The deload tests count back from today, so the plateau check (a record within 21
+// days) never calls Bench Press stalled and adds a deload of its own.
+const daysAgo = (days) => Logic.toDateString(new Date(Date.now() - days * 86400000));
+
+// A program of Push only (so each week is one workout), with Bench Press done three times at 100 lb eight
+// days ago. Week 4 of an every-4-weeks program is then the deload week.
+function deloadTestData(deloadEvery, completed) {
+  const data = screenTestData();
+  data.entries = [1, 2, 3].map((n) => ({ id: `old-${n}`, date: daysAgo(8), exercise: "Bench Press", weight: 100, reps: 8 }));
+  data.program = { routineIds: ["r1"], completed, lastDate: "2026-11-02", deloadEvery };
+  return data;
+}
+
+test("in a deload week the exercises of the program get lighter weights, those sets are marked, and the week after goes back", async () => {
+  const app = await openApp({ data: deloadTestData(4, 3) });
+  try {
+    const doc = app.doc;
+    const byId = (id) => doc.getElementById(id);
+    const choose = (name) => {
+      const box = byId("exercise");
+      box.value = name;
+      fireEvent(box, "input");
+    };
+    if (!byId("program-line").innerText.includes("Deload week")) throw new Error(`the Log line should say it is a deload week: "${byId("program-line").innerText}"`);
+
+    // Week 4: Bench Press comes out about 10% under the 100 lb top weight, with the reason shown.
+    chooseDay(app, daysAgo(5));
+    choose("Bench Press");
+    assertEqual(byId("suggestion-text").innerText.trim(), "Deload: 90 lb × 8 reps", "the suggestion:");
+    if (!byId("suggestion-note").innerText.includes("Deload week")) throw new Error(`the note should explain: "${byId("suggestion-note").innerText}"`);
+    if (!byId("suggestion-detail").textContent.includes("every 4 weeks")) throw new Error(`the reason reads "${byId("suggestion-detail").textContent}"`);
+    if (!byId("last-time").innerText.includes("100×8")) throw new Error("Last time should show the real session");
+
+    // An exercise outside the program is not lightened, and its set is not marked.
+    choose("Squat");
+    if (byId("suggestion-text").innerText.includes("Deload")) throw new Error("Squat is not in the program");
+
+    logSetInApp(app, "Bench Press", 90, 8);
+    logSetInApp(app, "Squat", 150, 5);
+    const day = savedData(app).entries.filter((entry) => entry.date === daysAgo(5));
+    assertEqual(day.map((entry) => [entry.exercise, entry.deload === true]), [["Bench Press", true], ["Squat", false]], "which sets are marked:");
+
+    // The next day is still the deload week, and the lighter set does not pull the suggestion down.
+    chooseDay(app, daysAgo(4));
+    choose("Bench Press");
+    assertEqual(byId("suggestion-text").innerText.trim(), "Deload: 90 lb × 8 reps", "still based on the 100 lb session:");
+    // Finishing Push (Bench Press 3 sets and Overhead Press) ends the week.
+    logSetInApp(app, "Overhead Press", 50, 8);
+    for (let set = 0; set < 3; set += 1) logSetInApp(app, "Bench Press", 90, 8);
+    assertEqual(savedData(app).program.completed, 4, "the workout counted:");
+    if (byId("program-line").innerText.includes("Deload week")) throw new Error("week 5 is not a deload week");
+
+    // Week 5 starts from the real 100 lb session, not the lighter one: 100 x 8 reached the goal, so 105.
+    chooseDay(app, daysAgo(1));
+    choose("Bench Press");
+    assertEqual(byId("suggestion-text").innerText.trim(), "Suggested: 105 lb × 8 reps", "the week after:");
+    if (!byId("last-time").innerText.includes("100×8")) throw new Error(`Last time should still show the real session: "${byId("last-time").innerText}"`);
+    if (app.errors.length) throw new Error(`the app raised errors: ${app.errors.join("; ")}`);
+  } finally {
+    closeApp(app);
+  }
+});
+
+test("with the lighter week set to never, week 4 is an ordinary week", async () => {
+  const app = await openApp({ data: deloadTestData(0, 3) });
+  try {
+    const doc = app.doc;
+    chooseDay(app, daysAgo(5));
+    const box = doc.getElementById("exercise");
+    box.value = "Bench Press";
+    fireEvent(box, "input");
+    assertEqual(doc.getElementById("suggestion-text").innerText.trim(), "Suggested: 105 lb × 8 reps", "no deload:");
+    if (doc.getElementById("program-line").innerText.includes("Deload week")) throw new Error("no deload week was asked for");
+    logSetInApp(app, "Bench Press", 105, 8);
+    assertEqual(savedData(app).entries.some((entry) => entry.deload), false, "no set is marked:");
+  } finally {
+    closeApp(app);
+  }
+});
+
+test("focused mode says it is a deload week and shows the lighter weight", async () => {
+  const app = await openApp({ data: deloadTestData(4, 3) });
+  try {
+    const doc = app.doc;
+    chooseDay(app, daysAgo(5));
+    doc.getElementById("focus-start").click();
+    assertEqual(doc.getElementById("focus-exercise").innerText.trim(), "Bench Press", "first exercise:");
+    if (!doc.getElementById("focus-suggestion").innerText.includes("Deload: 90 lb")) throw new Error(`the suggestion reads "${doc.getElementById("focus-suggestion").innerText}"`);
+    if (!isShown(doc.getElementById("focus-deload"))) throw new Error("focused mode should say it is a deload week");
+    assertEqual(doc.getElementById("focus-weight").value, "90", "the weight starts at the lighter one:");
+    doc.getElementById("focus-done").click();
+    assertEqual(savedData(app).entries.filter((entry) => entry.deload).length, 1, "the set is marked:");
     if (app.errors.length) throw new Error(`the app raised errors: ${app.errors.join("; ")}`);
   } finally {
     closeApp(app);

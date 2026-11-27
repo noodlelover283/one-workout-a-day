@@ -236,6 +236,12 @@ I18n.register("zh", {
     "program.workoutDone": "周期计划的训练已完成。下一个：{next}。",
     "program.cardNone": "未设置",
     "program.cardStat": "第 {week} 周 · {next}",
+    "program.deloadLabel": "减负周",
+    "program.deloadNever": "从不",
+    "program.deloadEvery": "每 {n} 周",
+    "program.deloadHint": "偶尔安排一个减负周有助于恢复。重量会轻约 {percent}%，下一周回到之前的水平。",
+    "program.deloadNote": "减负周：重量轻约 {percent}%。",
+    "program.deloadReason": "你的周期计划每 {n} 周有一个减负周。这比你的最大重量 {top} {unit} 低约 {percent}%。",
     "error.programEmpty": "请至少向周期计划添加一个训练计划。",
 
     "routines.startOnLog": "在记录页开始",

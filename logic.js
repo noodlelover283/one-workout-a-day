@@ -225,9 +225,11 @@ const Logic = (() => {
   // ---------- Program: your routines run in order, and one pass through the list is a week ----------
 
   // The program is { routineIds: [routine ids in order, a routine may repeat], completed: how many workouts
-  // are done, lastDate: the day the last one counted } or null. A workout counts when its routine is
-  // finished, and at most one counts a day.
+  // are done, lastDate: the day the last one counted, deloadEvery: every how many weeks is a lighter week,
+  // 0 for never } or null. A workout counts when its routine is finished, and at most one counts a day.
   const MAX_PROGRAM_WORKOUTS = 100000;
+  const PROGRAM_DELOAD_CHOICES = [0, 3, 4, 5, 6];
+  const DEFAULT_PROGRAM_DELOAD = 4;
 
   function sanitizeProgram(saved) {
     if (!saved || typeof saved !== "object" || !Array.isArray(saved.routineIds)) return null;
@@ -235,7 +237,9 @@ const Logic = (() => {
     if (routineIds.length === 0) return null;
     const completed = Number.isInteger(saved.completed) && saved.completed > 0 ? Math.min(saved.completed, MAX_PROGRAM_WORKOUTS) : 0;
     const lastDate = typeof saved.lastDate === "string" && DATE_PATTERN.test(saved.lastDate) ? saved.lastDate : "";
-    return { routineIds, completed, lastDate };
+    // A program saved before deload weeks existed has none.
+    const deloadEvery = PROGRAM_DELOAD_CHOICES.includes(saved.deloadEvery) ? saved.deloadEvery : 0;
+    return { routineIds, completed, lastDate, deloadEvery };
   }
 
   function validateProgram(routineIds) {
@@ -243,19 +247,23 @@ const Logic = (() => {
   }
 
   // Where the program stands, counting only routines that still exist: the week, the day in it, how many days
-  // a week has and the routine due next. Null when there is no program or none of its routines remain.
+  // a week has, the routine due next and whether this is a deload week (every `deloadEvery` weeks).
+  // Null when there is no program or none of its routines remain.
   function programStatus(program, knownRoutineIds) {
     if (!program) return null;
     const routineIds = program.routineIds.filter((id) => knownRoutineIds.includes(id));
     if (routineIds.length === 0) return null;
-    const { completed } = program;
+    const { completed, deloadEvery } = program;
+    const week = Math.floor(completed / routineIds.length) + 1;
     return {
       routineIds,
       completed,
-      week: Math.floor(completed / routineIds.length) + 1,
+      week,
       day: (completed % routineIds.length) + 1,
       daysPerWeek: routineIds.length,
       nextRoutineId: routineIds[completed % routineIds.length],
+      deloadEvery,
+      deload: deloadEvery > 0 && week % deloadEvery === 0,
     };
   }
 
@@ -263,6 +271,12 @@ const Logic = (() => {
   function completeProgramWorkout(program, date) {
     if (program.lastDate === date) return program;
     return { ...program, completed: Math.min(program.completed + 1, MAX_PROGRAM_WORKOUTS), lastDate: date };
+  }
+
+  // The sets that suggestions are worked out from: working sets before `date`, leaving out the lighter sets of
+  // deload weeks (saved with deload: true), so the week after a deload goes back to where you were.
+  function suggestionHistory(entries, date) {
+    return entries.filter((entry) => !entry.warmup && !entry.deload && entry.date < date);
   }
 
   // The program without a deleted routine, or null when that was all it had.
@@ -1948,6 +1962,9 @@ const Logic = (() => {
     setRoutineSwap,
     sanitizeRoutineSwaps,
     sanitizeProgram,
+    PROGRAM_DELOAD_CHOICES,
+    DEFAULT_PROGRAM_DELOAD,
+    suggestionHistory,
     validateProgram,
     programStatus,
     completeProgramWorkout,

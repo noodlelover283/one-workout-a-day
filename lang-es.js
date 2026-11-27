@@ -237,6 +237,12 @@ I18n.register("es", {
     "program.workoutDone": "Entrenamiento del programa hecho. Siguiente: {next}.",
     "program.cardNone": "Sin configurar",
     "program.cardStat": "Semana {week} · {next}",
+    "program.deloadLabel": "Semana ligera",
+    "program.deloadNever": "Nunca",
+    "program.deloadEvery": "Cada {n} semanas",
+    "program.deloadHint": "Una semana ligera de vez en cuando te deja recuperarte. Los pesos salen un {percent}% más ligeros aproximadamente, y la semana siguiente vuelves a donde estabas.",
+    "program.deloadNote": "Semana de descarga: los pesos son un {percent}% más ligeros aproximadamente.",
+    "program.deloadReason": "Tu programa tiene una semana ligera cada {n} semanas. Esto es un {percent}% menos que tu peso máximo de {top} {unit}.",
     "error.programEmpty": "Añade al menos una rutina al programa.",
 
     "routines.startOnLog": "Empezar en la pestaña Registro",

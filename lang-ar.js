@@ -242,6 +242,12 @@ I18n.register("ar", {
     "program.workoutDone": "اكتمل تمرين البرنامج. التالي: {next}.",
     "program.cardNone": "غير مُعدّ",
     "program.cardStat": "الأسبوع {week} · {next}",
+    "program.deloadLabel": "أسبوع خفيف",
+    "program.deloadNever": "أبدًا",
+    "program.deloadEvery": "كل {n} أسابيع",
+    "program.deloadHint": "الأسبوع الخفيف بين حين وآخر يساعد على التعافي. تكون الأوزان أخف بنحو {percent}%، ثم يعود الأسبوع التالي إلى مستواك السابق.",
+    "program.deloadNote": "أسبوع تخفيف: الأوزان أخف بنحو {percent}%.",
+    "program.deloadReason": "في برنامجك أسبوع خفيف كل {n} أسابيع. هذا أقل بنحو {percent}% من أعلى وزن لك وهو {top} {unit}.",
     "error.programEmpty": "أضف روتينًا واحدًا على الأقل إلى البرنامج.",
 
     "routines.startOnLog": "ابدأ من تبويب التسجيل",

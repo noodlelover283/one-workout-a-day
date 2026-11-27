@@ -455,7 +455,8 @@ function newEntryId() {
 function addSet(date, exercise, weight, reps) {
   const previousBest = Logic.bestWeight(workingEntries(), exercise);
   const id = newEntryId();
-  state.entries.push({ id, date, exercise, weight, reps });
+  // A set in a deload week is marked, so the week after is worked out from the last normal week.
+  state.entries.push({ id, date, exercise, weight, reps, ...(inProgramDeload(exercise, date) ? { deload: true } : {}) });
   saveState();
   const advanced = syncProgram(date, exercise);
 
@@ -808,7 +809,7 @@ function activeRoutineTarget(exercise) {
 // log sets): the plain suggestion, and a lighter deload set when its muscle group has stalled. Null for an
 // exercise never logged before that day.
 function nextSetAdvice(exercise, date) {
-  const history = workingEntries().filter((e) => e.date < date);
+  const history = Logic.suggestionHistory(state.entries, date);
   const group = muscleOf(exercise);
   const repGoal = (activeRoutineTarget(exercise) || {}).reps || state.progression.repGoal;
   const jump = Logic.toLb(jumpOf(group), state.unit);
@@ -816,8 +817,10 @@ function nextSetAdvice(exercise, date) {
   if (!suggestion) return null;
   const status = Logic.plateauStatus(workingEntries(), muscleOf, today(), stallDaysOf).find((s) => s.group === group);
   const stalled = Boolean(status && status.state === "stalled");
-  const deload = stalled && Logic.deloadNext(history, exercise, repGoal, jump);
-  return { suggestion, deload, stalled, group, repGoal, shown: deload || suggestion };
+  // A program's deload week lightens its exercises whether or not their muscle group has stalled.
+  const fromProgram = inProgramDeload(exercise, date);
+  const deload = (stalled || fromProgram) && Logic.deloadNext(history, exercise, repGoal, jump);
+  return { suggestion, deload, stalled, fromProgram: fromProgram && Boolean(deload), group, repGoal, shown: deload || suggestion };
 }
 
 // "Last time (Nov 19): 140×8 (×3) lb." for a suggestion's session.
@@ -855,21 +858,19 @@ function renderSuggestion() {
     useButton.classList.add("hidden");
     return;
   }
-  const { suggestion, deload, stalled, group, repGoal, shown } = advice;
+  const { suggestion, deload, stalled, group, repGoal, shown, fromProgram } = advice;
   const weight = Logic.formatWeight(shown.weight, unit);
   const goal = repsText(repGoal);
   // The last session's sets show in plain sight, so you can match or beat them without opening anything.
   $("last-time").textContent = lastTimeText(suggestion);
   $("suggestion-text").textContent = adviceText(advice);
   if (deload) {
-    const reason = t("suggest.deloadReason", {
-      group: muscleLabel(group),
-      percent: Logic.DELOAD_PERCENT,
-      top: Logic.formatWeight(deload.topWeight, unit),
-      unit,
-    });
+    const top = Logic.formatWeight(deload.topWeight, unit);
+    const reason = fromProgram
+      ? t("program.deloadReason", { n: programStatusNow().deloadEvery, percent: Logic.DELOAD_PERCENT, top, unit })
+      : t("suggest.deloadReason", { group: muscleLabel(group), percent: Logic.DELOAD_PERCENT, top, unit });
     $("suggestion-detail").textContent = reason;
-    $("suggestion-note").textContent = "";
+    $("suggestion-note").textContent = fromProgram ? t("program.deloadNote", { percent: Logic.DELOAD_PERCENT }) : "";
   } else {
     const reason = suggestion.increased
       ? t("suggest.reasonUp", { goal, jump: jumpOf(group), unit })
@@ -1072,7 +1073,10 @@ function onSwapUndo() {
 // Fills the form with an exercise and, if it has been done before, last time's weight and reps.
 function pickRoutineExercise(exercise) {
   $("exercise").value = exerciseLabel(exercise);
-  const last = Logic.lastSet(workingEntries(), exercise);
+  // The last normal set, so the week after a deload starts from the usual weight; sets already logged on
+  // the chosen day count, whatever they were.
+  const day = $("date").value || today();
+  const last = Logic.lastSet(workingEntries().filter((e) => !e.deload || e.date === day), exercise);
   $("weight").value = last ? Logic.formatWeight(last.weight, state.unit) : "";
   renderPlates();
   const target = activeRoutineTarget(exercise);
@@ -1088,6 +1092,14 @@ function pickRoutineExercise(exercise) {
 let programDraft = [];
 
 const programStatusNow = () => Logic.programStatus(state.program, state.routines.map((r) => r.id));
+
+// Whether an exercise is lightened right now: it is in one of the program's routines (as swapped that day)
+// and the program is in a deload week.
+function inProgramDeload(exercise, date) {
+  const status = programStatusNow();
+  if (!status || !status.deload) return false;
+  return status.routineIds.some((id) => routineSlotsFor(state.routines.find((r) => r.id === id), date).some((slot) => slot.exercise === exercise));
+}
 const routineName = (id) => (state.routines.find((r) => r.id === id) || { name: "" }).name;
 
 // The Program card, the line under the routine drop-down, the panel, and the drop-down's "next" tag.
@@ -1099,8 +1111,8 @@ function renderProgram() {
   $("program-save").textContent = t(state.program ? "program.saveChanges" : "program.start");
   if (status) {
     const values = { week: status.week, day: status.day, days: status.daysPerWeek, next: routineName(status.nextRoutineId), done: status.completed };
-    $("program-line").textContent = t("program.logLine", values);
-    $("program-status").textContent = t("program.status", values);
+    $("program-line").textContent = t("program.logLine", values) + (status.deload ? ` ${t("program.deloadNote", { percent: Logic.DELOAD_PERCENT })}` : "");
+    $("program-status").textContent = t("program.status", values) + (status.deload ? ` ${t("program.deloadNote", { percent: Logic.DELOAD_PERCENT })}` : "");
     $("dash-stat-program").textContent = t("program.cardStat", values);
   } else {
     $("program-status").textContent = t("program.none");
@@ -1108,6 +1120,18 @@ function renderProgram() {
   }
   renderRoutinePicker();
   renderProgramDraft();
+  renderProgramDeloadChoice();
+}
+
+// The "lighter week" drop-down: never, or every 3 to 6 weeks.
+function renderProgramDeloadChoice() {
+  const select = $("program-deload");
+  const chosen = select.value;
+  select.replaceChildren(
+    ...Logic.PROGRAM_DELOAD_CHOICES.map((n) => option(String(n), n === 0 ? t("program.deloadNever") : t("program.deloadEvery", { n })))
+  );
+  select.value = chosen || String(state.program ? state.program.deloadEvery : Logic.DEFAULT_PROGRAM_DELOAD);
+  $("program-deload-hint").textContent = t("program.deloadHint", { percent: Logic.DELOAD_PERCENT });
 }
 
 function renderProgramDraft() {
@@ -1156,6 +1180,7 @@ function moveProgramRoutine(index, offset) {
 function loadProgramDraft() {
   const known = state.routines.map((r) => r.id);
   programDraft = state.program ? state.program.routineIds.filter((id) => known.includes(id)) : [];
+  $("program-deload").value = String(state.program ? state.program.deloadEvery : Logic.DEFAULT_PROGRAM_DELOAD);
   $("program-error").textContent = "";
   renderProgramDraft();
 }
@@ -1173,7 +1198,7 @@ function onProgramSubmit(event) {
   $("program-error").textContent = errorText(error);
   if (error) return;
   // Changing the list keeps the workouts already counted.
-  state.program = Logic.sanitizeProgram({ completed: 0, lastDate: "", ...state.program, routineIds: [...programDraft] });
+  state.program = Logic.sanitizeProgram({ completed: 0, lastDate: "", ...state.program, routineIds: [...programDraft], deloadEvery: Number($("program-deload").value) });
   saveState();
   renderProgram();
   showToast(t("program.saved"));
@@ -1438,6 +1463,8 @@ function renderFocus() {
   $("focus-swapped").textContent = swapped ? t("focus.swappedFor", { name: exerciseLabel(original) }) : "";
   $("focus-swapped").classList.toggle("hidden", !swapped);
   const advice = nextSetAdvice(exercise, focusDate());
+  $("focus-deload").textContent = advice && advice.fromProgram ? t("program.deloadNote", { percent: Logic.DELOAD_PERCENT }) : "";
+  $("focus-deload").classList.toggle("hidden", !(advice && advice.fromProgram));
   $("focus-suggestion").textContent = advice ? adviceText(advice) : t("suggest.none", { exercise: exerciseLabel(exercise) });
   $("focus-last").textContent = advice ? lastTimeText(advice.suggestion) : "";
   $("focus-weight-label").textContent = t("log.weight", { unit: state.unit });

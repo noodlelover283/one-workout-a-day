@@ -239,6 +239,12 @@ I18n.register("ru", {
     "program.workoutDone": "Тренировка цикла выполнена. Далее: {next}.",
     "program.cardNone": "Не настроен",
     "program.cardStat": "Неделя {week} · {next}",
+    "program.deloadLabel": "Лёгкая неделя",
+    "program.deloadNever": "Никогда",
+    "program.deloadEvery": "Каждые {n} нед.",
+    "program.deloadHint": "Время от времени лёгкая неделя помогает восстановиться. Веса будут примерно на {percent}% меньше, а на следующей неделе вы вернётесь к прежним.",
+    "program.deloadNote": "Неделя разгрузки: веса примерно на {percent}% меньше.",
+    "program.deloadReason": "В вашем цикле лёгкая неделя каждые {n} нед. Это примерно на {percent}% ниже вашего лучшего веса {top} {unit}.",
     "error.programEmpty": "Добавьте в цикл хотя бы одну программу.",
 
     "routines.startOnLog": "Начать на вкладке «Журнал»",

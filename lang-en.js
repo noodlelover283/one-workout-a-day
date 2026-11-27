@@ -237,6 +237,12 @@ I18n.register("en", {
     "program.workoutDone": "Program workout done. Next: {next}.",
     "program.cardNone": "Not set up",
     "program.cardStat": "Week {week} · {next}",
+    "program.deloadLabel": "Lighter week",
+    "program.deloadNever": "Never",
+    "program.deloadEvery": "Every {n} weeks",
+    "program.deloadHint": "A lighter week now and then lets you recover. Weights come out about {percent}% lighter, and the week after goes back to where you were.",
+    "program.deloadNote": "Deload week: weights are about {percent}% lighter.",
+    "program.deloadReason": "Your program has a lighter week every {n} weeks. This is about {percent}% below your top weight of {top} {unit}.",
     "error.programEmpty": "Add at least one routine to the program.",
 
     "routines.startOnLog": "Start on the Log tab",
