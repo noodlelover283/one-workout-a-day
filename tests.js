@@ -3333,24 +3333,24 @@ const tourIsOpen = (app) => !app.doc.getElementById("tour").classList.contains("
 const tourTitle = (app) => app.doc.getElementById("tour-title").textContent.trim();
 const tourButton = (app, id) => app.doc.getElementById(id);
 
-test("a brand-new device opens the walkthrough, and Next steps through all 5 screens to Got it", async () => {
+test("a brand-new device opens the walkthrough, and Next steps through all 9 steps to Got it", async () => {
   const app = await openApp({ brandNew: true });
   try {
     if (!tourIsOpen(app)) throw new Error("a first-time visitor should see the walkthrough");
-    assertEqual(app.doc.getElementById("tour-step").textContent.trim(), "1 of 5");
+    assertEqual(app.doc.getElementById("tour-step").textContent.trim(), "1 of 9");
     if (!tourButton(app, "tour-back").classList.contains("hidden")) throw new Error("there is no screen before the first one, so Back should be hidden");
     const titles = [tourTitle(app)];
-    for (let step = 2; step <= 5; step += 1) {
+    for (let step = 2; step <= 9; step += 1) {
       tourButton(app, "tour-next").click();
-      assertEqual(app.doc.getElementById("tour-step").textContent.trim(), `${step} of 5`);
+      assertEqual(app.doc.getElementById("tour-step").textContent.trim(), `${step} of 9`);
       titles.push(tourTitle(app));
     }
-    assertEqual(new Set(titles).size, 5, "each screen should have its own title:");
+    assertEqual(new Set(titles).size, 9, "each step should have its own title:");
     if (!/weight/i.test(titles[2])) throw new Error(`the third screen should answer what weight to start with, but is titled "${titles[2]}"`);
     if (!tourButton(app, "tour-skip").classList.contains("hidden")) throw new Error("Skip should go away on the last screen");
     assertEqual(tourButton(app, "tour-next").textContent.trim(), "Got it");
     tourButton(app, "tour-back").click();
-    assertEqual(app.doc.getElementById("tour-step").textContent.trim(), "4 of 5");
+    assertEqual(app.doc.getElementById("tour-step").textContent.trim(), "8 of 9");
     tourButton(app, "tour-next").click();
     tourButton(app, "tour-next").click();
     if (tourIsOpen(app)) throw new Error("Got it should close the walkthrough");
@@ -3368,7 +3368,7 @@ test("the walkthrough does not come back after Got it or Skip", async () => {
       if (finish === "skip") {
         tourButton(app, "tour-skip").click();
       } else {
-        for (let step = 1; step <= 5; step += 1) tourButton(app, "tour-next").click();
+        for (let step = 1; step <= 9; step += 1) tourButton(app, "tour-next").click();
       }
       if (tourIsOpen(app)) throw new Error(`${finish} should close the walkthrough`);
       second = await reopenApp(app);
@@ -3400,7 +3400,7 @@ test("the settings gear can reopen the walkthrough at the first screen", async (
     if (!reopen) throw new Error("the settings panel has no button to reopen the walkthrough");
     reopen.click();
     if (!tourIsOpen(app)) throw new Error("the button did not open the walkthrough");
-    assertEqual(app.doc.getElementById("tour-step").textContent.trim(), "1 of 5");
+    assertEqual(app.doc.getElementById("tour-step").textContent.trim(), "1 of 9");
     tourButton(app, "tour-skip").click();
     if (tourIsOpen(app)) throw new Error("Skip should close it again");
   } finally {
@@ -3412,11 +3412,98 @@ test("the last walkthrough screen can take you to the Workout terms", async () =
   const app = await openApp();
   try {
     app.doc.getElementById("tour-open").click();
-    for (let step = 1; step < 5; step += 1) tourButton(app, "tour-next").click();
+    for (let step = 1; step < 9; step += 1) tourButton(app, "tour-next").click();
     tourButton(app, "tour-terms").click();
     if (tourIsOpen(app)) throw new Error("the walkthrough should close");
     if (app.doc.getElementById("display-panel").classList.contains("hidden")) throw new Error("the settings panel should be open");
     if (!app.doc.getElementById("glossary").open) throw new Error("the Workout terms should be open");
+  } finally {
+    closeApp(app);
+  }
+});
+
+test("each guided step goes to its real screen and spotlights the thing it explains, with the card out of the way", async () => {
+  const app = await openApp({ brandNew: true });
+  try {
+    const doc = app.doc;
+    const byId = (id) => doc.getElementById(id);
+    // Step number -> the screen it shows and the element it points at (null for a plain card).
+    const steps = {
+      1: ["log", null],
+      2: ["log", null],
+      3: ["log", "#log-form .row"],
+      4: ["log", "#log-form button.primary"],
+      5: ["routines", '#routines-home .dash-card[data-panel="routine-form"]'],
+      6: ["routines", '#routines-home .dash-card[data-panel="program"]'],
+      7: ["log", ".tabbar"],
+      8: ["log", ".section-switch"],
+      9: ["log", "#display-toggle"],
+    };
+    const overlap = (a, b) => a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top;
+    // The spotlight glides to its next place; measure it where it ends up.
+    byId("tour-spot").style.transition = "none";
+    for (let step = 1; step <= 9; step += 1) {
+      if (step > 1) byId("tour-next").click();
+      app.win.eval("positionTourSpot()");
+      const [tab, selector] = steps[step];
+      if (doc.getElementById(`tab-${tab}`).classList.contains("hidden")) throw new Error(`step ${step} should show the ${tab} screen`);
+      assertEqual(byId("tour").classList.contains("spotlight"), selector !== null, `step ${step} spotlight:`);
+      if (!selector) continue;
+      const target = doc.querySelector(selector);
+      if (!target || target.getClientRects().length === 0) throw new Error(`step ${step}: ${selector} is not on screen`);
+      const box = target.getBoundingClientRect();
+      const spot = byId("tour-spot").getBoundingClientRect();
+      // The spotlight hugs the element, with a small margin (and a little give for a tab still fading in).
+      for (const [name, got, want] of [["left", spot.left, box.left - 6], ["top", spot.top, box.top - 6], ["right", spot.right, box.right + 6], ["bottom", spot.bottom, box.bottom + 6]]) {
+        if (Math.abs(got - want) > 8) throw new Error(`step ${step}: the spotlight's ${name} is ${Math.round(got)} but should be about ${Math.round(want)}`);
+      }
+      const card = doc.querySelector(".tour-card").getBoundingClientRect();
+      if (overlap(card, box)) throw new Error(`step ${step}: the card covers what it explains (${selector})`);
+      if (!byId("tour").classList.contains("spot-top") && !byId("tour").classList.contains("spot-bottom")) throw new Error(`step ${step}: the card has no side`);
+    }
+    if (app.errors.length) throw new Error(`the app raised errors: ${app.errors.join("; ")}`);
+  } finally {
+    closeApp(app);
+  }
+});
+
+test("a step whose element is not on screen falls back to a plain card", async () => {
+  const app = await openApp({ brandNew: true });
+  try {
+    const doc = app.doc;
+    // Step 3 points at the weight row; take the whole form off screen.
+    doc.getElementById("tour-next").click();
+    doc.getElementById("tour-next").click();
+    doc.getElementById("log-form").style.display = "none";
+    app.win.eval("positionTourSpot()");
+    if (doc.getElementById("tour").classList.contains("spotlight")) throw new Error("with nothing to point at it should be a plain card");
+    if (!doc.getElementById("tour-spot").classList.contains("hidden")) throw new Error("the spotlight should be hidden");
+    if (isShown(doc.getElementById("tour-spot"))) throw new Error("the spotlight is still drawn");
+  } finally {
+    closeApp(app);
+  }
+});
+
+test("the walkthrough brings you back to the screen you were on when it closes", async () => {
+  const app = await openApp();
+  try {
+    const doc = app.doc;
+    showTab(app, "progress");
+    doc.getElementById("display-toggle").click();
+    doc.getElementById("tour-open").click();
+    if (!doc.getElementById("display-panel").classList.contains("hidden")) throw new Error("the settings panel should close, so the gear is clear");
+    for (let step = 1; step < 6; step += 1) doc.getElementById("tour-next").click();
+    if (doc.getElementById("tab-routines").classList.contains("hidden")) throw new Error("step 6 should show the Routines screen");
+    tourButton(app, "tour-skip").click();
+    if (!doc.getElementById("tab-routines").classList.contains("hidden")) throw new Error("the walkthrough should leave the Routines screen");
+    if (doc.getElementById("tab-progress").classList.contains("hidden")) throw new Error("Skip should go back to Progress");
+    // Finishing does the same, from the Meals screen of the Diet section.
+    showTab(app, "meals");
+    doc.getElementById("tour-open").click();
+    for (let step = 1; step <= 9; step += 1) doc.getElementById("tour-next").click();
+    if (doc.getElementById("tab-meals").classList.contains("hidden")) throw new Error("Got it should go back to Meals");
+    assertEqual(doc.querySelector(".section-switch button[aria-pressed='true']").dataset.section, "diet", "the Diet section is back:");
+    if (app.errors.length) throw new Error(`the app raised errors: ${app.errors.join("; ")}`);
   } finally {
     closeApp(app);
   }

@@ -3755,23 +3755,87 @@ function toggleDisplayPanel() {
 
 // ---------- Getting-started walkthrough ----------
 
-const TOUR_STEPS = 5;
+// The walkthrough's steps. A step with a `target` is shown on the real screen named by `tab`, with
+// everything dimmed except that element; one without is a plain card. Texts are tour.<id>.title / .body.
+const TOUR_STEPS = [
+  { id: "welcome", tab: "log" },
+  { id: "reps", tab: "log" },
+  { id: "weight", tab: "log", target: "#log-form .row" },
+  { id: "log", tab: "log", target: "#log-form button.primary" },
+  { id: "routines", tab: "routines", target: '#routines-home .dash-card[data-panel="routine-form"]' },
+  { id: "program", tab: "routines", target: '#routines-home .dash-card[data-panel="program"]' },
+  { id: "tabs", tab: "log", target: ".tabbar" },
+  { id: "diet", tab: "log", target: ".section-switch" },
+  { id: "gear", tab: "log", target: "#display-toggle" },
+];
 let tourStep = 1;
+// The element being pointed at, the screen to go back to when the walkthrough closes, and the timer that
+// keeps the spotlight on its element while the page settles (tabs fade in, fonts load, the window resizes).
+let tourTarget = null;
+let tourReturn = null;
+let tourTimer = null;
 
 function renderTour() {
-  const last = tourStep === TOUR_STEPS;
-  $("tour-step").textContent = t("tour.step", { current: tourStep, total: TOUR_STEPS });
-  $("tour-title").textContent = t(`tour.s${tourStep}.title`);
-  $("tour-body").textContent = t(`tour.s${tourStep}.body`);
+  const step = TOUR_STEPS[tourStep - 1];
+  const last = tourStep === TOUR_STEPS.length;
+  $("tour-step").textContent = t("tour.step", { current: tourStep, total: TOUR_STEPS.length });
+  $("tour-title").textContent = t(`tour.${step.id}.title`);
+  $("tour-body").textContent = t(`tour.${step.id}.body`);
   $("tour-next").textContent = t(last ? "tour.done" : "tour.next");
   $("tour-back").classList.toggle("hidden", tourStep === 1);
   $("tour-skip").classList.toggle("hidden", last);
   $("tour-terms").classList.toggle("hidden", !last);
+  // The texts are redrawn with the rest of the page (a language change does that), but only an open
+  // walkthrough takes you to its screen.
+  if ($("tour").classList.contains("hidden")) return;
+  showTab(step.tab);
+  tourTarget = step.target ? document.querySelector(step.target) : null;
+  // An element in the page is brought near the top, which leaves the bottom free for the card; one in a
+  // fixed bar (the tabs along the bottom) stays where it is.
+  if (tourTarget && getComputedStyle(tourTarget).position !== "fixed") {
+    window.scrollBy(0, tourTarget.getBoundingClientRect().top - 24);
+  }
+  positionTourSpot();
+}
+
+// Puts the spotlight around the step's element, and the card on the side of it with more room. A step whose
+// element is missing or not showing falls back to a plain card.
+function positionTourSpot() {
+  const tour = $("tour");
+  if (tour.classList.contains("hidden")) return;
+  const showing = tourTarget && tourTarget.getClientRects().length > 0;
+  $("tour-spot").classList.toggle("hidden", !showing);
+  tour.classList.toggle("spotlight", Boolean(showing));
+  if (!showing) {
+    tour.classList.remove("spot-top", "spot-bottom");
+    document.querySelector(".tour-card").style.maxHeight = "";
+    return;
+  }
+  const rect = tourTarget.getBoundingClientRect();
+  const gap = 6;
+  Object.assign($("tour-spot").style, {
+    top: `${rect.top - gap}px`,
+    left: `${rect.left - gap}px`,
+    width: `${rect.width + 2 * gap}px`,
+    height: `${rect.height + 2 * gap}px`,
+  });
+  const cardGoesBottom = rect.top < window.innerHeight - rect.bottom;
+  tour.classList.toggle("spot-bottom", cardGoesBottom);
+  tour.classList.toggle("spot-top", !cardGoesBottom);
+  // The card is only as tall as the room on its side of the element (it scrolls inside if it must), so it
+  // does not cover what it explains.
+  const room = cardGoesBottom ? window.innerHeight - rect.bottom : rect.top;
+  document.querySelector(".tour-card").style.maxHeight = `${Math.max(180, room - 32)}px`;
 }
 
 function openTour() {
   tourStep = 1;
+  tourReturn = lastTabOf[state.section];
+  // The settings panel would sit over the gear that the last step points at.
+  if (!$("display-panel").classList.contains("hidden")) toggleDisplayPanel();
   $("tour").classList.remove("hidden");
+  clearInterval(tourTimer);
+  tourTimer = setInterval(positionTourSpot, 250);
   renderTour();
   $("tour-next").focus();
 }
@@ -3779,6 +3843,14 @@ function openTour() {
 // Finishing and skipping both close it for good; the settings gear can bring it back.
 function closeTour() {
   $("tour").classList.add("hidden");
+  clearInterval(tourTimer);
+  tourTarget = null;
+  // Back to the screen the person was on before the walkthrough took them around.
+  if (tourReturn) {
+    showTab(tourReturn);
+    window.scrollTo(0, 0);
+    tourReturn = null;
+  }
   if (!state.tourDone) {
     state.tourDone = true;
     saveState();
@@ -3786,7 +3858,7 @@ function closeTour() {
 }
 
 function onTourNext() {
-  if (tourStep === TOUR_STEPS) {
+  if (tourStep === TOUR_STEPS.length) {
     closeTour();
     return;
   }
@@ -3823,6 +3895,7 @@ function init() {
   $("tour-back").addEventListener("click", onTourBack);
   $("tour-skip").addEventListener("click", closeTour);
   $("tour-terms").addEventListener("click", onTourTerms);
+  window.addEventListener("resize", positionTourSpot);
   $("tour").addEventListener("keydown", (event) => {
     if (event.key === "Escape") closeTour();
   });
