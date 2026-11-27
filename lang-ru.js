@@ -173,6 +173,7 @@ I18n.register("ru", {
     "focus.pickCancel": "Отмена",
     "focus.addExercise": "Добавить упражнение",
     "focus.finishWorkout": "Завершить тренировку",
+    "focus.swappedFor": "Вместо: {name}.",
     "suggest.stalled": "Группа «{group}» сейчас в застое, так что это хорошее упражнение, чтобы поднажать.",
     "suggest.deloadText": "Разгрузка: {weight} {unit} × {reps}",
     "suggest.deloadReason": "Группа «{group}» в застое, поэтому попробуйте лёгкую неделю: примерно на {percent}% меньше вашего рабочего веса в прошлый раз ({top} {unit}).",

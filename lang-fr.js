@@ -171,6 +171,7 @@ I18n.register("fr", {
     "focus.pickCancel": "Annuler",
     "focus.addExercise": "Ajouter un exercice",
     "focus.finishWorkout": "Terminer la séance",
+    "focus.swappedFor": "À la place de {name}.",
     "suggest.stalled": "Le groupe musculaire « {group} » est en plateau en ce moment, c'est donc un bon exercice sur lequel insister.",
     "suggest.deloadText": "Décharge : {weight} {unit} × {reps}",
     "suggest.deloadReason": "Le groupe musculaire « {group} » est en plateau ; essayez une semaine plus légère : environ {percent} % de moins que votre poids maximal de la dernière fois ({top} {unit}).",

@@ -2024,6 +2024,7 @@ test("a free workout picks exercises from a searchable list as it goes, can go b
     assertEqual(byId("focus-exercise").innerText.trim(), "Squat", "picked:");
     assertEqual(byId("focus-position").innerText.trim(), "Free workout · 1 of 1", "position:");
     if (!isShown(byId("focus-finish"))) throw new Error("a free workout should offer Finish workout");
+    if (isShown(byId("focus-swap"))) throw new Error("a free workout has no routine exercise to swap");
     assertEqual(byId("focus-next").innerText.trim(), "Add exercise", "on the last exercise Next adds another:");
     byId("focus-weight").value = "225";
     byId("focus-reps").value = "5";
@@ -2107,6 +2108,57 @@ test("after a reload a routine workout shows its routine again, so its rep targe
     doc.getElementById("focus-start").click();
     again = await reopenApp(app);
     assertEqual(again.doc.getElementById("routine-select").value, "r1", "the routine is chosen again:");
+  } finally {
+    if (again) again.frame.remove();
+    closeApp(app);
+  }
+});
+
+test("a routine exercise can be swapped inside focused mode for today only, keeps its target, and can be put back", async () => {
+  const app = await openApp();
+  let again;
+  try {
+    const doc = app.doc;
+    const byId = (id) => doc.getElementById(id);
+    const choices = () => [...doc.querySelectorAll("#focus-pick-list button")].map((button) => button.innerText);
+    chooseDay(app, "2020-01-09");
+    byId("routine-select").value = "r1";
+    fireEvent(byId("routine-select"), "change");
+    byId("focus-start").click();
+    assertEqual(byId("focus-exercise").innerText.trim(), "Bench Press", "before the swap:");
+    if (isShown(byId("focus-swapped"))) throw new Error("nothing is swapped yet");
+
+    // Cancelling the list goes back to the same exercise.
+    byId("focus-swap").click();
+    if (!isShown(byId("focus-pick"))) throw new Error("Swap should open the list");
+    if (!byId("focus-pick-heading").innerText.includes("Bench Press")) throw new Error("the heading should name the exercise being swapped");
+    byId("focus-pick-cancel").click();
+    if (!isShown(byId("focus-step")) || byId("focus-exercise").innerText.trim() !== "Bench Press") throw new Error("Cancel should go back to Bench Press");
+
+    // The list leaves out the exercise itself and starts with the same muscle group (chest).
+    byId("focus-swap").click();
+    if (choices().some((text) => text.startsWith("Bench Press"))) throw new Error("the exercise being swapped should not be offered");
+    if (!choices()[0].endsWith("Chest")) throw new Error(`the same muscle group should come first: ${choices().slice(0, 3)}`);
+    [...doc.querySelectorAll("#focus-pick-list button")].find((button) => button.innerText.startsWith("Incline Dumbbell Press")).click();
+    assertEqual(byId("focus-exercise").innerText.trim(), "Incline Dumbbell Press", "after the swap:");
+    if (!byId("focus-swapped").innerText.includes("Bench Press")) throw new Error(`it should say what it replaced: "${byId("focus-swapped").innerText}"`);
+    assertEqual(byId("focus-position").innerText.trim(), "Push · 1 of 2", "still one slot of the routine:");
+    // The swapped-in exercise inherits Bench Press's target of 3 sets.
+    if (!byId("focus-sets").innerText.includes("3")) throw new Error(`the target should carry over: "${byId("focus-sets").innerText}"`);
+    assertEqual(Object.keys(savedData(app).routineSwaps["2020-01-09"].r1).length, 1, "the swap is saved for that day:");
+
+    // A reload keeps the swap.
+    again = await reopenApp(app);
+    assertEqual(again.doc.getElementById("focus-exercise").innerText.trim(), "Incline Dumbbell Press", "after a reload:");
+
+    // Put back.
+    byId("focus-swap").click();
+    if (!choices()[0].startsWith("Put Bench Press back")) throw new Error(`Put back should come first: ${choices()[0]}`);
+    doc.querySelector("#focus-pick-list button").click();
+    assertEqual(byId("focus-exercise").innerText.trim(), "Bench Press", "put back:");
+    if (isShown(byId("focus-swapped"))) throw new Error("the swapped note should go away");
+    assertEqual(savedData(app).routineSwaps, {}, "no swaps left:");
+    if (app.errors.length) throw new Error(`the app raised errors: ${app.errors.join("; ")}`);
   } finally {
     if (again) again.frame.remove();
     closeApp(app);

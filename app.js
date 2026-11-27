@@ -1084,6 +1084,9 @@ let focus = null;
 let wakeLock = null;
 
 const focusDate = () => $("date").value || today();
+// What the exercise list is for: "add" a next exercise to a free workout, or "swap" the one showing.
+let focusPicking = "add";
+
 // A free workout has no routine (routineId is null) and grows as exercises are picked.
 const focusIsFree = () => focus.routineId === null;
 const focusRoutine = () => state.routines.find((r) => r.id === focus.routineId);
@@ -1181,7 +1184,12 @@ function startFocus() {
 
 // The list a free workout picks its next exercise from: the ones done most recently first, then the rest
 // by name, narrowed by what is typed in the search box.
-function openFocusPicker() {
+function openFocusPicker(mode = "add") {
+  focusPicking = mode;
+  const slot = mode === "swap" ? focusSlots()[focus.index] : null;
+  $("focus-pick-heading").textContent = slot ? t("swap.summary", { name: exerciseLabel(slot.exercise) }) : t("focus.pickHeading");
+  $("focus-pick-hint").textContent = t("swap.hint");
+  $("focus-pick-hint").classList.toggle("hidden", !slot);
   $("focus-step").classList.add("hidden");
   $("focus-summary").classList.add("hidden");
   $("focus-pick").classList.remove("hidden");
@@ -1198,22 +1206,49 @@ function renderFocusPicker() {
   for (const entry of state.entries) {
     if (!lastDone.has(entry.exercise) || entry.date > lastDone.get(entry.exercise)) lastDone.set(entry.exercise, entry.date);
   }
+  // Swapping: not the exercise showing now; the original gets its own Put back row; the same muscle group
+  // comes first, as on the Log tab.
+  const slot = focusPicking === "swap" ? focusSlots()[focus.index] : null;
+  const group = slot ? muscleOf(slot.exercise) : null;
+  const sameGroup = (name) => (slot && muscleOf(name) === group ? 1 : 0);
   const names = allExerciseNames()
+    .filter((name) => !slot || (name !== slot.exercise && name !== slot.original))
     .filter((name) => !query || name.toLowerCase().includes(query) || exerciseLabel(name).toLowerCase().includes(query))
-    .sort((a, b) => (lastDone.get(b) || "").localeCompare(lastDone.get(a) || "") || exerciseLabel(a).localeCompare(exerciseLabel(b), I18n.locale()));
-  const rows = names.map((name) => {
-    const button = el("button", "secondary", `${exerciseLabel(name)} · ${muscleLabel(muscleOf(name))}`);
+    .sort(
+      (a, b) =>
+        sameGroup(b) - sameGroup(a) ||
+        (lastDone.get(b) || "").localeCompare(lastDone.get(a) || "") ||
+        exerciseLabel(a).localeCompare(exerciseLabel(b), I18n.locale())
+    );
+  const row = (name, text) => {
+    const button = el("button", "secondary", text);
     button.type = "button";
     button.addEventListener("click", () => onFocusPick(name));
     const item = el("li");
     item.append(button);
     return item;
-  });
+  };
+  const rows = names.map((name) => row(name, `${exerciseLabel(name)} · ${muscleLabel(muscleOf(name))}`));
+  if (slot && slot.swapped) rows.unshift(row(slot.original, t("swap.undo", { name: exerciseLabel(slot.original) })));
   $("focus-pick-list").replaceChildren(...(rows.length ? rows : [el("li", "hint", t("focus.pickEmpty"))]));
+}
+
+// Swaps the routine exercise showing for another one, for this day only, like the Log tab's Swap. Choosing
+// the original puts it back. Sets already logged stay with the exercise they were logged for.
+function applyFocusSwap(name) {
+  const slot = focusSlots()[focus.index];
+  state.routineSwaps = Logic.setRoutineSwap(state.routineSwaps, focusDate(), focus.routineId, slot.index, name === slot.original ? null : name);
+  saveState();
+  showToast(t("toast.swapped", { from: exerciseLabel(slot.exercise), to: exerciseLabel(name) }));
+  showFocusExercise(focus.index);
 }
 
 // Picking an exercise already in the workout goes back to it instead of adding it twice.
 function onFocusPick(name) {
+  if (focusPicking === "swap") {
+    applyFocusSwap(name);
+    return;
+  }
   let index = focus.exercises.indexOf(name);
   if (index === -1) {
     focus.exercises.push(name);
@@ -1224,7 +1259,7 @@ function onFocusPick(name) {
 
 // Cancelling the list goes back to the exercise before it, or leaves when the workout has none yet.
 function onFocusPickCancel() {
-  if (focus.exercises.length === 0) closeFocus();
+  if (focusIsFree() && focus.exercises.length === 0) closeFocus();
   else showFocusExercise(focus.index);
 }
 
@@ -1248,10 +1283,12 @@ function showFocusExercise(index) {
 function renderFocus() {
   if (!focus) return;
   const slots = focusSlots();
-  const { exercise, original } = slots[focus.index];
+  const { exercise, original, swapped } = slots[focus.index];
   const routine = focusIsFree() ? null : focusRoutine();
   $("focus-position").textContent = t("focus.position", { routine: focusName(), n: focus.index + 1, total: slots.length });
   $("focus-exercise").textContent = exerciseLabel(exercise);
+  $("focus-swapped").textContent = swapped ? t("focus.swappedFor", { name: exerciseLabel(original) }) : "";
+  $("focus-swapped").classList.toggle("hidden", !swapped);
   const advice = nextSetAdvice(exercise, focusDate());
   $("focus-suggestion").textContent = advice ? adviceText(advice) : t("suggest.none", { exercise: exerciseLabel(exercise) });
   $("focus-last").textContent = advice ? lastTimeText(advice.suggestion) : "";
@@ -1268,6 +1305,7 @@ function renderFocus() {
   // A free workout has no end to step towards: after the last exercise, Next adds another one.
   $("focus-next").textContent = t(last ? (focusIsFree() ? "focus.addExercise" : "focus.finish") : "focus.next");
   $("focus-finish").classList.toggle("hidden", !focusIsFree());
+  $("focus-swap").classList.toggle("hidden", focusIsFree());
   renderFocusRest();
   saveFocus();
 }
@@ -3589,6 +3627,7 @@ function init() {
   $("focus-prev").addEventListener("click", () => showFocusExercise(focus.index - 1));
   $("focus-next").addEventListener("click", onFocusNext);
   $("focus-finish").addEventListener("click", showFocusSummary);
+  $("focus-swap").addEventListener("click", () => openFocusPicker("swap"));
   $("focus-search").addEventListener("input", renderFocusPicker);
   $("focus-pick-cancel").addEventListener("click", onFocusPickCancel);
   $("focus-rest-skip").addEventListener("click", dismissRest);

@@ -171,6 +171,7 @@ I18n.register("hi", {
     "focus.pickCancel": "रद्द करें",
     "focus.addExercise": "एक्सरसाइज़ जोड़ें",
     "focus.finishWorkout": "वर्कआउट समाप्त करें",
+    "focus.swappedFor": "{name} की जगह।",
     "suggest.stalled": "{group} अभी ठहराव में है, इसलिए यह ज़ोर लगाने के लिए अच्छा व्यायाम है।",
     "suggest.deloadText": "डीलोड: {weight} {unit} × {reps}",
     "suggest.deloadReason": "{group} ठहराव में है, इसलिए एक हल्का हफ़्ता आज़माएँ: पिछली बार के आपके सबसे ज़्यादा वज़न ({top} {unit}) से लगभग {percent}% कम।",

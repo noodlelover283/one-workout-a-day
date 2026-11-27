@@ -176,6 +176,7 @@ I18n.register("ar", {
     "focus.pickCancel": "إلغاء",
     "focus.addExercise": "إضافة تمرين",
     "focus.finishWorkout": "إنهاء التمرين",
+    "focus.swappedFor": "بدلًا من {name}.",
     "suggest.stalled": "{group} في حالة جمود الآن، لذا هذا تمرين جيد لبذل جهد أكبر فيه.",
     "suggest.deloadText": "تخفيف الحمل: {weight} {unit} × {reps}",
     "suggest.deloadReason": "{group} في حالة جمود، لذا جرّب أسبوعًا أخف: أقل بنحو {percent}% من أعلى وزن لك في المرة الماضية ({top} {unit}).",

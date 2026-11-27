@@ -170,6 +170,7 @@ I18n.register("zh", {
     "focus.pickCancel": "取消",
     "focus.addExercise": "添加动作",
     "focus.finishWorkout": "结束训练",
+    "focus.swappedFor": "已替换 {name}。",
     "suggest.stalled": "{group}目前处于停滞期，这个动作值得多加把劲。",
     "suggest.deloadText": "减负：{weight} {unit} × {reps}",
     "suggest.deloadReason": "{group}处于停滞期，不妨试试轻量周：比上次的最大重量（{top} {unit}）轻约 {percent}%。",

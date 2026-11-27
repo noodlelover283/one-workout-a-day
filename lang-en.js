@@ -171,6 +171,7 @@ I18n.register("en", {
     "focus.pickCancel": "Cancel",
     "focus.addExercise": "Add exercise",
     "focus.finishWorkout": "Finish workout",
+    "focus.swappedFor": "Swapped in for {name}.",
     "suggest.stalled": "{group} is stalled right now, so this is a good lift to push.",
     "suggest.deloadText": "Deload: {weight} {unit} × {reps}",
     "suggest.deloadReason": "{group} is stalled, so try a lighter week: about {percent}% under your top weight last time ({top} {unit}).",

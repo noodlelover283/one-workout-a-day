@@ -171,6 +171,7 @@ I18n.register("pt", {
     "focus.pickCancel": "Cancelar",
     "focus.addExercise": "Adicionar exercício",
     "focus.finishWorkout": "Terminar treino",
+    "focus.swappedFor": "No lugar de {name}.",
     "suggest.stalled": "O grupo muscular {group} está estagnado agora, então este é um bom exercício para se esforçar mais.",
     "suggest.deloadText": "Descarga: {weight} {unit} × {reps}",
     "suggest.deloadReason": "O grupo muscular {group} está estagnado, então experimente uma semana mais leve: cerca de {percent}% abaixo do seu peso mais alto da última vez ({top} {unit}).",
