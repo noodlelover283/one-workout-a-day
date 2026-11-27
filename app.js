@@ -503,7 +503,20 @@ let audioContext = null;
 // The timer counts down to a fixed end time, so it stays correct if the screen locks and wakes.
 function startRest(seconds) {
   restEndsAt = Date.now() + seconds * 1000;
+  saveFocus();
   prepareAudio();
+  $("rest-banner").classList.remove("over");
+  $("rest-banner").classList.remove("hidden");
+  renderRestLabels();
+  clearInterval(restTicker);
+  restTicker = setInterval(updateRest, 250);
+  updateRest();
+}
+
+// Picks a rest timer back up after a reload, counting down to the same end time. A rest that ended
+// while the app was closed stays quiet: no late beep.
+function resumeRest(endsAt) {
+  restEndsAt = endsAt;
   $("rest-banner").classList.remove("over");
   $("rest-banner").classList.remove("hidden");
   renderRestLabels();
@@ -540,12 +553,14 @@ function updateRest() {
 function adjustRest(deltaSeconds) {
   if (restEndsAt === null) return;
   restEndsAt += deltaSeconds * 1000;
+  saveFocus();
   updateRest();
 }
 
 function finishRest() {
   clearInterval(restTicker);
   restEndsAt = null;
+  saveFocus();
   $("rest-banner").classList.add("over");
   renderRestLabels();
   renderFocusRest();
@@ -559,6 +574,7 @@ function finishRest() {
 function dismissRest() {
   clearInterval(restTicker);
   restEndsAt = null;
+  saveFocus();
   $("rest-banner").classList.add("hidden");
   setRestAdjustOpen(false);
   renderFocusRest();
@@ -1062,6 +1078,64 @@ const focusRoutine = () => state.routines.find((r) => r.id === focus.routineId);
 const focusSlots = () => routineSlotsFor(focusRoutine(), focusDate());
 const todaysWorkingSets = () => Logic.workingSets(state.entries.filter((e) => e.date === focusDate()));
 
+// The workout's progress is kept under its own key, apart from the main data, so a phone that reloads
+// the app in the background (or a closed tab) picks the workout up again, while backups never carry it.
+const FOCUS_KEY = `${STORAGE_KEY}-focus`;
+// A workout older than this is not resumed: it was left behind.
+const FOCUS_RESUME_HOURS = 12;
+
+// Writes the open workout (and the rest timer's end, if it is running), or clears the record when
+// no workout is open.
+function saveFocus() {
+  try {
+    if (focus) localStorage.setItem(FOCUS_KEY, JSON.stringify({ ...focus, date: focusDate(), restEndsAt }));
+    else localStorage.removeItem(FOCUS_KEY);
+  } catch (error) {
+    // Losing the resume record only costs the resume; the sets themselves are saved separately.
+  }
+}
+
+// Reopens a workout that was open when the app last closed. Nothing is resumed when the routine is
+// gone, the record is old, or it cannot be read.
+function resumeFocus() {
+  let saved = null;
+  try {
+    saved = JSON.parse(localStorage.getItem(FOCUS_KEY));
+  } catch (error) {
+    saved = null;
+  }
+  const fresh = saved && Date.now() - saved.startedAt < FOCUS_RESUME_HOURS * 3600 * 1000;
+  const routine = fresh && state.routines.find((r) => r.id === saved.routineId);
+  if (!routine || !Array.isArray(saved.entryIds) || !/^\d{4}-\d{2}-\d{2}$/.test(saved.date)) {
+    localStorage.removeItem(FOCUS_KEY);
+    return;
+  }
+  $("date").value = saved.date;
+  focus = {
+    routineId: routine.id,
+    index: 0,
+    startedAt: saved.startedAt,
+    entryIds: saved.entryIds,
+    records: Number(saved.records) || 0,
+    finishedAt: saved.finishedAt,
+  };
+  // The routine may have lost exercises since; stay inside it.
+  const index = Math.min(Math.max(0, Number(saved.index) || 0), focusSlots().length - 1);
+  document.documentElement.classList.add("focus-open");
+  $("focus").classList.remove("hidden");
+  keepScreenOn(true);
+  if (focus.finishedAt) {
+    showFocusSummary();
+  } else {
+    $("focus-step").classList.remove("hidden");
+    $("focus-exit").classList.remove("hidden");
+    $("focus-summary").classList.add("hidden");
+    showFocusExercise(index);
+  }
+  if (saved.restEndsAt > Date.now()) resumeRest(saved.restEndsAt);
+  renderFocus();
+}
+
 // Starts at the routine's first exercise not done yet today, or the first one when all are done.
 function startFocus() {
   const routine = state.routines.find((r) => r.id === $("routine-select").value);
@@ -1116,6 +1190,7 @@ function renderFocus() {
   $("focus-prev").disabled = focus.index === 0;
   $("focus-next").textContent = t(focus.index === slots.length - 1 ? "focus.finish" : "focus.next");
   renderFocusRest();
+  saveFocus();
 }
 
 // The rest timer, shown large in focused mode while it runs or has just finished.
@@ -1165,7 +1240,8 @@ function onFocusNext() {
 // The end of the workout: how long it took and what was done, from the sets logged in focused mode.
 function showFocusSummary() {
   const sets = state.entries.filter((e) => focus.entryIds.includes(e.id));
-  const minutes = Math.max(1, Math.round((Date.now() - focus.startedAt) / 60000));
+  focus.finishedAt = focus.finishedAt || Date.now();
+  const minutes = Math.max(1, Math.round((focus.finishedAt - focus.startedAt) / 60000));
   const exercises = [...new Set(sets.map((e) => e.exercise))];
   const volume = sets.reduce((sum, e) => sum + e.weight * e.reps, 0);
   const lines = [
@@ -1183,6 +1259,7 @@ function showFocusSummary() {
   $("focus-summary").classList.remove("hidden");
   $("focus-position").textContent = focusRoutine().name;
   $("focus").scrollTop = 0;
+  saveFocus();
 }
 
 // Sends the summary as text through the phone's share sheet, or copies it where there is none.
@@ -1205,6 +1282,7 @@ async function onFocusShare() {
 // Leaving keeps every set: they were saved as they were logged.
 function closeFocus() {
   focus = null;
+  saveFocus();
   document.documentElement.classList.remove("focus-open");
   $("focus").classList.add("hidden");
   keepScreenOn(false);
@@ -3514,6 +3592,7 @@ function init() {
   for (const slot of document.querySelectorAll(".ascii-slot")) slot.replaceChildren(asciiLifter());
   applyLanguage();
   showSection(state.section);
+  resumeFocus();
   window.addEventListener("online", updateOfflineNotice);
   window.addEventListener("offline", updateOfflineNotice);
   updateOfflineNotice();

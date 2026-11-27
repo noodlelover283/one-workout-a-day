@@ -4,13 +4,37 @@
 const results = [];
 const unfinished = []; // tests that need to wait (the screen tests load the whole app)
 
-// A test body may return a promise; its line is added now so the list keeps its order.
+// At most this many screen tests run at once. Each loads the whole app in its own frame, and starting
+// well over a hundred together made the results depend on how busy the browser was.
+const MAX_SCREEN_TESTS_AT_ONCE = 8;
+let screenTestsRunning = 0;
+const screenTestsWaiting = [];
+
+function startScreenTest(run) {
+  screenTestsRunning += 1;
+  return run().finally(() => {
+    screenTestsRunning -= 1;
+    const next = screenTestsWaiting.shift();
+    if (next) next();
+  });
+}
+
+// A test body may be async; its line is added now so the list keeps its order. Async bodies (the
+// screen tests) wait for a free slot before they start.
 function test(name, body) {
   const result = { name, error: null };
   results.push(result);
+  if (body.constructor.name === "AsyncFunction") {
+    const finished = new Promise((resolve) => {
+      const go = () => resolve(startScreenTest(body));
+      if (screenTestsRunning < MAX_SCREEN_TESTS_AT_ONCE) go();
+      else screenTestsWaiting.push(go);
+    });
+    unfinished.push(finished.catch((error) => (result.error = error)));
+    return;
+  }
   try {
-    const outcome = body();
-    if (outcome && typeof outcome.then === "function") unfinished.push(outcome.catch((error) => (result.error = error)));
+    body();
   } catch (error) {
     result.error = error;
   }
@@ -1281,6 +1305,7 @@ function openApp({ brandNew = false, data = null } = {}) {
 function closeApp(app) {
   app.frame.remove();
   localStorage.removeItem(app.storage);
+  localStorage.removeItem(`${app.storage}-focus`);
 }
 
 function showTab(app, name) {
@@ -1872,6 +1897,84 @@ test("the focused workout summary can be shared as text, or copied when the phon
     if (byId("toast").innerText.includes("Could not")) throw new Error("cancelling the share sheet should not show an error");
     if (app.errors.length) throw new Error(`the app raised errors: ${app.errors.join("; ")}`);
   } finally {
+    closeApp(app);
+  }
+});
+
+test("a focused workout comes back after the app reloads: same exercise, same sets, rest timer still running, and the summary too", async () => {
+  const app = await openApp();
+  const frames = [];
+  try {
+    const byId = (doc, id) => doc.getElementById(id);
+    const doc = app.doc;
+    chooseDay(app, "2020-01-09");
+    byId(doc, "routine-select").value = "r1";
+    fireEvent(byId(doc, "routine-select"), "change");
+    byId(doc, "focus-start").click();
+    byId(doc, "focus-weight").value = "100";
+    byId(doc, "focus-reps").value = "8";
+    byId(doc, "focus-done").click();
+    byId(doc, "focus-next").click();
+    assertEqual(byId(doc, "focus-exercise").innerText.trim(), "Overhead Press", "before the reload:");
+
+    // Reload: it opens on the same exercise, on the same day, with the rest timer still counting.
+    let again = await reopenApp(app);
+    frames.push(again);
+    if (!isShown(byId(again.doc, "focus"))) throw new Error("the focused workout should reopen");
+    assertEqual(byId(again.doc, "focus-exercise").innerText.trim(), "Overhead Press", "same exercise:");
+    assertEqual(byId(again.doc, "date").value, "2020-01-09", "same day:");
+    if (!isShown(byId(again.doc, "focus-rest"))) throw new Error("the rest timer should still be running");
+    if (!/\d:\d\d/.test(byId(again.doc, "focus-rest-clock").innerText)) throw new Error("the rest timer should show a time");
+
+    // The sets logged before the reload still count toward the summary.
+    byId(again.doc, "focus-next").click();
+    const summary = byId(again.doc, "focus-summary").innerText;
+    for (const expected of ["Sets: 1", "Bench Press: 100×8 lb"]) {
+      if (!summary.includes(expected)) throw new Error(`the summary should include "${expected}": ${summary}`);
+    }
+
+    // Reloading on the summary shows the same summary, with the same time.
+    again = await reopenApp(app);
+    frames.push(again);
+    assertEqual(byId(again.doc, "focus-summary").innerText, summary, "the summary after another reload:");
+
+    // Leaving clears it: the next reload opens the normal Log tab.
+    byId(again.doc, "focus-summary-close").click();
+    again = await reopenApp(app);
+    frames.push(again);
+    if (isShown(byId(again.doc, "focus"))) throw new Error("a finished workout should not come back");
+  } finally {
+    for (const frame of frames) frame.frame.remove();
+    closeApp(app);
+  }
+});
+
+test("an old, broken or orphaned focused workout record is ignored instead of reopening", async () => {
+  const app = await openApp();
+  const frames = [];
+  try {
+    const key = `${app.storage}-focus`;
+    const record = (overrides) => ({ routineId: "r1", index: 0, startedAt: Date.now(), entryIds: [], records: 0, date: "2020-01-09", ...overrides });
+    const cases = {
+      "left behind 13 hours ago": JSON.stringify(record({ startedAt: Date.now() - 13 * 3600 * 1000 })),
+      "for a routine that no longer exists": JSON.stringify(record({ routineId: "gone" })),
+      "with a broken date": JSON.stringify(record({ date: "tomorrow" })),
+      "that is not valid JSON": "{not json",
+    };
+    for (const [name, value] of Object.entries(cases)) {
+      localStorage.setItem(key, value);
+      const again = await reopenApp(app);
+      frames.push(again);
+      if (isShown(again.doc.getElementById("focus"))) throw new Error(`a record ${name} should not reopen the workout`);
+      if (localStorage.getItem(key) !== null) throw new Error(`a record ${name} should be cleared`);
+    }
+    // A good record does reopen, and an index past the end of the routine stays inside it.
+    localStorage.setItem(key, JSON.stringify(record({ index: 9 })));
+    const again = await reopenApp(app);
+    frames.push(again);
+    assertEqual(again.doc.getElementById("focus-exercise").innerText.trim(), "Overhead Press", "an index past the end:");
+  } finally {
+    for (const frame of frames) frame.frame.remove();
     closeApp(app);
   }
 });
