@@ -1824,6 +1824,58 @@ test("a focused workout starts at the routine's first exercise not done yet, and
   }
 });
 
+test("the focused workout summary can be shared as text, or copied when the phone has no share sheet", async () => {
+  const app = await openApp();
+  try {
+    const doc = app.doc;
+    const byId = (id) => doc.getElementById(id);
+    const nav = app.win.navigator;
+    chooseDay(app, "2020-01-09");
+    byId("routine-select").value = "r1";
+    fireEvent(byId("routine-select"), "change");
+    byId("focus-start").click();
+    byId("focus-weight").value = "100";
+    byId("focus-reps").value = "8";
+    byId("focus-done").click();
+    byId("focus-next").click();
+    byId("focus-next").click();
+    if (!isShown(byId("focus-share"))) throw new Error("the summary should offer Share summary");
+
+    const shared = [];
+    Object.defineProperty(nav, "share", { configurable: true, value: async (data) => shared.push(data.text) });
+    byId("focus-share").click();
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    assertEqual(shared.length, 1, "shared once:");
+    for (const expected of ["Push", "Sets: 1", "Volume: 800 lb", "Bench Press: 100×8 lb"]) {
+      if (!shared[0].includes(expected)) throw new Error(`the shared text should include "${expected}": ${shared[0]}`);
+    }
+
+    // With no share sheet, the same text is copied and the app says so.
+    Object.defineProperty(nav, "share", { configurable: true, value: undefined });
+    const copied = [];
+    Object.defineProperty(nav, "clipboard", { configurable: true, value: { writeText: async (text) => copied.push(text) } });
+    byId("focus-share").click();
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    assertEqual(copied, [shared[0]], "copied the same text:");
+    if (!byId("toast").innerText.includes("copied")) throw new Error(`the app should say it copied: "${byId("toast").innerText}"`);
+
+    // Backing out of the share sheet is not an error.
+    Object.defineProperty(nav, "share", {
+      configurable: true,
+      value: async () => {
+        throw new DOMException("cancelled", "AbortError");
+      },
+    });
+    byId("toast").textContent = "";
+    byId("focus-share").click();
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    if (byId("toast").innerText.includes("Could not")) throw new Error("cancelling the share sheet should not show an error");
+    if (app.errors.length) throw new Error(`the app raised errors: ${app.errors.join("; ")}`);
+  } finally {
+    closeApp(app);
+  }
+});
+
 // Picks a file in the backup chooser and waits until the app has answered: either the panel with the
 // choices, or an error message. Reading a file takes a moment, so this waits for the answer instead of
 // guessing how long it takes.

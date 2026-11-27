@@ -1176,12 +1176,30 @@ function showFocusSummary() {
     ...exercises.map((name) => `${exerciseLabel(name)}: ${groupedSetsText(sets.filter((e) => e.exercise === name))} ${state.unit}`),
   ];
   $("focus-summary-list").replaceChildren(...lines.map((line) => el("li", "", line)));
+  focus.summaryText = [t("focus.shareHeading", { routine: focusRoutine().name, date: I18n.formatDate(focusDate()) }), ...lines].join("\n");
   $("focus-step").classList.add("hidden");
   // Back to Log does what Exit would, so only one way out shows.
   $("focus-exit").classList.add("hidden");
   $("focus-summary").classList.remove("hidden");
   $("focus-position").textContent = focusRoutine().name;
   $("focus").scrollTop = 0;
+}
+
+// Sends the summary as text through the phone's share sheet, or copies it where there is none.
+async function onFocusShare() {
+  const text = focus.summaryText;
+  try {
+    if (navigator.share) {
+      await navigator.share({ text });
+    } else {
+      await navigator.clipboard.writeText(text);
+      showToast(t("focus.copied"));
+    }
+  } catch (error) {
+    // Closing the share sheet without choosing anything is not a failure.
+    if (error && error.name === "AbortError") return;
+    showToast(t("focus.shareFailed"));
+  }
 }
 
 // Leaving keeps every set: they were saved as they were logged.
@@ -3407,6 +3425,7 @@ function init() {
   $("focus-start").addEventListener("click", startFocus);
   $("focus-exit").addEventListener("click", closeFocus);
   $("focus-summary-close").addEventListener("click", closeFocus);
+  $("focus-share").addEventListener("click", onFocusShare);
   $("focus-done").addEventListener("click", onFocusDone);
   $("focus-prev").addEventListener("click", () => showFocusExercise(focus.index - 1));
   $("focus-next").addEventListener("click", onFocusNext);
